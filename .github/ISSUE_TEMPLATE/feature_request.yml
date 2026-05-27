@@ -1,0 +1,45 @@
+name: Feature or idea
+description: Suggest an improvement — start with the problem, not a prescribed fix.
+title: "[Idea]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        backlogd issues describe **the problem and what "better" looks like — not a prescribed fix**. That mirrors how the tool works, so lead with the problem and let the solution stay open.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's the problem?
+      description: What are you trying to do that backlogd makes hard, slow, or impossible today?
+      placeholder: When I ..., I have to ... because ...
+    validations:
+      required: true
+  - type: textarea
+    id: better
+    attributes:
+      label: What would "better" look like?
+      description: Describe the outcome you want. A concrete solution is welcome but optional — the problem and the outcome matter most.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives or workarounds
+      description: Anything you've tried or considered, and why it falls short.
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else?
+      description: Extra context, examples, or links.
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and didn't find a duplicate.
+          required: true
