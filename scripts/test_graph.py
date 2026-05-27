@@ -5,12 +5,15 @@ Each test redirects the store to a fresh temp dir via BACKLOGD_GRAPH_DIR, so no
 .backlogd/ directory is created in the working tree.
 """
 
+import contextlib
+import io
 import json
 import os
 import pathlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 # Make `import graph` work regardless of how this file is invoked.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -76,6 +79,60 @@ class GraphCoreTest(unittest.TestCase):
         self.assertIsInstance(data, list)
         self.assertEqual(data[0]["v"], "backlogd/v1")
         self.assertEqual(data[0]["session"], session)
+
+
+class GraphCliTest(unittest.TestCase):
+    """The emit / prior-work CLI subcommands added for the scrum-master wiring (#266)."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        os.environ["BACKLOGD_GRAPH_DIR"] = str(pathlib.Path(self._tmp.name) / "graph")
+
+    def tearDown(self):
+        os.environ.pop("BACKLOGD_GRAPH_DIR", None)
+        self._tmp.cleanup()
+
+    def test_emit_cli_writes_solves_and_touches(self):
+        rc = graph.main(["emit", "--session", "s1", "--problem", "NB-9",
+                         "--files", "a.py", "b.py"])
+        self.assertEqual(rc, 0)
+        edges = graph.read_graph()
+        self.assertEqual(sum(1 for e in edges if e["type"] == "solves"), 1)
+        self.assertEqual(
+            sorted(e["tgt"] for e in edges if e["type"] == "touches"),
+            ["module:a.py", "module:b.py"],
+        )
+
+    def test_emit_cli_reads_files_from_stdin(self):
+        with mock.patch("sys.stdin", io.StringIO("x.py\ny.py\n")):
+            rc = graph.main(["emit", "--session", "s2", "--problem", "NB-7", "--stdin"])
+        self.assertEqual(rc, 0)
+        touched = sorted(e["tgt"] for e in graph.read_graph() if e["type"] == "touches")
+        self.assertEqual(touched, ["module:x.py", "module:y.py"])
+
+    def test_prior_work_empty_store_prints_nothing(self):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = graph.main(["prior-work", "--problem", "NB-1"])
+        self.assertEqual(rc, 0)
+        self.assertEqual(buf.getvalue().strip(), "")
+
+    def test_prior_work_reports_history_and_neighbours(self):
+        # NB-1's session touched shared.py + only1.py; NB-2's session touched shared.py.
+        graph.write_edges("s-a", [graph.solves_edge("s-a", "NB-1"),
+                                  graph.touches_edge("s-a", "shared.py"),
+                                  graph.touches_edge("s-a", "only1.py")])
+        graph.write_edges("s-b", [graph.solves_edge("s-b", "NB-2"),
+                                  graph.touches_edge("s-b", "shared.py")])
+        lines = graph.prior_work("NB-1")
+        self.assertTrue(any("previously touched" in ln and "shared.py" in ln for ln in lines))
+        self.assertTrue(any("NB-2" in ln for ln in lines))
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            graph.main(["prior-work", "--problem", "NB-1"])
+        out = buf.getvalue()
+        self.assertIn("## Prior work", out)
+        self.assertIn("NB-2", out)
 
 
 if __name__ == "__main__":

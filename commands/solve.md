@@ -33,6 +33,10 @@ Resolve the team, its workflow states, and labels at runtime, and cache them. Re
 
 Never hard-code a display name.
 
+Also **mint a session id for this run** and remember it as `$SESSION` — the graph steps below
+use it to tie this run to the problem and the files touched. Make it unique to this problem +
+run, e.g. `solve-{identifier}-$(date -u +%Y%m%dT%H%M%S)` (the issue's git branch name works too).
+
 ## 2. Pick one problem
 
 If the user named an issue (`/backlogd:solve NB-123`), take that one. Otherwise pick the top
@@ -69,10 +73,17 @@ units in dependency order; never start a unit whose blockers are still open.
 For each ready unit, in dependency order:
 
 1. **Claim it** — move the unit to the *In Progress* state (resolved in step 1).
-2. **Dispatch the developer** — call the `backlogd:developer` subagent with the Agent tool,
-   handing it the unit as an **inline** context envelope, including the unit's **issue id** so it
-   can post its own progress there. It owns the *how* and narrates progress on its own issue; you
-   own all structure and state:
+2. **Dispatch the developer** — first, **inject prior work**: query the graph so the developer
+   starts with the memory of how related problems and files were handled before (best-effort — a
+   graph failure must never block the dispatch):
+
+       python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" prior-work --problem {identifier}
+
+   If it prints a `## Prior work` block, paste it verbatim into the envelope below; if it prints
+   nothing, omit that section — there is no related history. Then call the `backlogd:developer`
+   subagent with the Agent tool, handing it the unit as an **inline** context envelope, including
+   the unit's **issue id** so it can post its own progress there. It owns the *how* and narrates
+   progress on its own issue; you own all structure and state:
 
    > Solve this problem. Take a concrete action toward resolving it, post your progress to your
    > issue, then report what you did and the outcome.
@@ -80,6 +91,8 @@ For each ready unit, in dependency order:
    > Problem ({identifier}, issue id {id}): {title}
    >
    > {description, including its Acceptance Criteria}
+   >
+   > {the `## Prior work` block from the query above — include only if it printed one}
 
 3. **Capture** the developer's final structured summary verbatim.
 4. **Confirm its record** — the developer posts its own progress/result comment on the unit issue
@@ -89,6 +102,17 @@ For each ready unit, in dependency order:
 5. **Transition the unit** by the developer's reported `Outcome`:
    - `solved` → move the unit to a `completed` state.
    - `partial` or `blocked` → **leave it in progress** and treat it as a blocker (step 6).
+
+**Record to the graph** (report-time emit — best-effort, never blocks the loop): once the unit is
+handled, capture the files its developer touched and append `session→solves→problem` +
+`session→touches→file` edges, using the `$SESSION` minted in step 1:
+
+    { git diff --name-only; git ls-files --others --exclude-standard; } \
+        | python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" emit \
+            --session "$SESSION" --problem {identifier} --stdin
+
+`git diff --name-only` is the touched-files signal; `ls-files --others` adds any new files the
+developer created. Ignore any error — a graph write must never interrupt solving.
 
 ## 6. Pause only when something needs the product owner
 
@@ -137,5 +161,6 @@ Tell the user what happened, end to end:
 {identifier} — {title}
   units    -> {n} solved{, k blocked}
   results  -> recorded on each unit
+  graph    -> session→solves/touches recorded (best-effort)
   problem  -> In Review (solution brief posted)  |  paused: {blocker}
 ```
