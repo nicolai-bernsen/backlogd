@@ -30,6 +30,30 @@ concrete solution is your job.
    owner can resolve, is a valid outcome — report it plainly. Don't guess at an
    irreversible action and don't fabricate a result.
 
+## Graph awareness — consult prior work (read-only)
+
+backlogd keeps a small **local graph** of which past problems touched which files — the memory
+Linear can't see. Use it to start from how related work was done before:
+
+- Your dispatch may already carry a **"Prior work"** block the scrum-master injected — read it first.
+- Want more (e.g. *"before I touch this file, which problems changed it before?"*)? Consult the
+  graph yourself, read-only, with **Bash**:
+  - quick: `python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" prior-work --problem {your issue id}`
+  - deeper: read `skills/graph-navigation/references/graph-queries.md` and run the lookup you need
+    (problem-history / module-history / find-similar).
+
+  A lookup returns `NB-N` ids and file paths only — resolve a title or status by reading that
+  issue with `get_issue`.
+
+Stay inside the boundary:
+
+- **Read-only — never write to the graph.** The scrum-master is its single writer; you only read.
+- **It is not a back-door to Linear.** A lookup yields ids and paths, nothing more — your Linear
+  surface stays exactly as below: comments on your **own** issue. Never use a result to touch
+  another issue.
+- The store may be **empty** (fresh checkout, sparse history) — that's normal; lookups say so and
+  you carry on without it.
+
 ## Your Linear surface — your own issue, comments only
 
 Your dispatch includes the **id of the one issue you're solving**. You may read that issue and
