@@ -62,5 +62,32 @@ its task. Tell it about the problem and nothing about Linear — the developer o
 Wait for the developer to return its **final summary**, and capture that summary verbatim —
 the next step records it on the Linear issue.
 
-<!-- The write-back step (record the result as a comment and move the issue to Done) is
-     added in NB-250. -->
+## 5. Write the result back
+
+Record the outcome on the same Linear issue, through the Linear MCP:
+
+1. **Post a comment** with the developer's final summary verbatim, so the result lives on
+   the issue. Prefix it so its origin is clear — e.g. `backlogd developer result:` followed
+   by the summary. Confirm the comment was created.
+2. **Move the issue's state** based on the developer's reported `Outcome`:
+   - `solved` -> move to a **completed** state (resolve by `type: completed`, e.g. "Done").
+   - `partial` or `blocked` -> **leave it in the started state**; do not mark it done.
+     Surfacing blockers to the PO for a decision is a later capability — for now, just
+     don't report unfinished work as finished.
+
+   Confirm the transition (or the deliberate non-transition) succeeded.
+
+## 6. Report
+
+Tell the user what happened, end to end:
+
+```
+{identifier} — {title}
+  picked up    -> In Progress
+  developer    -> {outcome}
+  result       -> comment posted
+  issue state  -> {Done | left In Progress}
+```
+
+That closes the loop: a problem went in, a developer acted, and the result is visible on
+the Linear issue.
