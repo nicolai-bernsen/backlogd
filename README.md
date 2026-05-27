@@ -95,6 +95,7 @@ is visible on the issue — no spec, no step-by-step.
 agents/           subagent definitions (the developer)
 commands/         slash commands — scope + solve (the scrum-master)
 skills/           reusable skill playbooks (see skills/linear — how backlogd uses Linear)
+docs/             living spec — how backlogd works and the conventions for working in it
 hooks/            lifecycle hooks
 .github/          continuous integration
 ```
