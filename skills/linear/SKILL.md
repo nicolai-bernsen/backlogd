@@ -64,8 +64,10 @@ grant (`get_issue` / `list_comments` / `save_comment` only; see `agents/develope
   progress graph and health) — never a burndown.
 - **Engagement = Initiative.** A consulting engagement is a Linear **Initiative** that groups
   that engagement's problem-**Projects** (an Initiative is a hand-curated list of Projects).
-  Name it for the engagement. 🎯 **Target — not yet wired:** auto-creating or attaching the
-  Initiative is a follow-on; until then refer to it by name and don't fail if it's absent.
+  Name it for the engagement. **Create/attach the Initiative manually** — the official MCP has
+  **no initiative-write tool** (Initiatives are only a *parent reference* on `save_comment` /
+  `save_document`), so auto-attaching isn't possible via backlogd's key-free MCP path. Refer to
+  it by name and don't fail if it's absent.
 
 ## Mapping a problem onto Linear — default-Issue, promote-on-discovery
 
@@ -111,8 +113,8 @@ See `references/linear-model.md` for what Projects, Milestones, and relations *m
 
 ## Who does what — the responsibility split
 
-The scrum-master is a small set of commands: `scope` and `solve` own every Linear write;
-`status` only observes.
+The scrum-master is a small set of commands: `scope`, `solve`, and `review` write to Linear
+(structure and state); `status` only observes.
 
 **`/backlogd:scope` (shape)** makes a problem execution-ready:
 
@@ -139,6 +141,14 @@ The scrum-master is a small set of commands: `scope` and `solve` own every Linea
   their decomposition, states, and `blocked-by`, and **report** progress + blockers to the
   product owner — enacting "Progress signals the scrum-master reads" and "Blockers & stall
   detection" below. It never transitions state or dispatches.
+
+**`/backlogd:review` (gate)** closes a solved problem's loop:
+
+- **Verify** an *In Review* problem against its `## Acceptance Criteria` — from the developer's
+  result and the artifacts — and post a per-AC verdict.
+- **Decide**: all met → `completed` (Done); gaps → back to *In Progress* with actionable rework
+  notes (a fresh `solve` re-runs them); a genuine judgement call → leave it *In Review* and ask
+  the product owner. It does not re-dispatch.
 
 **Developer (`backlogd:developer`)** owns the *work inside one issue* — and writes **only
 comments on its assigned issue**:

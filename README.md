@@ -82,8 +82,9 @@ The first slice proves the whole loop with one command. From a clean checkout:
    - the issue moves **Backlog → In Progress**,
    - a `backlogd:developer` agent picks up the problem and takes a concrete action,
    - its result is recorded as a **comment** on the issue,
-   - and the issue moves to **In Review** with a high-level solution brief — you accept it to
-     **Done** on your own time (or it pauses for you if the developer hits a blocker).
+   - and the issue moves to **In Review** with a high-level solution brief — accept it to
+     **Done** yourself, or run **`/backlogd:review`** to check it against its acceptance criteria
+     and accept or send it back (it pauses for you if the developer hits a blocker).
 
 That's the contract: you described a problem, an agent owned the solution, and the result
 is visible on the issue — no spec, no step-by-step.
@@ -96,7 +97,7 @@ active problems, with nothing changed.
 ```
 .claude-plugin/   plugin + marketplace manifests
 agents/           subagent definitions (the developer)
-commands/         slash commands — scope + solve + status (the scrum-master)
+commands/         slash commands — scope + solve + status + review (the scrum-master)
 skills/           reusable skill playbooks (see skills/linear — how backlogd uses Linear)
 docs/             living spec — how backlogd works and the conventions for working in it
 hooks/            lifecycle hooks
