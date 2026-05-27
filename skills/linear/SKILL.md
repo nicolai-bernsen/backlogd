@@ -10,8 +10,8 @@ OAuth — no API keys). This skill is the shared operating model every backlogd 
 follows: how a *problem* maps onto Linear, who reads and writes what, and the rules that
 keep automated work correct.
 
-It is **runtime guidance** for backlogd's own agents — the `/backlogd:pull` scrum-master
-and the `backlogd:developer`.
+It is **runtime guidance** for backlogd's own agents — the `/backlogd:scope` +
+`/backlogd:solve` scrum-master commands and the `backlogd:developer`.
 
 > **Read this file first; reach for a reference when you act:**
 >
@@ -36,9 +36,10 @@ that's true, it is flagged inline:
 
 The biggest one: **developers writing to Linear.** In the target model the developer agent
 manages its own work in Linear (sub-issues, progress, blockers). **Today the
-`backlogd:developer` agent does not touch Linear at all** — the `/backlogd:pull`
-scrum-master owns every Linear read and write (see `agents/developer.md`). Read the
-developer-side actions below as the target a follow-on wires up, not current behaviour.
+`backlogd:developer` agent does not touch Linear at all** — the scrum-master commands
+(`/backlogd:scope` + `/backlogd:solve`) own every Linear read and write (see
+`agents/developer.md`). Read the developer-side actions below as the target a follow-on wires
+up, not current behaviour.
 
 ## The standing structure
 
@@ -61,9 +62,10 @@ developer-side actions below as the target a follow-on wires up, not current beh
 - **Continuous flow — no Cycles.** Problems are pulled on demand; backlogd does not run
   time-boxed sprints in the core loop. Read progress from states (and, for Projects, the
   progress graph and health) — never a burndown.
-- 🎯 **Target:** solved problems are grouped under **one Initiative** (placeholder name:
-  **"backlogd — Solved Problems"**). Creating it is a follow-on — until it exists, refer to
-  it by that name and don't fail if it's absent.
+- **Engagement = Initiative.** A consulting engagement is a Linear **Initiative** that groups
+  that engagement's problem-**Projects** (an Initiative is a hand-curated list of Projects).
+  Name it for the engagement. 🎯 **Target — not yet wired:** auto-creating or attaching the
+  Initiative is a follow-on; until then refer to it by name and don't fail if it's absent.
 
 ## Mapping a problem onto Linear — default-Issue, promote-on-discovery
 
@@ -109,15 +111,26 @@ See `references/linear-model.md` for what Projects, Milestones, and relations *m
 
 ## Who does what — the responsibility split
 
-**Scrum-master (`/backlogd:pull`)** owns the *problem boundary*:
+The scrum-master is **two staged commands**; together they own every Linear write.
 
-- **Pickup** — find the next `problem`-labelled issue; resolve identity (team, states,
-  labels) first; order candidates by state (prefer `started`/`unstarted` over `backlog`)
-  then priority.
-- **Claim** — move the problem to a `started` state and assign it.
-- **Dispatch** the developer.
-- **Problem-level state** — move the problem to `completed` when solved; surface blockers
-  to the product owner for a decision.
+**`/backlogd:scope` (shape)** makes a problem execution-ready:
+
+- **Pick** a `problem`-labelled issue (or an explicit id).
+- **Write the spec + `## Acceptance Criteria`** into the description — the canonical "shaped"
+  signal `/backlogd:solve` looks for.
+- **Decompose on discovery** — sub-issues + `blocked-by`, or promote to a Project — only as
+  much as the problem earns.
+- **Set priority**, then stop. No solving, no state change.
+
+**`/backlogd:solve` (execute)** drives a shaped problem to a result:
+
+- **Pickup** — take the top `problem` (resolve identity first; order by state then priority),
+  or triage-if-unshaped by running scope's flow inline.
+- **Claim** — move each ready unit to the *In Progress* state.
+- **Dispatch** the developer per unit in `blocked-by` order; record each result in place.
+- **Hand back** — when solved, post a high-level PO-facing solution brief and move the problem
+  to *In Review* (the PO accepts → `completed` on their own time). Surface blockers to the
+  product owner; never guess past one.
 
 **Developer (`backlogd:developer`)** owns the *work inside the problem*:
 
