@@ -1,0 +1,9 @@
+# Normalize all text files to LF in the repository.
+# Keeps shell heredocs in CI and scripts working across platforms.
+* text=auto eol=lf
+
+# Treat common binaries as binary (no EOL conversion, no diff).
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary

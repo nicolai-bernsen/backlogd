@@ -1,0 +1,17 @@
+{
+  "name": "backlogd",
+  "version": "0.0.1",
+  "description": "Turn Claude Code into a problem-driven scrum team: file problems in Linear, let agents own the solutions.",
+  "author": {
+    "name": "Nicolai Bernsen"
+  },
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "linear",
+    "scrum",
+    "agents",
+    "product-management",
+    "orchestration"
+  ]
+}

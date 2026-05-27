@@ -1,0 +1,13 @@
+{
+  "name": "backlogd",
+  "owner": {
+    "name": "Nicolai Bernsen"
+  },
+  "plugins": [
+    {
+      "name": "backlogd",
+      "source": "./",
+      "description": "Turn Claude Code into a problem-driven scrum team."
+    }
+  ]
+}

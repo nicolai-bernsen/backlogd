@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    name: Validate plugin + hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate plugin manifest
+        run: |
+          python3 - <<'PY'
+          import json
+          with open('.claude-plugin/plugin.json') as f:
+              manifest = json.load(f)
+          assert manifest.get('name'), "plugin.json must declare a non-empty 'name'"
+          print(f"plugin.json OK — name={manifest['name']} version={manifest.get('version', '-')}")
+          PY
+
+      - name: Validate marketplace manifest
+        run: |
+          python3 - <<'PY'
+          import json
+          with open('.claude-plugin/marketplace.json') as f:
+              market = json.load(f)
+          assert market.get('plugins'), "marketplace.json must list at least one plugin"
+          print(f"marketplace.json OK — {len(market['plugins'])} plugin(s)")
+          PY
+
+      - name: Check required hygiene files
+        run: |
+          missing=0
+          for f in LICENSE README.md CONTRIBUTING.md SECURITY.md .gitignore; do
+            if [ ! -f "$f" ]; then
+              echo "Missing required file: $f"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then exit 1; fi
+          echo "All required hygiene files present"
