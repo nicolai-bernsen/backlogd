@@ -33,14 +33,12 @@ expect rough edges and breaking changes as the agent roster and blocker-surfacin
 
 ## Install
 
-backlogd is a Claude Code plugin. Once the first slice lands:
+backlogd is a Claude Code plugin. Add the marketplace, then install it:
 
 ```
 /plugin marketplace add nicolai-bernsen/backlogd
 /plugin install backlogd
 ```
-
-For now, clone the repo and explore.
 
 ## Setup
 
