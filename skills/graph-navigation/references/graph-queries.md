@@ -48,7 +48,7 @@ def _file(node):     # "module:scripts/x.py" -> "scripts/x.py"
     return node[len("module:"):] if node.startswith("module:") else node
 
 def _problem(node):  # "problem:linear:NB-9" -> "NB-9"
-    return node.split(":")[-1] if node.startswith("problem:") else node
+    return node[len("problem:linear:"):] if node.startswith("problem:linear:") else node
 ```
 
 ## 1. problem-history — *which files did problem X touch?*
