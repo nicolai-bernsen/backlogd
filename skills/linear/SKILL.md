@@ -175,7 +175,8 @@ backlogd lands a problem's work on **one branch → one PR**, and the **orchestr
 - **State follows git** where the integration is set up: branch push → In Progress, PR → In
   Review, merge → Done (see `references/linear-mcp.md`); set state via the API only when there is
   no git event.
-- Promoting the integration branch to a release (`dev → main` + tag) is **manual for now**.
+- Promoting the integration branch to a release (`dev → main` + tag) is **`/backlogd:release`** —
+  it bumps the plugin version, merges with a merge commit, tags `vX.Y.Z`, and back-merges to re-sync.
 
 ## Blockers & stall detection
 
