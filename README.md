@@ -101,7 +101,7 @@ active problems, with nothing changed.
 ```
 .claude-plugin/   plugin + marketplace manifests
 agents/           subagent definitions (the developer)
-commands/         slash commands — scope + solve + status + review (the scrum-master)
+commands/         slash commands — scope + solve + status + review + release (the scrum-master)
 skills/           reusable skill playbooks (see skills/linear — how backlogd uses Linear)
 docs/             living spec — how backlogd works and the conventions for working in it
 hooks/            lifecycle hooks
