@@ -6,6 +6,10 @@
 
 # Claude Code local settings
 .claude/settings.local.json
+.claude/CLAUDE.md
+
+# SDD framework — local-only dogfooding scaffold (kept out of this clean-room repo)
+.dx/
 
 # Node
 node_modules/
