@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/nicolai-bernsen/backlogd/security/policy
+    about: Please report security issues privately — don't open a public issue.
