@@ -111,7 +111,8 @@ See `references/linear-model.md` for what Projects, Milestones, and relations *m
 
 ## Who does what — the responsibility split
 
-The scrum-master is **two staged commands**; together they own every Linear write.
+The scrum-master is a small set of commands: `scope` and `solve` own every Linear write;
+`status` only observes.
 
 **`/backlogd:scope` (shape)** makes a problem execution-ready:
 
@@ -131,6 +132,13 @@ The scrum-master is **two staged commands**; together they own every Linear writ
 - **Hand back** — when solved, post a high-level PO-facing solution brief and move the problem
   to *In Review* (the PO accepts → `completed` on their own time). Surface blockers to the
   product owner; never guess past one.
+
+**`/backlogd:status` (observe)** is **read-only** — it writes nothing:
+
+- **Survey** the active `problem` issues (optionally scoped to one problem or engagement), read
+  their decomposition, states, and `blocked-by`, and **report** progress + blockers to the
+  product owner — enacting "Progress signals the scrum-master reads" and "Blockers & stall
+  detection" below. It never transitions state or dispatches.
 
 **Developer (`backlogd:developer`)** owns the *work inside one issue* — and writes **only
 comments on its assigned issue**:
