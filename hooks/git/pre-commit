@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+# backlogd pre-commit hook — hard-blocks a commit made under the wrong git identity.
+#
+# Activated by `git config core.hooksPath hooks/git` (run hooks/install-git-hooks.sh).
+# Being repo config, it applies in every worktree/clone of this repo and cannot be
+# bypassed by a path-mismatched worktree. Delegates to the shared identity guard;
+# a non-zero exit aborts the commit.
+
+root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+guard="$root/hooks/check-git-identity.sh"
+
+if [ -f "$guard" ]; then
+  if ! sh "$guard"; then
+    printf 'backlogd: commit blocked by the git-identity guard (see above).\n' >&2
+    exit 1
+  fi
+fi
+exit 0

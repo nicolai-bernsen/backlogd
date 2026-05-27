@@ -21,6 +21,25 @@ This repo is a Claude Code plugin. The pieces live in conventional directories:
 - `hooks/` — lifecycle hooks
 - `.claude-plugin/plugin.json` — the manifest
 
+### Git identity guard (run once)
+
+backlogd ships a git **identity guard** so a commit never lands under the wrong identity —
+the failure mode behind #301, where a worktree whose path doesn't match a personal
+`includeIf` silently falls back to a global/work email. Arm it once per checkout:
+
+```sh
+sh hooks/install-git-hooks.sh you@example.com
+```
+
+That points `core.hooksPath` at the committed `hooks/git/` and records your address in
+`git config backlogd.expectedEmail`. From then on a commit whose `user.email` doesn't
+match is **hard-blocked** by `hooks/git/pre-commit`, and each Claude Code session **warns**
+on a mismatch via the plugin's SessionStart hook. The guard is a no-op until
+`backlogd.expectedEmail` is set, so it never interferes with other repos.
+
+> Running concurrent Claude Code sessions? Give each its **own checkout** (a dedicated
+> `git clone`), never a shared one — see #301.
+
 ## Branching & releases
 
 backlogd uses a **`feature → dev → main`** flow:
