@@ -88,13 +88,17 @@ The first slice proves the whole loop with one command. From a clean checkout:
 That's the contract: you described a problem, an agent owned the solution, and the result
 is visible on the issue — no spec, no step-by-step.
 
+Run **`/backlogd:status`** any time for a read-only standup — progress and blockers across your
+active problems, with nothing changed.
+
 ## Layout
 
 ```
 .claude-plugin/   plugin + marketplace manifests
 agents/           subagent definitions (the developer)
-commands/         slash commands — scope + solve (the scrum-master)
+commands/         slash commands — scope + solve + status (the scrum-master)
 skills/           reusable skill playbooks (see skills/linear — how backlogd uses Linear)
+docs/             living spec — how backlogd works and the conventions for working in it
 hooks/            lifecycle hooks
 .github/          continuous integration
 ```

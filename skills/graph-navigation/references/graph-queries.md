@@ -149,3 +149,9 @@ else:
 - **Resolve details in Linear.** A lookup returns `NB-N` ids and file paths only. To get a
   problem's title/status, read it in Linear via the MCP (see the `linear` skill) — keep the
   graph query itself offline.
+- **Programmatic counterparts.** The same logic is exposed as CLI subcommands on
+  `scripts/graph.py` for the scrum-master loop: `prior-work --problem NB-N` prints a
+  ready-to-inject "Prior work" block (problem-history + find-similar) or nothing when there's no
+  history, and `emit --session S --problem NB-N --stdin` appends `solves`/`touches` edges from
+  piped file paths. Both are best-effort (always exit 0). See `commands/solve.md` for how they
+  wire into the loop.
