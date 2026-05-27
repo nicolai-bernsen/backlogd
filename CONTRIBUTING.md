@@ -33,7 +33,8 @@ Enforced on the repo:
 
 - PRs into `dev` require passing CI before merge.
 - `main` requires a reviewed PR (maintainers release via an admin merge).
-- Merges are **squash-only**; the feature branch is **auto-deleted** on merge.
+- **`feature → dev`** PRs are **squash-merged**, and the feature branch is **auto-deleted** on merge.
+- **`dev → main`** releases use a **merge commit** (never squash), so `main` stays a descendant of `dev` and the two never drift; **`dev` is never deleted**.
 
 ### Releasing
 
@@ -41,7 +42,7 @@ Releases promote `dev → main`:
 
 1. Open a PR from `dev` into `main`.
 2. Bump `version` in `.claude-plugin/plugin.json` (semver) — required, or Claude Code's plugin cache hides the update.
-3. Merge to `main` and tag the release (`vX.Y.Z`).
+3. Merge to `main` with a **merge commit** (not squash — squashing a long-lived branch makes `dev` and `main` drift apart), then tag the release (`vX.Y.Z`). Leave `dev` in place.
 
 This keeps `main` clean and versioned for everyone installing from the marketplace.
 
