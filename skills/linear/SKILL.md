@@ -34,12 +34,12 @@ that's true, it is flagged inline:
 
 > 🎯 **Target — not yet wired.** …
 
-The biggest one: **developers writing to Linear.** In the target model the developer agent
-manages its own work in Linear (sub-issues, progress, blockers). **Today the
-`backlogd:developer` agent does not touch Linear at all** — the scrum-master commands
-(`/backlogd:scope` + `/backlogd:solve`) own every Linear read and write (see
-`agents/developer.md`). Read the developer-side actions below as the target a follow-on wires
-up, not current behaviour.
+It once was **developers writing to Linear** — now **wired, hybrid**: the `backlogd:developer`
+writes **comments on its own assigned issue** (one progress/result comment edited in place, plus
+a personal checklist and any blocker note) and nothing else. It does **not** create sub-issues,
+set relations, or change state — the scrum-master commands (`/backlogd:scope` +
+`/backlogd:solve`) own all structure and state. The boundary is enforced by the developer's tool
+grant (`get_issue` / `list_comments` / `save_comment` only; see `agents/developer.md`).
 
 ## The standing structure
 
@@ -132,23 +132,19 @@ The scrum-master is **two staged commands**; together they own every Linear writ
   to *In Review* (the PO accepts → `completed` on their own time). Surface blockers to the
   product owner; never guess past one.
 
-**Developer (`backlogd:developer`)** owns the *work inside the problem*:
+**Developer (`backlogd:developer`)** owns the *work inside one issue* — and writes **only
+comments on its assigned issue**:
 
-> 🎯 **Target — not yet wired.** Today the scrum-master performs any Linear writes on the
-> developer's behalf; the developer agent itself does not call Linear.
+- **Progress** — keep **one** summary comment on its issue, edited in place (a
+  `**[backlogd developer]**` badge), with a personal checklist of its steps.
+- **Blockers** — name a blocker in that comment and report it back; the scrum-master models it
+  structurally and surfaces it to the product owner.
 
-- **Decompose visibly** — create sub-issues (or, in the Project form, issues) via
-  `save_issue` with `parentId`, so the breakdown is real in Linear rather than only in the
-  agent's head.
-- **Dependencies** — set `blocks` / `blocked-by` between those issues.
-- **Progress** — move its issues through the workflow; keep **one** agent-owned summary
-  comment, edited in place; in the Project form, post **Project Updates with a health
-  value**.
-- **Blockers** — model a real blocker as `blocked-by`, and name it in the summary comment.
-- **Duplicates** — mark with `duplicateOf` (never delete the rediscovered work).
-
-**Canceled** is set by the scrum-master / product owner when a problem is abandoned — not
-by the developer.
+The developer does **not** create sub-issues, set relations, move workflow state, mark
+duplicates, or touch any other issue — these are **orchestrator-owned**: `scope` creates
+sub-issues + `blocked-by` and promotes Projects; `solve` transitions state, posts the PO
+solution brief, and sets `duplicateOf` / **Canceled**. The split is enforced by the developer's
+tool grant (`get_issue` / `list_comments` / `save_comment` only).
 
 ## Blockers & stall detection
 
