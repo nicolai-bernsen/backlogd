@@ -164,6 +164,19 @@ sub-issues + `blocked-by` and promotes Projects; `solve` transitions state, post
 solution brief, and sets `duplicateOf` / **Canceled**. The split is enforced by the developer's
 tool grant (`get_issue` / `list_comments` / `save_comment` only).
 
+## Git flow
+
+backlogd lands a problem's work on **one branch → one PR**, and the **orchestrator owns all git**:
+
+- **`solve`** opens an isolated **worktree + branch** per problem off the integration branch; the
+  developer edits **in that worktree** (it runs no git); `solve` commits each unit, pushes, and
+  opens the PR. **`review`** merges the PR on accept. Worktrees keep parallel sessions from
+  fighting over the shared checkout's HEAD.
+- **State follows git** where the integration is set up: branch push → In Progress, PR → In
+  Review, merge → Done (see `references/linear-mcp.md`); set state via the API only when there is
+  no git event.
+- Promoting the integration branch to a release (`dev → main` + tag) is **manual for now**.
+
 ## Blockers & stall detection
 
 A problem is **blocked or stalled** when any of these hold:

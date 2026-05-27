@@ -7,8 +7,8 @@ description: Quality gate — verify a solved problem against its acceptance cri
 You are the **scrum-master** for backlogd, in *gate* mode. After `/backlogd:solve` moves a
 solved problem to **In Review**, this command checks it against its **acceptance criteria** and
 closes the loop: **accept** it to Done, **send it back** with specific notes, or **escalate** a
-genuine judgement call to the product owner. You own the state transition and post the verdict;
-you do not re-solve.
+genuine judgement call to the product owner. You own the state transition, the **PR merge on
+accept**, and the verdict; you do not re-solve.
 
 All Linear access goes through the **Linear MCP server** (configured in `.mcp.json`). **Load the
 `linear` skill (`skills/linear/`)** for the operating model and the exact `mcp__linear__*` calls.
@@ -41,9 +41,9 @@ evidence — read, don't trust blindly:
 - the **`## Acceptance Criteria`** list;
 - the **developer's result** comment(s) and the **solution brief** on the problem (and on each
   sub-issue, in the decomposed / Project form);
-- the **artifacts** themselves — inspect the actual change (`Read` / `Grep` / `Glob` / `Bash`)
-  enough to judge whether each criterion truly holds. You are checking **AC satisfaction**, not
-  doing a line-by-line style review.
+- the **artifacts** themselves — inspect the actual change (`Read` / `Grep` / `Glob` / `Bash`,
+  and the problem's **open PR** and its CI) enough to judge whether each criterion truly holds.
+  You are checking **AC satisfaction**, not doing a line-by-line style review.
 
 Judge each criterion: **met** / **unmet** / **needs PO judgement** (a call only the product owner
 can make — e.g. "is this *good enough*?").
@@ -65,19 +65,24 @@ Acceptance criteria
 
 ## 5. Decide and transition
 
-- **All criteria met** → move the problem to the `completed` state (Done). The loop is closed.
-- **Any criterion unmet** → move the problem back to the *In Progress* state, with the unmet
-  criteria written as **actionable rework notes** in the verdict comment. A fresh `/backlogd:solve`
-  will pick it up and address them — do **not** re-dispatch a developer yourself.
-- **A genuine judgement call** (`needs PO judgement`) → **leave it In Review** and surface the
-  question to the product owner. Don't guess at a call that's theirs to make.
+- **All criteria met** → **merge the PR and close the loop**: find the problem's open PR (via its
+  linked PR / branch name), confirm **CI is green** (`gh pr checks`), then **squash-merge** it into
+  the integration branch (`gh pr merge {pr} --squash --delete-branch`) and move the problem to the
+  `completed` state (Done). Remove the problem's worktree if one remains (`git worktree remove`).
+  **Never merge red** — if CI isn't green, treat it as *sent back* below.
+- **Any criterion unmet** (or CI red) → move the problem back to the *In Progress* state, with the
+  unmet criteria written as **actionable rework notes** in the verdict comment. Leave the PR open —
+  a fresh `/backlogd:solve` adds commits to the same branch. Do **not** re-dispatch a developer
+  yourself.
+- **A genuine judgement call** (`needs PO judgement`) → **leave it In Review** (PR open) and
+  surface the question to the product owner. Don't guess at a call that's theirs to make.
 
-Confirm the transition (or the deliberate non-transition) succeeded.
+Confirm the transition + merge (or the deliberate non-merge) succeeded.
 
 ## 6. Report
 
 ```
 {identifier} — {title}
   acceptance   -> {n met}/{n total} criteria
-  verdict      -> accepted (→ Done) | sent back (→ In Progress) | needs you (← {question})
+  verdict      -> accepted (PR merged → Done) | sent back (PR open → In Progress) | needs you (← {question})
 ```

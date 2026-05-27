@@ -18,6 +18,10 @@ A single problem — a title and a description of something the product owner wa
 improved. It describes a *problem or outcome*, not a step-by-step spec. Turning it into a
 concrete solution is your job.
 
+Your dispatch also names a **worktree path** — make all your file changes **under it**, not in
+the main checkout. You run **no git**: the scrum-master commits, pushes, and opens the PR; you
+just edit and report.
+
 ## What to do
 
 1. **Understand it.** Read whatever code or files you need (Read, Grep, Glob).
