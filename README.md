@@ -58,6 +58,10 @@ all Linear reads and writes; developer agents just solve and report.
 That's the prerequisite surface for the walking skeleton. File a problem, then point the
 orchestrator at your backlog.
 
+> **How backlogd uses Linear** — the operating model (how a problem maps to issues,
+> sub-issues, projects, and milestones) and the exact Linear MCP usage live in the
+> [`skills/linear/`](skills/linear/SKILL.md) skill.
+
 ## Try the walking skeleton
 
 The first slice proves the whole loop with one command. From a clean checkout:
@@ -86,7 +90,7 @@ is visible on the issue — no spec, no step-by-step.
 .claude-plugin/   plugin + marketplace manifests
 agents/           subagent definitions (scrum-master, developers)
 commands/         slash commands
-skills/           reusable skill playbooks
+skills/           reusable skill playbooks (see skills/linear — how backlogd uses Linear)
 hooks/            lifecycle hooks
 .github/          continuous integration
 ```

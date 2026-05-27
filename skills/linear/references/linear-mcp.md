@@ -1,0 +1,124 @@
+# Linear MCP usage — reference
+
+The exact `mcp__linear__*` tools backlogd uses and the rules that keep automated reads and
+writes correct. Read this **before every write**. For what the concepts mean, see
+[`linear-model.md`](linear-model.md); for the policy, see [`../SKILL.md`](../SKILL.md).
+
+> **Surface snapshot: 2026-05-27.** The Linear MCP server (configured in `.mcp.json` at the
+> repo root) can change upstream. Tool names and parameters below reflect that date.
+> **Re-verify** before relying on a parameter you haven't used recently: list the server's
+> tools (they surface as `mcp__linear__*`) and check the live parameter schema, and consult
+> Linear's own MCP documentation at the server URL in `.mcp.json`. Treat this file as a
+> guide, not a contract.
+
+## Tool surface (the subset backlogd uses)
+
+| Area | Tools | Key parameters |
+|---|---|---|
+| **Issues** | `list_issues`, `get_issue`, `save_issue`, `list_issue_statuses`, `get_issue_status` | `list_issues`: `label`, `state`, `team`, `project`, `parentId`, `priority`, `query`, `orderBy`, `limit`, `cursor`. `get_issue`: `id`, `includeRelations`. `save_issue`: see below. `list_issue_statuses`: `team` (required) → `[{id, type, name}]`. |
+| **Comments** | `list_comments`, `save_comment` | `list_comments`: `issueId`. `save_comment`: `body`, exactly one of `issueId`/`projectId`/`milestoneId`/…, `id` (to edit), `parentId` (to reply). |
+| **Projects** | `list_projects`, `get_project`, `save_project` | `list_projects`: `team`, `query`, `includeMilestones`. `save_project`: project fields incl. state/health (re-verify exact keys before writing — see "Project Updates & health"). |
+| **Milestones** | `list_milestones`, `get_milestone`, `save_milestone` | `list_milestones`: `project` (required). `save_milestone`: `name`, `project`, target date. |
+| **Labels** | `list_issue_labels`, `create_issue_label` | `list_issue_labels`: `team`, `name`. |
+| **Teams / users** | `list_teams`, `get_team`, `list_users`, `get_user` | `list_teams`: `query`. |
+| **Cycles** | `list_cycles` | `teamId` (required). **Not used in the core loop** (no cycles). |
+
+`save_issue` is the workhorse. Relevant parameters:
+
+- **Create vs update:** omit `id` → **create** (then `title` + `team` are required); pass
+  `id` → **partial update** (only the fields you pass change).
+- **Placement:** `team`, `project`, `parentId` (sub-issue), `cycle`, `milestone`,
+  `assignee` (id / name / email / `"me"`), `priority` (`0`–`4`), `labels` (names or ids),
+  `state` (type / name / id), `estimate`, `dueDate`.
+- **Relations (append-only):** `blockedBy`, `blocks`, `relatedTo` (arrays of identifiers);
+  `duplicateOf`; and the inverse removers `removeBlockedBy`, `removeBlocks`,
+  `removeRelatedTo`. Relations are set **on the issue** — there is no separate relation tool.
+- **`delegate`:** ignore — that's the Agents-platform surface, out of scope.
+
+## Load-bearing rules
+
+### 1. Resolve identity before you write
+
+State display names are team-scoped and customisable — there is no guaranteed "In
+Progress". Before any state change:
+
+1. `list_teams` → resolve the team (backlogd uses `Nicolai-bernsen`).
+2. `list_issue_statuses({ team })` → get `[{id, type, name}]`. **Match on `type`**
+   (`unstarted`/`started`/`completed`/…), never on the display name. When a target type has
+   more than one state (e.g. `started` = "In Progress" + "In Review"), pick the
+   **lowest-position** one for a forward transition.
+3. `list_issue_labels` / `list_users` as needed.
+
+Cache these for the run rather than re-fetching each task.
+
+### 2. `save_*` is upsert — read → capture `id` → write (idempotency)
+
+This is the single biggest footgun. Calling `save_issue` (or `save_comment`,
+`save_project`, …) **without an `id` always creates a new record.** A pickup loop that
+re-runs and re-creates instead of updating will spawn duplicate issues and comments.
+
+> **Rule:** before changing an existing record, `get_*`/`list_*` it first, capture its
+> `id`, and pass that `id` back into `save_*`. Never write blind.
+
+This makes the loop safe to re-run: a second pass updates in place instead of duplicating.
+
+### 3. The description is canonical; comments are for narration
+
+Linear comments are editable and **not reliable to read back** as state. Keep the
+authoritative "what's done" in the issue **description** (`save_issue(id, description:…)`).
+For progress narration, keep **one** agent-owned summary comment and **edit it in place**:
+post once with `save_comment`, capture the returned comment `id`, and on later updates call
+`save_comment(id, body:…)` rather than posting new comments. Don't scan free-form comments
+to reconstruct state.
+
+### 4. Project Updates & health
+
+In the Project form, the richest "report back" surface is a **Project Update carrying a
+health value** (On track / At risk / Off track). Re-verify how the current MCP exposes
+this before writing: it may be a field on `save_project`, or a dedicated update tool. **If
+no project-update write is exposed**, fall back to a project-level comment
+(`save_comment({ projectId, body })`) for the narrative and set status/health via
+`save_project` where available. Don't assume — check the live schema (see the snapshot
+note above).
+
+### 5. Git sync — let git events move state
+
+backlogd's issues are linked to git by **branch name**. Use Linear's suggested branch name
+(`nicolaibernsen/nb-<n>-<slug>` — it encodes the issue identifier), and put a **magic word**
+in the PR (e.g. `Fixes`/`Closes` + the issue identifier). Linear then auto-transitions on
+git events: **branch pushed → In Progress, PR opened → In Review, merged → Done.** Prefer
+these events over redundant `save_issue(state:…)` calls — only set state via the API when
+there is no corresponding git event. Before working an issue, check whether it already has
+a linked branch/PR (and its state `type`) so a re-run resumes rather than redoes.
+
+### 6. Send real newlines, never literal `\n`
+
+`description` and `body` take **Markdown with literal newlines and characters** — do not
+escape them. Emitting a literal backslash-`n` renders as broken markdown in Linear. (The
+server's own instructions say the same.)
+
+### 7. Page narrowly
+
+The GraphQL layer under the MCP has a query-complexity cap. Filter `list_*` calls (by
+`label`, `state`, `team`, `parentId`) and keep `limit` modest rather than fetching wide and
+filtering client-side. Use `cursor` to page when needed.
+
+### 8. Pure MCP client
+
+backlogd talks to Linear only through `mcp__linear__*`. The Linear **Agents platform**
+(agent `delegate`, agent sessions, webhooks, timing windows) is **out of scope** for v1 —
+do not implement or depend on it.
+
+## Pitfalls checklist
+
+- ❌ `save_issue` with no `id` to "update" → **duplicate issue**. ✅ Read first, pass `id`.
+- ❌ Transition by display name (`state: "In Progress"`) hardcoded → breaks if renamed.
+  ✅ Resolve by `type`.
+- ❌ Modelling a dependency as `relatedTo` → invisible to stall detection. ✅ Use
+  `blockedBy`/`blocks`.
+- ❌ Spamming a new progress comment each cycle → noise, unreliable history. ✅ One comment,
+  edited in place by `id`; canonical state in the description.
+- ❌ Literal `\n` in `body`/`description` → broken render. ✅ Real newlines.
+- ❌ Redundant `state` writes that fight the git integration. ✅ Let push/PR/merge drive
+  state.
+- ❌ Wide `list_issues` with no filters → complexity-cap errors. ✅ Filter + small `limit`.
