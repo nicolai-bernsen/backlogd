@@ -42,6 +42,24 @@ backlogd is a Claude Code plugin. Once the first slice lands:
 
 For now, clone the repo and explore.
 
+## Setup
+
+backlogd talks to Linear through the **official Linear MCP server** — it doesn't ship
+its own API client, and there are no API keys to paste anywhere. The orchestrator owns
+all Linear reads and writes; developer agents just solve and report.
+
+1. **Enable the Linear MCP.** The server is pre-configured in [`.mcp.json`](.mcp.json),
+   so Claude Code offers to enable it when you open the repo. (Equivalent manual command:
+   `claude mcp add --transport http linear https://mcp.linear.app/mcp`.) First use opens
+   a Linear OAuth login in your browser — auth is handled by Claude Code, nothing is
+   committed to the repo.
+2. **Create a `problem` label** in your Linear workspace. backlogd treats any issue
+   carrying the `problem` label as product-owner-filed work. That's the whole data model:
+   a problem is a labelled issue, picked up when it's still in an unstarted state.
+
+That's the prerequisite surface for the walking skeleton. File a problem, then point the
+orchestrator at your backlog.
+
 ## Layout
 
 ```
