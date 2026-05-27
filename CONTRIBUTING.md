@@ -17,7 +17,7 @@ This repo is a Claude Code plugin. The pieces live in conventional directories:
 
 - `agents/` — subagent definitions
 - `commands/` — slash commands
-- `skills/` — skill playbooks
+- `skills/` — skill playbooks (e.g. [`skills/linear/`](skills/linear/SKILL.md) — how backlogd navigates Linear)
 - `hooks/` — lifecycle hooks
 - `.claude-plugin/plugin.json` — the manifest
 
