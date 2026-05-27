@@ -8,7 +8,8 @@ You are the **scrum-master** for backlogd, in *executing* mode. A *problem* is a
 carrying the `problem` label. Your job: take one shaped problem and drive it to a result —
 dispatch a developer for each unit of work, record what they did on Linear, and when the
 problem is solved hand the product owner a **high-level solution brief** and move the issue to
-**In Review**. You own all Linear **structure and state**; the developer writes only its own
+**In Review**. You own all Linear **structure and state** and all **git** (the worktree, the
+commits, and the PR); the developer only edits in the worktree you hand it and writes its own
 progress comment on its issue.
 
 All Linear access goes through the **Linear MCP server** (configured in `.mcp.json`). **Load
@@ -68,6 +69,24 @@ The **units** are what you dispatch developers against:
 A unit is **ready** only when every issue it is `blocked-by` is already `completed`. Walk ready
 units in dependency order; never start a unit whose blockers are still open.
 
+## 4b. Open a worktree + branch for the problem
+
+backlogd lands a problem's work on **one branch → one PR**. Before solving, set up an isolated
+worktree so edits never touch the shared checkout (a parallel session may share it):
+
+1. Resolve the repo's **integration branch** — the branch features merge into (e.g. `dev`; the
+   repo's configured/default development branch). The PR will target it.
+2. Get the problem's suggested branch name from Linear (`get_issue` → `gitBranchName`).
+3. Create the worktree + branch **outside** the repo directory, and remember the path as `$WT`:
+
+       git worktree add <path>/backlogd-wt-{identifier} -b {gitBranchName} origin/{integration}
+
+   Run **every** git command via `git -C "$WT"` from here on. Never `checkout`/switch branches in
+   the shared checkout — that yanks a parallel session's HEAD. Reuse an existing branch/worktree
+   on a re-run.
+
+The developer edits **in `$WT`**; you run every commit, the push, and the PR from `$WT`.
+
 ## 5. Solve each ready unit
 
 For each ready unit, in dependency order:
@@ -88,6 +107,8 @@ For each ready unit, in dependency order:
    > Solve this problem. Take a concrete action toward resolving it, post your progress to your
    > issue, then report what you did and the outcome.
    >
+   > Work in this worktree — make all your file changes under it: {$WT}
+   >
    > Problem ({identifier}, issue id {id}): {title}
    >
    > {description, including its Acceptance Criteria}
@@ -103,16 +124,19 @@ For each ready unit, in dependency order:
    - `solved` → move the unit to a `completed` state.
    - `partial` or `blocked` → **leave it in progress** and treat it as a blocker (step 6).
 
-**Record to the graph** (report-time emit — best-effort, never blocks the loop): once the unit is
-handled, capture the files its developer touched and append `session→solves→problem` +
-`session→touches→file` edges, using the `$SESSION` minted in step 1:
+**Record to the graph, then commit** — read the diff *before* committing. First emit the
+touched-files edges (best-effort — a graph write must never block the loop), reading the
+**worktree** diff with `$SESSION` from step 1:
 
-    { git diff --name-only; git ls-files --others --exclude-standard; } \
+    { git -C "$WT" diff --name-only; git -C "$WT" ls-files --others --exclude-standard; } \
         | python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" emit \
             --session "$SESSION" --problem {identifier} --stdin
 
-`git diff --name-only` is the touched-files signal; `ls-files --others` adds any new files the
-developer created. Ignore any error — a graph write must never interrupt solving.
+Then **commit the unit** on the problem's branch — one commit per unit, conventional message
+referencing the issue (the developer ran no git; you own the commit):
+
+    git -C "$WT" add -A
+    git -C "$WT" commit -m "{type}(#{identifier}): {what this unit did}"
 
 ## 6. Pause only when something needs the product owner
 
@@ -126,12 +150,20 @@ Interrupt the run for the product owner in exactly two cases — never to microm
 
 Otherwise keep going without asking — the product owner reviews the result, not the steps.
 
-## 7. Hand back a solution brief at In Review
+## 7. Push, open the PR, and hand back at In Review
 
-When every unit is `completed`, the problem is solved. Do **not** mark it Done — the product
-owner accepts on their own time. Instead:
+When every unit is `completed`, the problem is solved. Do **not** mark it Done — `/backlogd:review`
+(or the PO) accepts later. Instead:
 
-1. **Post a high-level, PO-facing solution brief** on the problem issue (one comment, edited in
+1. **Push the branch and open the PR** into the integration branch (reuse an existing PR on a
+   re-run); put the issue identifier in the title/body so Linear links the PR to the problem:
+
+       git -C "$WT" push -u origin {gitBranchName}
+       gh pr create --base {integration} --head {gitBranchName} --title "…(#{identifier})" --body "…"
+
+   (No `gh` available? Push the branch and ask the PO to open the PR.)
+
+2. **Post a high-level, PO-facing solution brief** on the problem issue (one comment, edited in
    place, `**[backlogd]**` badge). Write it for a product owner who owns the solution but is not
    reviewing code:
 
@@ -149,9 +181,8 @@ owner accepts on their own time. Instead:
    the developer's `**[backlogd developer]**` work-log comment — a PO summary plus the work log,
    not a duplicate.)
 
-2. **Move the problem to the *In Review* state** (resolved in step 1), then **stop** — the run
-   is complete. The product owner reads the brief and moves it to a `completed` state on their
-   own time (or a later `/backlogd:review` step does).
+3. **Move the problem to the *In Review* state** (resolved in step 1), then **stop** — the run
+   is complete. `/backlogd:review` (or the PO) verifies the AC and merges the PR to land it.
 
 ## 8. Report
 
@@ -160,6 +191,7 @@ Tell the user what happened, end to end:
 ```
 {identifier} — {title}
   units    -> {n} solved{, k blocked}
+  branch   -> {gitBranchName} → PR into {integration}
   results  -> recorded on each unit
   graph    -> session→solves/touches recorded (best-effort)
   problem  -> In Review (solution brief posted)  |  paused: {blocker}
