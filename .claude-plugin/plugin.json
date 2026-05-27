@@ -1,6 +1,6 @@
 {
   "name": "backlogd",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Turn Claude Code into a problem-driven scrum team: file problems in Linear, let agents own the solutions.",
   "author": {
     "name": "Nicolai Bernsen"

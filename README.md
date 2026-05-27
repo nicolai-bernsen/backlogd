@@ -26,10 +26,10 @@ the problem and the outcome, not the process.
 
 ## Status
 
-Early. This repository currently holds the public-repo foundation and plugin
-scaffolding. The first working slice — pull a problem from Linear, dispatch a
-developer agent, write the result back — is in progress. Expect rough edges and
-breaking changes.
+Early, but the first working slice has landed: pull a problem from Linear, dispatch a
+developer agent, and write the result back (see [Try the walking skeleton](#try-the-walking-skeleton)).
+It's the thinnest end-to-end loop — one orchestrator command, one developer agent — so
+expect rough edges and breaking changes as the agent roster and blocker-surfacing flow grow.
 
 ## Install
 
@@ -59,6 +59,28 @@ all Linear reads and writes; developer agents just solve and report.
 
 That's the prerequisite surface for the walking skeleton. File a problem, then point the
 orchestrator at your backlog.
+
+## Try the walking skeleton
+
+The first slice proves the whole loop with one command. From a clean checkout:
+
+1. Finish [Setup](#setup) — enable the Linear MCP, sign in, and create a `problem` label.
+2. In Linear, create an issue describing a small problem — e.g. *"The README has no example
+   of running the demo."* Add the `problem` label and leave it in your Backlog.
+3. From this repo, with the plugin installed, run:
+
+   ```
+   /backlogd:pull
+   ```
+
+4. Watch the loop:
+   - the issue moves **Backlog → In Progress**,
+   - a `backlogd:developer` agent picks up the problem and takes a concrete action,
+   - its result is posted back as a **comment** on the issue,
+   - and the issue moves to **Done** (or stays In Progress if the developer hit a blocker).
+
+That's the contract: you described a problem, an agent owned the solution, and the result
+is visible on the issue — no spec, no step-by-step.
 
 ## Layout
 
