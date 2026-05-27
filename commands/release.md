@@ -95,15 +95,22 @@ After the merge lands on the release branch, tag that merge commit `vX.Y.Z` and 
 ## 6. Back-merge the release branch into the integration branch
 
 Keep the branches in sync — merge the release branch **back into** the integration branch so the
-merge commit (and the bumped version) lives on both. Never delete the integration branch:
+merge commit (and the bumped version) lives on both. Do this via a **PR from the release branch
+into the integration branch** — never check the integration branch out in the release worktree
+(git refuses: `dev` is already used by another worktree). Open the PR `{release}` → `{integration}`
+and merge it **with a merge commit** (not a squash), so the bumped version lands on the integration
+branch without rewriting history:
 
-    git -C "$WT" fetch origin
-    git -C "$WT" checkout -B {integration} origin/{integration}
-    git -C "$WT" merge --no-ff origin/{release} -m "chore: back-merge {release} into {integration} after vX.Y.Z"
-    git -C "$WT" push origin {integration}
+    gh pr create --base {integration} --head {release} \
+      --title "chore: back-merge {release} into {integration} after vX.Y.Z" \
+      --body "Re-sync {integration} with {release} after the vX.Y.Z release (merge commit, no squash)."
+    gh pr merge <pr> --merge
 
-If the back-merge conflicts (the branches diverged beyond the release bump), stop and surface the
-conflict to the product owner — don't force it.
+If the merge is blocked on review, use the maintainer admin override (`gh pr merge <pr> --merge
+--admin`) only when you are acting with owner credentials; otherwise hand the open PR to the
+product owner to merge. **Never squash** this PR, and **never delete the integration branch** (omit
+`--delete-branch`). If the back-merge conflicts (the branches diverged beyond the release bump),
+stop and surface the conflict to the product owner — don't force it.
 
 Then remove the release worktree (`git -C <repo> worktree remove <path>/backlogd-wt-release-X.Y.Z`).
 
