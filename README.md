@@ -26,10 +26,10 @@ the problem and the outcome, not the process.
 
 ## Status
 
-Early, but the first working slice has landed: pull a problem from Linear, dispatch a
-developer agent, and write the result back (see [Try the walking skeleton](#try-the-walking-skeleton)).
-It's the thinnest end-to-end loop — one orchestrator command, one developer agent — so
-expect rough edges and breaking changes as the agent roster and blocker-surfacing flow grow.
+Early, but the core loop works: `/backlogd:scope` shapes a problem into an executable issue,
+then `/backlogd:solve` dispatches a developer agent that owns the *how* and hands back a
+high-level solution brief at In Review (see [Try the walking skeleton](#try-the-walking-skeleton)).
+Expect rough edges and breaking changes as the agent roster and blocker-surfacing flow grow.
 
 ## Install
 
@@ -72,14 +72,18 @@ The first slice proves the whole loop with one command. From a clean checkout:
 3. From this repo, with the plugin installed, run:
 
    ```
-   /backlogd:pull
+   /backlogd:solve
    ```
+
+   (`solve` shapes the problem first if it isn't already; run `/backlogd:scope` yourself when
+   you want to review the shape and decomposition before solving.)
 
 4. Watch the loop:
    - the issue moves **Backlog → In Progress**,
    - a `backlogd:developer` agent picks up the problem and takes a concrete action,
-   - its result is posted back as a **comment** on the issue,
-   - and the issue moves to **Done** (or stays In Progress if the developer hit a blocker).
+   - its result is recorded as a **comment** on the issue,
+   - and the issue moves to **In Review** with a high-level solution brief — you accept it to
+     **Done** on your own time (or it pauses for you if the developer hits a blocker).
 
 That's the contract: you described a problem, an agent owned the solution, and the result
 is visible on the issue — no spec, no step-by-step.
@@ -88,8 +92,8 @@ is visible on the issue — no spec, no step-by-step.
 
 ```
 .claude-plugin/   plugin + marketplace manifests
-agents/           subagent definitions (scrum-master, developers)
-commands/         slash commands
+agents/           subagent definitions (the developer)
+commands/         slash commands — scope + solve (the scrum-master)
 skills/           reusable skill playbooks (see skills/linear — how backlogd uses Linear)
 hooks/            lifecycle hooks
 .github/          continuous integration
