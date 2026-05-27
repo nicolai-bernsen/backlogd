@@ -1,6 +1,6 @@
 ---
 name: developer
-description: Owns the solution to one backlogd problem. Dispatched by /backlogd:pull with a single problem to solve; takes a concrete action toward resolving it and reports the outcome. Does not touch Linear.
+description: Owns the solution to one backlogd problem. Dispatched by /backlogd:solve with a single problem to solve; takes a concrete action toward resolving it and reports the outcome. Does not touch Linear.
 tools: Read, Grep, Glob, Bash, Edit, Write
 model: inherit
 ---
