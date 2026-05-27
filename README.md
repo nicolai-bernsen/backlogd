@@ -15,10 +15,14 @@ owner: you describe the problem and what "better" looks like. The agents own the
 solution.
 
 - **You (PO)** file a problem as a Linear issue.
-- **The scrum-master** reads the backlog, plans, and dispatches the work.
-- **Developer agents** implement, test, and report back — owning the technical calls.
-- **Blockers** return to you as questions, not silent guesses.
-- **Everything** is recorded in Linear: status, decisions, results.
+- **`/backlogd:scope`** shapes that problem into an executable, decomposed issue.
+- **`/backlogd:solve`** executes it — dispatches a developer that owns the *how*, opens a
+  PR, and hands back a solution brief at In Review.
+- **`/backlogd:status`** gives a read-only standup of progress and blockers, changing nothing.
+- **`/backlogd:review`** verifies the acceptance criteria, then accepts to Done or sends it back.
+
+Throughout, developer agents own the technical calls, blockers return to you as questions
+rather than silent guesses, and everything — status, decisions, results — is recorded in Linear.
 
 The methodology underneath — spec-driven development, small vertical slices, tests
 first — is a tool the agents reach for, encouraged but not mandated. The contract is
