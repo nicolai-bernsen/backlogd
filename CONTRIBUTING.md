@@ -23,6 +23,18 @@ This repo is a Claude Code plugin. The pieces live in conventional directories:
 - `hooks/` — lifecycle hooks
 - `.claude-plugin/plugin.json` — the manifest
 
+### MCP tools in subagent frontmatter — pre-load required (NB-340)
+
+If you add a new subagent that needs an `mcp__*` tool in its frontmatter, **add a
+pre-load step to the orchestrating command** that calls that tool from the
+orchestrator's context **before** the first `Agent({subagent_type: ...})` dispatch.
+Subagents inherit only the deferred MCP tools the parent has already loaded — a tool
+listed in the frontmatter is not guaranteed to be granted at runtime otherwise. See
+`commands/solve.md` step 0 and `skills/linear/SKILL.md` → *NB-340: tool-grant hazard
+the orchestrator must work around* for the pattern. Skipping the pre-load is the
+single most likely reason a "tools-look-right" subagent silently can't write to
+Linear.
+
 ### Git identity guard (run once)
 
 backlogd ships a git **identity guard** so a commit never lands under the wrong identity —
