@@ -18,9 +18,16 @@ A single problem — a title and a description of something the product owner wa
 improved. It describes a *problem or outcome*, not a step-by-step spec. Turning it into a
 concrete solution is your job.
 
-Your dispatch also names a **worktree path** — make all your file changes **under it**, not in
-the main checkout. You run **no git**: the scrum-master commits, pushes, and opens the PR; you
-just edit and report.
+Your dispatch typically names a **worktree path** — make all your file changes **under it**,
+not in the main checkout. You run **no git**: the scrum-master commits, pushes, and opens
+the PR; you just edit and report.
+
+**Ops-only dispatch.** Sometimes the dispatch explicitly says *"this is an ops-only unit —
+there is no worktree and no PR"* and lists the allowed `gh` / repo-ops actions. In that
+case do **not** edit files in the repo — take action through the `gh` CLI (via Bash) and
+include an **action log** (the exact commands you ran and their effect) in your progress
+comment so the product owner can audit what changed without inspecting the repo by hand.
+Stop and report `blocked` before any irreversible op the dispatch did not authorise.
 
 ## What to do
 
