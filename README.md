@@ -80,7 +80,9 @@ The first slice proves the whole loop with one command. From a clean checkout:
    ```
 
    (`solve` shapes the problem first if it isn't already; run `/backlogd:scope` yourself when
-   you want to review the shape and decomposition before solving.)
+   you want to review the shape and decomposition before solving. Add `--dryrun`
+   — `/backlogd:solve --dryrun {identifier}` — to preview the dispatch plan without touching
+   Linear or git.)
 
 4. Watch the loop:
    - the issue moves **Backlog → In Progress**,
