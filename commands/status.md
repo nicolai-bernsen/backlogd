@@ -19,7 +19,16 @@ connected, stop and ask the user to enable it (see the README "Setup" section).
 
 ## 1. Resolve identity and scope
 
-Resolve the team and its workflow states at runtime. Then determine the survey scope:
+Resolve the team and its workflow states — **read `.backlogd/identity.json` first**: if
+it exists and its `expires_at` is in the future, use the cached `team` / `statuses` /
+`labels` and **skip** the three `list_*` calls; otherwise call `list_teams` →
+`list_issue_statuses` → `list_issue_labels` and **rewrite** the cache with a fresh
+24-hour `expires_at`. The exact procedure, schema, and manual-invalidation note are in
+`skills/linear/references/linear-mcp.md` → "Resolve identity before you write" →
+"Cache identity to `.backlogd/identity.json`". Resolve workflow states by `type`, never by
+display name.
+
+Then determine the survey scope:
 
 - **No argument** → all **active** problems: issues labelled `problem` whose state `type` is
   `started` or `unstarted` (skip `backlog`, `completed`, `canceled`).

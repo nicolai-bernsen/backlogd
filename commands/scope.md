@@ -22,9 +22,14 @@ the user to enable it (see the README "Setup" section) — do not improvise anot
 
 ## 1. Resolve identity
 
-Before any write, resolve the team, its workflow states, and its labels at runtime, and cache
-them for the run (`skills/linear/references/linear-mcp.md` → "Resolve identity before you
-write"). Never hard-code a state's display name.
+Before any write, resolve the team, its workflow states, and its labels — **but read the
+per-repo identity cache first**: if `.backlogd/identity.json` exists and its `expires_at`
+is in the future, use the cached `team` / `statuses` / `labels` and **skip** the three
+`list_*` calls; otherwise call `list_teams` → `list_issue_statuses` → `list_issue_labels`
+and **rewrite** the cache with a fresh 24-hour `expires_at`. The exact procedure, schema,
+and manual-invalidation note are in `skills/linear/references/linear-mcp.md` →
+"Resolve identity before you write" → "Cache identity to `.backlogd/identity.json`".
+Resolve workflow states by `type`, never by display name.
 
 ## 2. Pick one problem
 

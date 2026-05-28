@@ -21,8 +21,17 @@ If the Linear MCP is not connected, stop and ask the user to enable it (see the 
 
 ## 1. Resolve identity
 
-Resolve the team and its workflow states. Resolve by role: **review** = the *In Review* state,
-**rework** = the *In Progress* state, **accepted** = the `completed` state (Done).
+Resolve the team and its workflow states — **read `.backlogd/identity.json` first**: if
+it exists and its `expires_at` is in the future, use the cached `team` / `statuses` /
+`labels` and **skip** the three `list_*` calls; otherwise call `list_teams` →
+`list_issue_statuses` → `list_issue_labels` and **rewrite** the cache with a fresh
+24-hour `expires_at`. The exact procedure, schema, and manual-invalidation note are in
+`skills/linear/references/linear-mcp.md` → "Resolve identity before you write" →
+"Cache identity to `.backlogd/identity.json`".
+
+From the resolved `statuses`, resolve by role (match on `type`, never on display name):
+**review** = the *In Review* state, **rework** = the *In Progress* state, **accepted** =
+the `completed` state (Done).
 
 ## 2. Pick a problem to review
 

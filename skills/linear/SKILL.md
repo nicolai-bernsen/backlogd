@@ -44,8 +44,10 @@ grant (`get_issue` / `list_comments` / `save_comment` only; see `agents/develope
 ## The standing structure
 
 - **One Team — resolved at runtime.** Every Issue belongs to exactly one team. backlogd
-  resolves the team from `list_teams` per run (see `references/linear-mcp.md` →
-  "Resolve identity"); never hardcode a team name — every installer is on their own.
+  resolves the team from `list_teams` and caches it (along with workflow states and
+  labels) to `.backlogd/identity.json` with a 24-hour TTL — see `references/linear-mcp.md`
+  → "Resolve identity before you write" → "Cache identity to `.backlogd/identity.json`".
+  Never hardcode a team name — every installer is on their own.
 - The team's **workflow**. Do not hardcode the display names — resolve them at runtime and
   match on the state *category* (`type`), see `references/linear-mcp.md`:
 
