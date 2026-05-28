@@ -12,8 +12,10 @@ the *kind* of check that verifies it, declared at the start of the bullet, so re
 can branch per-kind instead of waving a single "judgement" wand over everything.
 
 This skill is the source of truth for the AC grammar and how each kind is verified.
-**Load it from any command that writes or reads AC** (today: `/backlogd:scope`,
-`/backlogd:review`; tomorrow: any reviewer subagent).
+**Load it from any command or subagent that writes or reads AC** — today: the
+`/backlogd:scope` command (which dispatches the **refiner** subagent to draft AC), and
+the **reviewer** subagent (`agents/reviewer.md`, dispatched by `/backlogd:review`)
+which branches per-kind on the verdict walk.
 
 ## The grammar
 
@@ -66,8 +68,8 @@ a command line in backticks (the reviewer will execute it with Bash from the wor
 root). If the bullet says `[test]` but has no backticked command, the reviewer reports
 the item as `❔ needs PO judgement: no runnable check found` rather than guessing.
 
-The reviewer extracts the **first** `` `…` `` span as the command, runs it from the
-worktree, and judges:
+The reviewer subagent extracts the **first** `` `…` `` span as the command, runs it
+from the worktree, and judges:
 
 - exit code `0` → `✅ met` (cite the command + the exit code or the last line).
 - non-zero → `❌ unmet` (cite the command + the last few lines of stderr).
@@ -86,20 +88,27 @@ Use when the AC item is **observable but only by a human running it**:
 - "the README skim reads naturally to a new contributor",
 - "running `/backlogd:scope` on a fresh problem produces a sensible decomposition".
 
-The reviewer **does not try to verify** `[manual]` items itself. Instead, it batches
-every `[manual]` item on the problem into a single follow-up section in its verdict
-comment — one bullet per item — titled "Manual checks for the PO". The orchestrator (or
-the PO themselves) confirms each one before the verdict closes.
+The reviewer subagent **does not try to verify** `[manual]` items itself. Instead,
+it batches every `[manual]` item on the problem into a single follow-up section in
+its drafted verdict body — one bullet per item — titled "Manual checks for the PO".
+The scrum-master (or the PO themselves) confirms each one before the verdict closes.
 
 **Split of responsibility:**
 
-- The **reviewer** drafts the batched question — exactly the wording of each `[manual]`
-  bullet, in a single list, with a one-line lead-in.
-- The **orchestrator** (the human running `/backlogd:review`, or the PO reading the
-  comment on Linear) actually asks / answers it.
+- The **reviewer subagent** drafts the batched question — exactly the wording of each
+  `[manual]` bullet, in a single list, in the verdict body it returns to the
+  scrum-master.
+- The **scrum-master** (`/backlogd:review`) lifts the drafted body verbatim into its
+  `**[backlogd review]**` comment and surfaces the batched question to the PO,
+  waiting for the answer before closing the verdict.
 
-The reviewer's verdict on a `[manual]` item is `📝 awaiting PO confirmation` until the
-batched check is acknowledged.
+The reviewer's verdict glyph on a `[manual]` item is `📝 awaiting PO confirmation`
+until the batched check is acknowledged.
+
+In `pre-commit-gate` mode (the same reviewer subagent, dispatched inside
+`/backlogd:solve`), the gate is binary and cannot wait on the PO — `[manual]` items
+roll up as `needs-changes` until they are either retyped to something the gate can
+check or the developer's note explicitly acknowledges the gate-failure-by-design.
 
 ### `[review]` — Claude judgement
 
@@ -121,8 +130,9 @@ reviewer can't make).
 
 ## How `/backlogd:scope` writes AC
 
-When `/backlogd:scope` shapes a problem, it writes AC bullets with **explicit kinds
-where possible**:
+When `/backlogd:scope` shapes a problem, it dispatches the **refiner subagent** to
+draft the description; the dispatch envelope tells the refiner to load this skill and
+to write AC bullets with **explicit kinds where possible**:
 
 1. **Default to `[review]`** when unsure — better than inventing a `[test]` that has
    no real runnable command behind it. Untagged (no prefix) is fine and equivalent.
@@ -137,9 +147,11 @@ where possible**:
 
 The PO can always edit the description to retype an AC bullet — the kind is just text.
 
-## How `/backlogd:review` reads AC
+## How the reviewer subagent reads AC
 
-For each `- [ ]` bullet under `## Acceptance Criteria`:
+When `/backlogd:review` dispatches the **reviewer subagent** (`agents/reviewer.md`)
+in `verdict` mode, the reviewer walks each `- [ ]` bullet under `## Acceptance
+Criteria`:
 
 1. **Parse the kind** with the regex above. Untagged → `[review]`.
 2. **Branch per-kind:**
@@ -147,15 +159,21 @@ For each `- [ ]` bullet under `## Acceptance Criteria`:
      `❔ needs PO judgement: no runnable check found`. Otherwise run the command from
      the worktree root with Bash; exit `0` → `✅ met`, non-zero → `❌ unmet`. Cite the
      command and the result.
-   - **`[manual]`** → add the bullet to the "Manual checks for the PO" batch and mark
-     it `📝 awaiting PO confirmation`. The reviewer does **not** silently pass it.
-   - **`[review]`** → judge from the artifacts (current behaviour). `✅` / `❌` /
-     `❔`.
-3. **Verdict rollup:**
+   - **`[manual]`** → add the bullet to the "Manual checks for the PO" batch in the
+     drafted verdict body and mark it `📝 awaiting PO confirmation`. The reviewer
+     does **not** silently pass it.
+   - **`[review]`** → judge from the artifacts (the original `[review]` behaviour).
+     `✅` / `❌` / `❔`.
+3. **Verdict rollup** (verdict mode, returned to the scrum-master):
    - **accepted** requires every item `✅ met` and any `[manual]` items confirmed by
      the PO (no `📝` left dangling), and CI green.
    - **sent back** if any item is `❌` (or CI red).
    - **needs you** if any item is `❔` or there are unconfirmed `📝`s and no `❌`.
+
+In `pre-commit-gate` mode (the same reviewer subagent, dispatched inside
+`/backlogd:solve` before commit), the rollup is binary — `📝 awaiting PO
+confirmation` for `[manual]` items counts as `needs-changes` because the gate
+cannot wait on the PO.
 
 ## Backwards compatibility — non-negotiable
 

@@ -29,7 +29,11 @@ For the problem you've just picked up (`{identifier}` / `gitBranchName` from
 - **Local git** — `git branch --list {gitBranchName}` and `git worktree list
   --porcelain`. If a worktree at `backlogd-wt-{identifier}` exists, capture its
   HEAD (`git -C "$WT" rev-parse HEAD`) and its working-tree state
-  (`git -C "$WT" status --porcelain`).
+  (`git -C "$WT" status --porcelain`). Also list any **per-unit worktrees** at
+  `backlogd-wt-{identifier}-unit-{unit-identifier}` (left behind by an interrupted
+  parallel walk — see `skills/solve/walk.md` and `skills/worktree-isolation/SKILL.md`).
+  Per-unit sub-branches `{gitBranchName}--unit-{unit-identifier}` likewise. These are
+  the recovery surface for an in-flight parallel group.
 - **Graph** — per unit:
 
       python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" run-status \
@@ -86,6 +90,28 @@ worktree, reuses an existing one, or stops:
 - **All `untouched`** — the normal first-time path; `walk.md` runs unchanged.
 - **Any `inconsistent`** — pause; do not touch the worktree, do not touch
   Linear, do not dispatch.
+
+### Per-unit worktrees from an interrupted parallel walk
+
+If `git worktree list` surfaced any `backlogd-wt-{identifier}-unit-{unit-identifier}`
+worktrees (a parallel group was interrupted mid-walk — see
+`skills/worktree-isolation/SKILL.md` § "Parallel dispatch"), classify each per the
+4-state table above against its **unit**'s identifier (not the parent problem):
+
+- A per-unit worktree whose unit is `completed` on the graph + Linear is **stale** —
+  remove it (`git worktree remove`) and delete its sub-branch
+  (`{gitBranchName}--unit-{unit}`); the unit's commit is already on the problem branch
+  via the prior run's collect. Skip the unit on re-dispatch (`dispatch.md` does too).
+- A per-unit worktree whose unit is `in-progress-mine` is the recovery surface — reuse
+  the worktree (`$WT_unit = <path>`), reuse the sub-branch, and dispatch the unit
+  fresh through `skills/solve/dispatch.md` with that `$WT_unit`. The walk's collect
+  step picks up from there.
+- A per-unit worktree whose unit is `untouched` is a stray — remove the worktree and
+  delete the sub-branch, then let the walk recreate them on the normal first-dispatch
+  path.
+- **Two per-unit worktrees for the same unit from different sessions** (or a per-unit
+  HEAD that doesn't match any graph `dispatch_started`) is `inconsistent` — pause and
+  surface to the product owner.
 
 ## 4. The pause message
 

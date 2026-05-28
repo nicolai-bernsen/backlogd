@@ -34,6 +34,39 @@ enable it (see the README "Setup" section) — do not improvise another path.
 Run these steps in order. Each one points at its own sub-skill — load that file when you
 get to the step. Sub-skills carry the dry-run carve-outs.
 
+0. **Pre-load the deferred Linear MCP tools (NB-340 hazard).** Subagents inherit only
+   the tools the parent has already loaded — a deferred MCP tool listed in the
+   subagent's frontmatter is **not** granted at runtime unless the parent has previously
+   called it (see `skills/linear/SKILL.md` → *NB-340: tool-grant hazard the orchestrator
+   must work around*). Before any developer dispatch in this command, **use each
+   `mcp__linear__*` tool the developer needs at least once from the orchestrator's
+   context** so the deferred tool is loaded and propagates:
+
+   - `mcp__linear__get_issue` — you'll call it naturally in step 3 (pickup) when reading
+     the chosen problem; that satisfies the pre-load.
+   - `mcp__linear__list_comments` — call it (e.g. to read existing comments on the
+     problem during pickup / triage).
+   - `mcp__linear__save_comment` — you'll use it in step 7 (handoff) for the solution
+     brief, but the developer needs the tool **before** the first dispatch in step 6.
+     If no Linear comment write has happened yet by the time you reach step 6, **force
+     the load** by editing your own scratch comment on the problem (or by posting the
+     run's opening "claiming this" line if you do one). The point is: invoke
+     `save_comment` from the orchestrator's context at least once before any
+     `Agent({subagent_type: "developer" | "developer-<suffix>", ...})` call.
+
+   If you skip this step and the developer reports it cannot post its
+   `**[backlogd developer]**` comment, that is the NB-340 tool-grant skew — re-run with
+   the pre-load done. Do not silently accept a tool-grant failure as a developer issue;
+   the contract (see `agents/developer.md` "Your Linear surface — required") says the
+   work-log comment is mandatory and a missing one is a failed dispatch.
+
+   > **Dry run:** this step is **read-safe only** in `--dryrun` mode.
+   > `mcp__linear__get_issue` and `mcp__linear__list_comments` are reads and may run;
+   > `mcp__linear__save_comment` is a write and **must not run** under `--dryrun` (see
+   > `skills/solve/dryrun.md` → *Forbidden*). In `--dryrun`, note in the plan output
+   > that the pre-load **would** happen on a real run (and which tool may need the
+   > forced-load nudge), then continue.
+
 1. **Parse flags.** Scan the arguments for `--dryrun` in either position. If present,
    remember the run is a dry run and follow **`skills/solve/dryrun.md`** instead of the
    side-effecting steps below; strip the flag and treat the remaining token (if any) as
@@ -61,25 +94,43 @@ get to the step. Sub-skills carry the dry-run carve-outs.
    **`skills/solve/ops.md`**); none ops → standard path (open the isolated worktree +
    branch off the integration branch and remember the path as `$WT`); mixed → stop and
    ask the PO to split. **Skip the worktree-add step if reconcile in step 4 already reused
-   one** — `$WT` was set there (standard path only).
+   one** — `$WT` was set there (standard path only). **On the standard path, the walk
+   then groups ready units into parallel groups** (units with no `blocked-by` between
+   them, capped by `BACKLOGD_CONCURRENCY_MAX` — default 2, max 4) and adds a per-unit
+   worktree + sub-branch (`backlogd-wt-{identifier}-unit-{unit}` /
+   `{gitBranchName}--unit-{unit}`) for every unit in a group of ≥2. Single-unit groups
+   skip the sub-branch and run on `$WT` directly — byte-identical to the pre-#321
+   sequential walk. **As the walk reads each unit's `blocked-by` relations** (to compute
+   the ready set), load **`skills/linear/blocked-label.md`** and re-evaluate the
+   `blocked` label on every `problem`-labelled unit — the helper attaches the label when
+   any open blocker is not yet `completed`/`canceled`, and detaches it when the blockers
+   clear. It is a no-op when the labels already match.
 
 6. **Per-unit dispatch** → **`skills/solve/dispatch.md`** *(standard path)* or
    **`skills/solve/ops.md`** *(ops-only path — `gh`/repo-ops actions, no worktree, no
-   commit, no PR; the developer posts an action log on the unit)*. For each ready unit in
-   dependency order: **skip if reconcile classified it `completed`**; otherwise claim →
-   inject prior-work + record `dispatch_started` → dispatch the `backlogd:developer` with
-   an inline envelope → capture the result → record `dispatch_completed` (outcome +
-   latency) → transition by `Outcome` (`solved` → `completed`; `partial`/`blocked` →
-   leave in progress and surface to the PO, stop the run) → commit on the problem's
-   branch *(skipped on the ops path — no diff)*. One commit per unit on the standard path.
+   commit, no PR; the developer posts an action log on the unit)*. For each ready unit:
+   **skip if reconcile classified it `completed`**; otherwise claim → inject prior-work
+   + record `dispatch_started` → dispatch the `backlogd:developer` with an inline
+   envelope → capture the result → **run the quality gate (`skills/solve/gate.md` —
+   tester + reviewer pre-commit-gate; 2-round cap; standard path only)** → record
+   `dispatch_completed` (outcome + latency) → transition by `Outcome` (`solved` →
+   `completed`; `partial`/`blocked` → leave in progress and surface to the PO, stop the
+   run) → commit on the unit's branch (the problem branch for a sequential single-unit
+   group; the per-unit sub-branch for a parallel group — `skills/solve/walk.md` collects
+   the sub-branches into the problem branch after the group returns) *(skipped on the
+   ops path — no diff)*. **A parallel group dispatches every unit in one response
+   (multiple `Agent()` calls — Claude Code's native concurrency seam); the orchestrator
+   waits for all of them and does not abort siblings on a `partial`/`blocked`.** One
+   commit per unit on the standard path.
 
 7. **Handoff at In Review** → **`skills/solve/handoff.md`**. When every unit is
    `completed`: push and open the PR into the integration branch *(skipped on the ops
    path — there is no PR)*, record `pr_opened` *(standard path only)* + `run_completed`
-   on the graph, post the high-level PO-facing solution brief on the problem issue
-   (pointing at the action logs on the units when ops-only), move the problem to
-   *In Review*, and stop. Do **not** mark Done — `/backlogd:review` (or the PO) accepts
-   later.
+   *(with `--fanout` set to the peak parallel-group size from step 5; `1` if the walk
+   stayed sequential)* on the graph, post the high-level PO-facing solution brief on the
+   problem issue (pointing at the action logs on the units when ops-only), move the
+   problem to *In Review*, and stop. Do **not** mark Done — `/backlogd:review` (or the
+   PO) accepts later.
 
 ## Report
 
@@ -89,10 +140,11 @@ Tell the user what happened, end to end:
 {identifier} — {title}
   route    -> standard (worktree + PR)  |  ops-only (no worktree, no PR)
   units    -> {n} solved{, k blocked}
+  walk     -> sequential | parallel (peak fanout {k} of {n} units; concurrency_max={c})
   branch   -> {gitBranchName} → PR into {integration}     ← standard only
                 (no PR — ops actions logged on each unit) ← ops-only
   results  -> recorded on each unit
-  graph    -> dispatch_started/completed + run_completed recorded (best-effort)
+  graph    -> dispatch_started/completed + run_completed (fanout={k}) recorded (best-effort)
                  + pr_opened                                       ← standard only
   problem  -> In Review (solution brief posted)  |  paused: {blocker}
 ```

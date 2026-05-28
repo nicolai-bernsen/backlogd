@@ -50,63 +50,57 @@ A problem is *execution-ready* when its **description** carries a clear spec and
 `## Acceptance Criteria` section — the canonical signal `/backlogd:solve` looks for to know a
 problem is already shaped.
 
-- Read the problem. If it already has a spec and `## Acceptance Criteria`, refine only what is
-  unclear.
-- Otherwise write them: a short spec of the desired *outcome*, then `## Acceptance Criteria` as
-  a checklist of observable, testable statements.
-- **Only pause for the product owner** if the problem is too ambiguous to write acceptance
-  criteria, or a decision only they can make blocks shaping. Ask at most **3** questions, then
-  proceed. Do not guess at a genuine product decision.
+Read the problem. Then dispatch the `backlogd:refiner` subagent with the Agent tool,
+handing it the problem as an **inline** context envelope. The refiner owns the *shaping*
+(writing the spec + AC into the description, proposing a decomposition); you own all
+structure and state writes that follow.
 
-### AC items declare *how they are verifiable* — typed AC
+> Shape this problem. Draft a spec + `## Acceptance Criteria` into its description,
+> propose a decomposition, and report your proposal and any genuine ambiguities. AC
+> items may carry an optional kind prefix — `[test]` / `[manual]` / `[review]` —
+> immediately after the checkbox; untagged defaults to `[review]` (backwards
+> compatible). Load `skills/ac/SKILL.md` for the grammar and prefer the **strongest
+> verifiable kind** the item supports (`[test]` with a backticked exit-coded command
+> when one is obvious; `[manual]` when only a human can confirm; `[review]` or
+> untagged otherwise). Do **not** fabricate a `[test]` command that doesn't exist —
+> when in doubt, leave the bullet untagged.
+>
+> Problem ({identifier}, issue id {id}): {title}
+>
+> Current description: {description, verbatim}
+>
+> Team: {team} · Labels: {resolved labels} · States: {resolved workflow states}
+>
+> {the `## Prior work` block — include only if you have one}
 
-**Load the `ac` skill (`skills/ac/`)** before writing AC items. It is the source of truth
-for the AC grammar and the per-kind verification contract `/backlogd:review` enforces.
+Capture the refiner's final structured summary. The refiner writes the description; you
+do **not** re-do it.
 
-Each `## Acceptance Criteria` item carries an optional kind prefix in square brackets
-right after the checkbox: `[test]`, `[manual]`, or `[review]`. Untagged items default to
-`[review]` (backwards compatible with every existing problem). Write the **strongest**
-kind the item can support — `[test]` when there is an obvious exit-coded check (spell
-the command out in backticks inside the bullet), `[manual]` when only a human can
-confirm, `[review]` when it is genuine Claude judgement against the artifacts.
-
-When in doubt, **leave the bullet untagged** (defaults to `[review]`). Do **not**
-fabricate a `[test]` command that doesn't exist — better to ship an untagged bullet the
-reviewer judges than a fake test path that always fails.
-
-Example:
-
-```markdown
-## Acceptance Criteria
-
-- [ ] [test] AC parser handles untagged bullets — `python -m pytest tests/test_ac.py::test_untagged_defaults_to_review` exits 0.
-- [ ] [manual] PO confirms the README skim still reads naturally.
-- [ ] [review] No new public API surface introduced.
-- [ ] Existing untagged AC continues to work (defaults to `[review]`).
-```
-
-See `skills/ac/SKILL.md` for the full grammar (parsing rule, per-kind semantics, the
-"Manual checks for the PO" batched-question convention) and examples.
-
-Write the spec and AC into the issue **description** with `save_issue` — pass the existing
-issue `id` so you update in place, never create a duplicate.
+- If `ambiguities` is non-empty, surface them to the product owner — ask **at most 3**
+  questions, then proceed. Leave the issue in its state and **stop** if the answer must
+  come from the product owner before shaping can continue. Do not guess past a genuine
+  ambiguity.
+- If `description-written: false`, the refiner could not shape the issue — surface its
+  `Blockers` to the product owner and stop.
 
 ## 4. Decompose — only as much as the problem earns
 
-Follow the **promote-on-discovery** rule from `skills/linear/`; do not predict size up front:
+Consume the refiner's `decomposition` proposal from step 3 and act on it. The refiner
+only **proposes**; you own every structural write. Follow the **promote-on-discovery**
+rule from `skills/linear/`; do not predict size up front:
 
-- **Default — keep it a single Issue.** A focused problem (one unit of work, no phases, no
-  internal dependencies) needs no decomposition. `/backlogd:solve` hands the whole issue to one
-  developer.
-- **Create sub-issues** (`save_issue` with `parentId`) when the problem breaks into **≥2
-  independently-solvable units**. Sequence them with **`blocked-by`** so `solve` can walk them
-  in dependency order. Keep roughly one level — do not nest deeply.
-- **Promote to a Project** when the problem reveals distinct **phases**, or enough scope that
-  sub-issues stop conveying progress. Create an Issue per unit under the Project, group phases
-  as **Milestones**, and wire `blocked-by` for ordering. (Engagement-level grouping is the
-  **Initiative** — see `skills/linear/`.)
-- **When in doubt, stay an Issue.** Promotion on evidence is cheap; a premature Project that
-  never closes is not.
+- **`single`** — keep it a single Issue. A focused problem (one unit of work, no phases,
+  no internal dependencies) needs no decomposition. `/backlogd:solve` hands the whole
+  issue to one developer. Nothing to write.
+- **`{n} sub-issues`** — create them (`save_issue` with `parentId`) using the refiner's
+  proposed titles, then wire the proposed `blocked-by` edges so `solve` can walk them in
+  dependency order. Keep roughly one level — do not nest deeply.
+- **`promote-to-project`** — create the Project, then create an Issue per unit under it
+  using the refiner's milestone groupings, and wire `blocked-by` for ordering.
+  (Engagement-level grouping is the **Initiative** — see `skills/linear/`.)
+- **When in doubt, stay an Issue.** Promotion on evidence is cheap; a premature Project
+  that never closes is not. If the refiner's proposal feels too aggressive for the
+  problem at hand, prefer the smaller shape.
 
 ## 4b. Apply `kind:ops` if the problem is repo-ops
 
@@ -116,6 +110,18 @@ submissions, drafts in `docs/`) — i.e. there is no source diff to land — app
 **`kind:ops` label** to the problem (and to any sub-issues that are themselves ops-only).
 `/backlogd:solve` routes ops-labelled units through `skills/solve/ops.md` (no worktree,
 no PR; the developer takes `gh` actions and posts an action log).
+
+Factor the refiner's `route` from step 3 in as **advisory** input — it is not
+authoritative; you verify it against the problem's actual outcome and own the labelling
+decision:
+
+- `route: kind:ops` — strong signal the problem is ops-only; apply the label after
+  confirming.
+- `route: mixed` — strong signal to **split** the problem (see below); the refiner is
+  telling you some units are ops and some are code.
+- `route: standard` or omitted — default; no label.
+
+Then:
 
 - Create the label on the team via `create_issue_label({ team, name: "kind:ops" })` if
   `list_issue_labels` shows it is missing. It is just a routing flag — no automation
@@ -173,6 +179,12 @@ will catch.
 
 Set the problem's **priority** so `/backlogd:solve` can order the queue. Leave **estimates
 off** — backlogd works one problem at a time, so points add no signal.
+
+Then load **`skills/linear/blocked-label.md`** and run it against the shaped problem (and
+any sub-issues you just created with their own `blocked-by` edges). The helper ensures
+the team's `blocked` label exists (idempotent) and attaches/detaches it on each
+`problem`-labelled issue per its open `blocked-by` relations — it is a no-op when the
+desired state already matches the current labels.
 
 Then **stop**. Do **not** move the problem to a started state, and do **not** dispatch a
 developer. Shaping is complete; solving is a separate, deliberate step the product owner

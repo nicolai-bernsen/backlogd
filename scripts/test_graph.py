@@ -324,6 +324,43 @@ class MetricsTest(unittest.TestCase):
         m = json.loads(buf.getvalue())
         self.assertEqual(m["dispatches"]["partial"], 1)
 
+    def test_run_end_records_fanout(self):
+        # The parallel-walk metadata added in #321: --fanout on run-end is
+        # stored on the run_completed edge as a passthrough field.
+        graph.main(["run-end", "--session", "s1", "--problem", "NB-1",
+                    "--ts", "2026-05-01T10:00:00Z", "--fanout", "3"])
+        run = [e for e in graph.read_graph()
+               if e["type"] == "run_completed"][0]
+        self.assertEqual(run["fanout"], 3)
+
+    def test_run_end_without_fanout_is_backward_compatible(self):
+        # An old caller (no --fanout) writes the edge without the field;
+        # the metrics aggregate handles its absence cleanly.
+        graph.main(["run-end", "--session", "s1", "--problem", "NB-1",
+                    "--ts", "2026-05-01T10:00:00Z"])
+        run = [e for e in graph.read_graph()
+               if e["type"] == "run_completed"][0]
+        self.assertNotIn("fanout", run)
+        m = graph.metrics()
+        # No fanout-bearing edges -> aggregate reports n=0, max=None.
+        self.assertEqual(m["fanout"]["n"], 0)
+        self.assertIsNone(m["fanout"]["max"])
+        self.assertEqual(m["fanout"]["parallel_runs"], 0)
+
+    def test_metrics_aggregates_fanout(self):
+        # Three runs: 2 sequential (fanout=1), 1 parallel (fanout=3).
+        graph.main(["run-end", "--session", "s1", "--problem", "NB-1",
+                    "--ts", "2026-05-01T10:00:00Z", "--fanout", "1"])
+        graph.main(["run-end", "--session", "s2", "--problem", "NB-2",
+                    "--ts", "2026-05-02T10:00:00Z", "--fanout", "1"])
+        graph.main(["run-end", "--session", "s3", "--problem", "NB-3",
+                    "--ts", "2026-05-03T10:00:00Z", "--fanout", "3"])
+        m = graph.metrics()
+        self.assertEqual(m["fanout"]["n"], 3)
+        self.assertEqual(m["fanout"]["max"], 3)
+        self.assertEqual(m["fanout"]["parallel_runs"], 1)
+        self.assertAlmostEqual(m["fanout"]["parallel_rate"], 1/3)
+
 
 class RunStatusTest(unittest.TestCase):
     """`run_status` + `run-status` CLI for /backlogd:solve's resume reconcile (#322)."""
