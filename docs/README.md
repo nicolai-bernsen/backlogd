@@ -16,6 +16,11 @@ directory holds the **living** spec (how the system is built, and why).
   source of truth and living spec. Written generically: it applies to any repository worked
   on by an automated developer.
 
+## Guides
+
+- **[PO daily overview — saved views setup](guides/po-overview.md)** — configure the two
+  Linear views and read the forecast block; the 60-second daily PO routine.
+
 ## In one line
 
 Consult `/docs` before developing; update it when behaviour changes. For any single piece of

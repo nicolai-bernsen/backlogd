@@ -43,6 +43,15 @@ then `/backlogd:solve` dispatches a developer agent that owns the *how* and hand
 high-level solution brief at In Review (see [Try the walking skeleton](#try-the-walking-skeleton)).
 Expect rough edges and breaking changes as the agent roster and blocker-surfacing flow grow.
 
+## For Product Owners
+
+The PO's daily job in backlogd is small: notice blockers, glance at what's in flight,
+trust the forecast. Two Linear saved views and one `## 📊 Forecast` block on your
+engagement Project make the whole check fit in 60 seconds, click-free.
+
+See **[docs/guides/po-overview.md](docs/guides/po-overview.md)** for the exact filter
+specs, sort and grouping setup, and the daily routine.
+
 ## Install
 
 backlogd is a Claude Code plugin. Add the marketplace, then install it:
