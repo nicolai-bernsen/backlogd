@@ -35,6 +35,17 @@ writes correct. Read this **before every write**. For what the concepts mean, se
   `removeRelatedTo`. Relations are set **on the issue** — there is no separate relation tool.
 - **`delegate`:** ignore — that's the Agents-platform surface, out of scope.
 
+## backlogd-owned label families
+
+A few label name patterns are **owned by backlogd** — its commands read and write them as
+part of the loop. Treat them as reserved; don't reuse the prefixes for unrelated
+workspace labels.
+
+| Family | Owner | Meaning |
+|---|---|---|
+| `problem` | PO files / backlogd reads | The opt-in pickup signal — backlogd only picks up issues carrying this label. |
+| `agent:<suffix>` | `/backlogd:scope` writes / `/backlogd:solve` reads | The picked specialist developer for an issue (`agent:docs` → `developer-docs`). PO can flip the label to override. Created on first use (Linear's MCP auto-creates labels passed in `save_issue.labels`). See `docs/specialists.md`. |
+
 ## Load-bearing rules
 
 ### 1. Resolve identity before you write

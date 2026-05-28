@@ -43,11 +43,15 @@ the plan; the world is untouched.
 
 (d) Unit walk plan
   worktree path / branch off origin/{integration}
-  units (dispatch order, with blocked-by + ready?)
+  units (dispatch order, with blocked-by + ready? + resolved subagent_type per unit)
 
 (e) Per-unit dispatch envelope — verbatim, for each unit
-  (same envelope `skills/solve/dispatch.md` step 2 hands the developer, with the {$WT
-  path} and the `## Prior work` block — omit the block if the query printed nothing)
+  (same envelope `skills/solve/dispatch.md` step 3 hands the developer, with the {$WT
+  path} and the `## Prior work` block — omit the block if the query printed nothing.
+  Above the envelope, print the resolved `subagent_type` for this unit — see
+  `skills/solve/dispatch.md` step 2 for the resolution rule; in dry run, surface any
+  ambiguity (multiple `agent:*` labels) or missing-specialist as a note **without**
+  exiting — the run is read-only.)
 ```
 
 Exit with: `[dry-run] no writes performed — Linear, git, and graph are unchanged.`

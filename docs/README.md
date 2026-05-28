@@ -10,6 +10,8 @@ directory holds the **living** spec (how the system is built, and why).
 
 - **[Overview](overview.md)** — what backlogd is, and the problem → dispatch → result loop.
 - **[Conventions](conventions.md)** — branching, Linear usage, and docs conventions.
+- **[Specialist developers](specialists.md)** — the `developer-<suffix>` convention; how
+  scope picks one, how the PO overrides via the `agent:*` label, how solve dispatches.
 - **[The /docs living-spec contract](living-spec-contract.md)** — how `/docs` is used as the
   source of truth and living spec. Written generically: it applies to any repository worked
   on by an automated developer.

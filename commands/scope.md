@@ -78,6 +78,50 @@ Follow the **promote-on-discovery** rule from `skills/linear/`; do not predict s
 - **When in doubt, stay an Issue.** Promotion on evidence is cheap; a premature Project that
   never closes is not.
 
+## 4.5. Pick the specialist
+
+Once the spec, AC, and decomposition are settled, pick the **specialist** developer that
+will solve each dispatch target — the problem itself (single-issue form) or each sub-issue
+(decomposed). The parent of a decomposed problem is a **container**, not a dispatch
+target — skip picking for it.
+
+A *specialist* is any agent file whose `name:` frontmatter begins with `developer-`. Two
+discovery sources, globbed in order (the per-repo source wins on a name clash):
+
+- `${CLAUDE_PLUGIN_ROOT:-.}/agents/developer*.md` — the plugin's own roster
+- `.claude/agents/developer*.md` — per-project additions (relative to the repo root)
+
+Read each file's frontmatter and collect `{name, description}` for every well-formed entry
+whose `name` starts with `developer-`. **Skip** any file with missing/malformed
+frontmatter, and note the skip in §6's report (don't fail the run on it). The generic
+`developer` (no suffix) is the **fallback**, not a specialist — exclude it from the picker
+but use it when nothing matches.
+
+**Pick.** For each dispatch target, read the title + spec + AC and reason about best fit
+against the collected roster of `{name, description}` entries. The match is description-
+driven — there is no taxonomy or scoring; pick the single specialist whose description
+best fits the unit of work. If nothing is a clear match, pick generic `developer` and say
+so explicitly in §6 (e.g. `specialist -> developer (no specialist matched)`).
+
+**Record — two surfaces, on purpose:**
+
+- **Label (machine-readable).** Apply an `agent:<suffix>` label to the issue — this is
+  what `/backlogd:solve` reads. For `developer-docs`, the label is `agent:docs`. The
+  `agent:*` family is backlogd-owned (see
+  `skills/linear/references/linear-mcp.md`). The label is **created on first use** —
+  pass the new label name in `save_issue`'s `labels: [...]`; Linear's MCP auto-creates
+  unknown labels on write. **No label** = generic developer (less noise) — so skip the
+  label when the picker fell back to generic.
+- **Description line (PO-readable).** Write a `**Specialist:** developer-<suffix> —
+  <one-line because>` line in the issue **description**, positioned **just above** the
+  `## Acceptance Criteria` heading. This explains *why* this specialist; the PO can flip
+  the label to override. When the picker fell back to generic, write
+  `**Specialist:** developer (no specialist matched)` — no `because` needed.
+
+The PO owns the label: flipping `agent:<a>` → `agent:<b>` between scope and solve
+re-routes the next dispatch. Multiple `agent:*` labels on one issue are an error solve
+will catch.
+
 ## 5. Set priority and stop
 
 Set the problem's **priority** so `/backlogd:solve` can order the queue. Leave **estimates
@@ -95,6 +139,11 @@ Show what you shaped so it is visible in the transcript:
 Shaped: {identifier} — {title}
   acceptance criteria  -> {n} written
   decomposition        -> single issue | {n} sub-issues (blocked-by wired) | promoted to Project "{name}" ({n} issues, {m} milestones)
+  specialist           -> developer-{suffix} (label agent:{suffix}) | developer (no specialist matched) | per sub-issue: NB-N -> developer-{suffix}, …
   priority             -> {priority}
 Ready for: /backlogd:solve {identifier}
 ```
+
+If any specialist file in the roster was skipped because of malformed frontmatter,
+mention the skip on its own line under `specialist` (e.g.
+`skipped: agents/developer-foo.md (missing name frontmatter)`).
