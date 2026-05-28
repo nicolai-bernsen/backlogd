@@ -67,7 +67,11 @@ get to the step. Sub-skills carry the dry-run carve-outs.
    worktree + sub-branch (`backlogd-wt-{identifier}-unit-{unit}` /
    `{gitBranchName}--unit-{unit}`) for every unit in a group of ≥2. Single-unit groups
    skip the sub-branch and run on `$WT` directly — byte-identical to the pre-#321
-   sequential walk.
+   sequential walk. **As the walk reads each unit's `blocked-by` relations** (to compute
+   the ready set), load **`skills/linear/blocked-label.md`** and re-evaluate the
+   `blocked` label on every `problem`-labelled unit — the helper attaches the label when
+   any open blocker is not yet `completed`/`canceled`, and detaches it when the blockers
+   clear. It is a no-op when the labels already match.
 
 6. **Per-unit dispatch** → **`skills/solve/dispatch.md`** *(standard path)* or
    **`skills/solve/ops.md`** *(ops-only path — `gh`/repo-ops actions, no worktree, no

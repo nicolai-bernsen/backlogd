@@ -13,9 +13,13 @@ All Linear access goes through the **Linear MCP server** (configured in `.mcp.js
 scrum-master reads"** and **"Blockers & stall detection"** sections. If the Linear MCP is not
 connected, stop and ask the user to enable it (see the README "Setup" section).
 
-> **Read-only.** Use only `list_*` / `get_*` tools — never `save_*`. Resolve workflow states by
-> `type`, never by display name (see `skills/linear/references/linear-mcp.md`). Page narrowly
-> (filter by `label` / `state` / `parentId`, keep `limit` modest).
+> **Read-only — with one narrow carve-out.** Use only `list_*` / `get_*` tools — never
+> `save_*` for state, comments, or descriptions. The **only** allowed write is the
+> auto-managed `blocked` label, via `skills/linear/blocked-label.md` (step 3 below) — that
+> label is the *signal layer* the PO Daily saved view filters on, so it must stay in sync
+> here too. The console standup output stays exactly as it is today. Resolve workflow
+> states by `type`, never by display name (see `skills/linear/references/linear-mcp.md`).
+> Page narrowly (filter by `label` / `state` / `parentId`, keep `limit` modest).
 
 ## 1. Resolve identity and scope
 
@@ -56,6 +60,13 @@ For each problem in scope, read:
     `completed`/`canceled`;
   - *(Project form)* health ≠ **On track** (At risk / Off track / Update-missing);
   - there is no `completed` movement and the latest Project Update is missing or stale.
+
+At the same point you inspect each `problem`-labelled issue's `blocked-by` relations, load
+**`skills/linear/blocked-label.md`** and run it against that issue (and any unit-level
+`problem`-labelled sub-issues you already read with `includeRelations: true`). This is the
+deliberate read-only carve-out: the helper attaches the `blocked` label when any open
+blocker is not yet `completed`/`canceled` and detaches it otherwise; it is a no-op when
+the labels already match. The console standup output below is unchanged by this step.
 
 ## 4. Report the standup
 

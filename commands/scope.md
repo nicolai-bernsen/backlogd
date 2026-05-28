@@ -173,6 +173,12 @@ will catch.
 Set the problem's **priority** so `/backlogd:solve` can order the queue. Leave **estimates
 off** — backlogd works one problem at a time, so points add no signal.
 
+Then load **`skills/linear/blocked-label.md`** and run it against the shaped problem (and
+any sub-issues you just created with their own `blocked-by` edges). The helper ensures
+the team's `blocked` label exists (idempotent) and attaches/detaches it on each
+`problem`-labelled issue per its open `blocked-by` relations — it is a no-op when the
+desired state already matches the current labels.
+
 Then **stop**. Do **not** move the problem to a started state, and do **not** dispatch a
 developer. Shaping is complete; solving is a separate, deliberate step the product owner
 triggers with `/backlogd:solve`.
