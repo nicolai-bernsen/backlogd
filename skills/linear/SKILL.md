@@ -34,12 +34,45 @@ that's true, it is flagged inline:
 
 > 🎯 **Target — not yet wired.** …
 
-It once was **developers writing to Linear** — now **wired, hybrid**: the `backlogd:developer`
-writes **comments on its own assigned issue** (one progress/result comment edited in place, plus
-a personal checklist and any blocker note) and nothing else. It does **not** create sub-issues,
-set relations, or change state — the scrum-master commands (`/backlogd:scope` +
-`/backlogd:solve`) own all structure and state. The boundary is enforced by the developer's tool
-grant (`get_issue` / `list_comments` / `save_comment` only; see `agents/developer.md`).
+**Developers writing to Linear is wired**, with the NB-340 workaround documented below.
+The `backlogd:developer` writes **comments on its own assigned issue** (one progress/result
+comment edited in place, plus a personal checklist and any blocker note) and nothing else.
+It does **not** create sub-issues, set relations, or change state — the scrum-master commands
+(`/backlogd:scope` + `/backlogd:solve`) own all structure and state. The boundary is enforced by
+the developer's tool grant (`get_issue` / `list_comments` / `save_comment` only; see
+`agents/developer.md`).
+
+## NB-340: tool-grant hazard the orchestrator must work around
+
+A finding from a parallel run (NB-340, Backlog) documents that subagent runtime tool
+grants behave as `frontmatter ∩ parent's currently-loaded deferred tools`. In plain
+English: even if the developer's frontmatter lists `mcp__linear__save_comment`, **the
+subagent may not actually have it at runtime unless the orchestrator has loaded it
+first** (via a prior call from its own context). The same hazard applies to
+`mcp__linear__get_issue` and `mcp__linear__list_comments`.
+
+This is a Claude Code platform behaviour — not a backlogd bug — but every command that
+dispatches a subagent has to work around it. The mechanism backlogd uses:
+
+- **The dispatching command pre-loads each `mcp__linear__*` tool** the subagent needs
+  by calling it at least once from the orchestrator's context, **before** any
+  `Agent({subagent_type: ...})` call. The two affected commands today:
+
+  - `/backlogd:solve` step 0 — pre-loads `get_issue`, `list_comments`, and
+    `save_comment` for the **developer** (see `commands/solve.md`).
+  - `/backlogd:review` step 0 — same pre-load for the **reviewer** (see
+    `commands/review.md` and `skills/reviewer/SKILL.md` once NB-326 lands).
+
+- **If the subagent reports it could not post its `**[backlogd developer]**` (or
+  `**[backlogd reviewer]**`) comment**, treat that as a tool-grant skew, not a
+  subagent failure. Re-dispatch from a fresh session where the pre-load has happened;
+  do not silently accept a missing work-log comment as a "developer issue", and do not
+  substitute an orchestrator-authored work-log comment for the developer's — that
+  loses the audit trail the comment exists to record.
+
+NB-340 stays open as a separate root-cause investigation. The pre-load step above is
+the workaround; if the upstream platform behaviour changes, the workaround becomes
+load-bearing-free and we drop it.
 
 ## The standing structure
 
