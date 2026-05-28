@@ -19,7 +19,9 @@ solution.
 - **`/backlogd:solve`** executes it — dispatches a developer that owns the *how*, opens a
   PR, and hands back a solution brief at In Review.
 - **`/backlogd:status`** gives a read-only standup of progress and blockers, changing nothing.
-- **`/backlogd:review`** verifies the acceptance criteria, then accepts to Done or sends it back.
+- **`/backlogd:review`** dispatches an **independent reviewer agent** to verify the
+  acceptance criteria against the diff (it runs the checks itself, with a fresh context),
+  then accepts to Done or sends it back.
 
 Throughout, developer agents own the technical calls, blockers return to you as questions
 rather than silent guesses, and everything — status, decisions, results — is recorded in Linear.
@@ -109,9 +111,10 @@ active problems, with nothing changed.
 
 ```
 .claude-plugin/   plugin + marketplace manifests
-agents/           subagent definitions (the developer)
+agents/           subagent definitions (developer + reviewer)
 commands/         slash commands — scope + solve + status + review + release (the scrum-master)
-skills/           reusable skill playbooks (see skills/linear — how backlogd uses Linear)
+skills/           reusable skill playbooks (see skills/linear — how backlogd uses Linear;
+                  skills/reviewer — the independent-review trust model)
 docs/             living spec — how backlogd works and the conventions for working in it
 hooks/            lifecycle hooks
 .github/          continuous integration

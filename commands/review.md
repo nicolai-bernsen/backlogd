@@ -1,23 +1,50 @@
 ---
-description: Quality gate — verify a solved problem against its acceptance criteria, then accept it to Done, send it back to In Progress with notes, or escalate a judgement call to the product owner.
+description: Quality gate — dispatch an independent reviewer subagent against a solved problem's acceptance criteria, then act on its verdict — accept to Done, send back to In Progress, or escalate a judgement call. The reviewer judges; the orchestrator acts.
 ---
 
 # /backlogd:review
 
 You are the **scrum-master** for backlogd, in *gate* mode. After `/backlogd:solve` moves a
-solved problem to **In Review**, this command checks it against its **acceptance criteria** and
-closes the loop: **accept** it to Done, **send it back** with specific notes, or **escalate** a
-genuine judgement call to the product owner. You own the state transition, the **PR merge on
-accept**, and the verdict; you do not re-solve.
+solved problem to **In Review**, this command closes the loop: dispatch the **independent
+`backlogd:reviewer` subagent** to read the artifacts with a fresh context and produce a
+per-AC verdict, then **act** on that verdict — accept it to Done, send it back to In
+Progress with the reviewer's notes, or escalate a judgement call to the product owner.
+**The reviewer judges; you act.** You own the state transition, the **PR merge on
+accept**, and the user-facing rollup comment.
 
-All Linear access goes through the **Linear MCP server** (configured in `.mcp.json`). **Load the
-`linear` skill (`skills/linear/`)** for the operating model and the exact `mcp__linear__*` calls.
-If the Linear MCP is not connected, stop and ask the user to enable it (see the README "Setup").
+All Linear access goes through the **Linear MCP server** (configured in `.mcp.json`).
+**Load the `linear` skill (`skills/linear/`)** for the operating model, and the
+**`reviewer` skill (`skills/reviewer/`)** for the trust model behind the dispatched
+reviewer (fresh context, restricted tool grant, mandatory machine-verifiable check
+execution). If the Linear MCP is not connected, stop and ask the user to enable it (see
+the README "Setup").
 
-> **Read `skills/linear/` first.** Resolve workflow states by `type`, never by display name (the
-> team has two `started` states — *In Progress* and *In Review* — so resolve them by role); every
-> `save_*` is an upsert (read → capture `id` → write); keep **one** review comment per problem,
-> edited in place.
+> **Read `skills/linear/` and `skills/reviewer/` first.** Resolve workflow states by
+> `type`, never by display name; every `save_*` is an upsert (read → capture `id` →
+> write); keep **one** review rollup comment per problem, edited in place. The reviewer
+> subagent is a separate context — you cannot answer questions for it; you can only
+> hand it a complete envelope and act on what it returns.
+
+## 0. Pre-load the deferred Linear MCP tools (NB-340 hazard)
+
+Subagents inherit only the tools the parent has already loaded — a deferred MCP tool
+listed in the subagent's frontmatter is **not** granted at runtime unless the parent
+has previously called it (see `skills/reviewer/SKILL.md` → *NB-340: tool-grant
+hazard*). Before any dispatch in this command, **use each `mcp__linear__*` tool the
+reviewer needs at least once from the orchestrator's context** so the deferred tool
+is loaded and propagates:
+
+- `mcp__linear__get_issue` — call it (e.g. to read the In Review problem in step 2).
+- `mcp__linear__list_comments` — call it (e.g. to read existing comments on the
+  problem).
+- `mcp__linear__save_comment` — you'll use it in step 4 anyway; this is the
+  load-bearing one. If your run doesn't naturally call it before dispatch, force it by
+  posting/editing a placeholder comment on the orchestrator's own scratch (or by
+  using it for the identity-resolution narration if you do any).
+
+If you skip this step and the reviewer reports it cannot post its
+`**[backlogd reviewer]**` comment, that is the NB-340 tool-grant skew — re-run with
+the pre-load done, do not silently accept a tool-grant failure as a developer issue.
 
 ## 1. Resolve identity
 
@@ -42,68 +69,126 @@ If the user named an issue (`/backlogd:review NB-123`), take it. Otherwise pick 
 
 and **stop**.
 
-## 3. Verify against the acceptance criteria
+## 3. Gather the evidence + dispatch the reviewer
 
-The problem's **description** holds the spec + `## Acceptance Criteria` (the contract). Gather the
-evidence — read, don't trust blindly:
+You do **not** walk the AC inline — **dispatch the `backlogd:reviewer` subagent** to do
+the AC walk and produce the verdict. Gather the evidence first so the reviewer has a
+complete envelope (it gets a fresh context and cannot see anything you haven't put in
+the envelope):
 
-- the **`## Acceptance Criteria`** list;
-- the **developer's result** comment(s) and the **solution brief** on the problem (and on each
-  sub-issue, in the decomposed / Project form);
-- the **artifacts** themselves — inspect the actual change (`Read` / `Grep` / `Glob` / `Bash`,
-  and the problem's **open PR** and its CI) enough to judge whether each criterion truly holds.
-  You are checking **AC satisfaction**, not doing a line-by-line style review.
+- the **`## Acceptance Criteria`** list (from the problem's description),
+- the **per-unit `**[backlogd developer]**` progress comment(s)** on the problem (and on
+  each sub-issue, in the decomposed / Project form),
+- the **solution brief** comment on the problem,
+- the problem's **open PR url** (from the issue's linked attachments / branch name) and
+  the **CI signal** rollup (`gh pr checks {pr-url}` → green / red / pending),
+- the **worktree path** for the problem's branch (if it still exists on this host) — so
+  the reviewer can read the diff locally; otherwise it relies on `gh pr diff`.
 
-**Ops-only run?** If the problem carries the **`kind:ops`** label (or every unit does — see
-`skills/solve/ops.md`), there is no PR to inspect. The artifacts are the `**[backlogd developer]**`
-**action logs** on each unit and the GitHub surfaces those `gh` calls changed — verify by
-re-reading them (`gh repo view --json …`, `gh release list`, `gh label list`, etc.) and by reading
-any drafts the developer added to the tree (e.g. `docs/PROMOTION.md` lands on the standard path via
-a code unit, but ops units can also reference such drafts).
+**Ops-only run?** If the problem carries the **`kind:ops`** label (or every unit does —
+see `skills/solve/ops.md`), there is no PR to inspect. The artifacts are the
+`**[backlogd developer]**` **action logs** on each unit and the GitHub surfaces those
+`gh` calls changed. Pass the action logs to the reviewer in place of the PR diff and tell
+it the PR url is `(none — ops-only)` and the CI signal is `(none — ops-only)`. The
+reviewer's machine-verifiable checks then become `gh repo view --json …`, `gh release
+list`, `gh label list`, etc.
 
-Judge each criterion: **met** / **unmet** / **needs PO judgement** (a call only the product owner
-can make — e.g. "is this *good enough*?").
+Then call the **`backlogd:reviewer` subagent** with the Agent tool, handing it the
+problem as an **inline** context envelope. The envelope is the reviewer's entire
+world — anything not in it is invisible to it. Mirror the developer envelope's
+no-implicit-context discipline:
 
-## 4. Post the verdict
+> Review this problem. Read its `## Acceptance Criteria`, run every machine-verifiable
+> check yourself (do not trust the developer's report — the whole point of an
+> independent review is to verify), inspect the PR diff and CI rollup, and return a
+> per-AC verdict. Post your progress and verdict draft to your issue's
+> `**[backlogd reviewer]**` comment. Touch only this one issue.
+>
+> Problem ({identifier}, issue id {id}): {title}
+>
+> {description, including its `## Acceptance Criteria`}
+>
+> Per-unit developer progress comments (gathered from this problem and any sub-issues):
+> {paste each `**[backlogd developer]**` progress comment verbatim, labelled by unit
+> identifier}
+>
+> Solution brief on the problem:
+> {paste the orchestrator's solution-brief comment verbatim}
+>
+> Open PR: {pr url, or "(none — ops-only)"}
+> CI signal: {green | red | pending — from `gh pr checks`, or "(none — ops-only)"}
+> Worktree path: {$WT if still present, else "(removed — read via gh pr diff)"}
 
-Post one review comment on the problem (edited in place on a re-run; visible `**[backlogd
-review]**` badge — Linear renders HTML comments as literal text):
+Capture the reviewer's final structured summary verbatim — specifically the rollup
+(`accepted` / `sent back` / `needs PO`), the per-AC walk with cited evidence, and the
+`Verdict body` markdown block. Verify the reviewer's `**[backlogd reviewer]**` comment
+landed on the issue (`list_comments`); do **not** re-post it yourself. If the comment
+is missing, this is most likely the NB-340 tool-grant hazard (step 0 above) — surface
+it as a tool-grant failure, not a reviewer failure.
+
+## 4. Post the rollup verdict — orchestrator-owned
+
+Post **one** rollup comment on the problem (edited in place on a re-run; visible
+`**[backlogd review]**` badge — Linear renders HTML comments as literal text). This is
+**your** PO-facing rollup; it is **not** the reviewer's `**[backlogd reviewer]**`
+comment (which stays on the issue as the audit trail). Use the reviewer's drafted
+`Verdict body` as the basis — you may lift it verbatim:
 
 ```
 **[backlogd review]** Verdict: accepted | sent back | needs you
 
 Acceptance criteria
-  ✅ {criterion} — {how it is met}
+  ✅ {criterion} — {how it is met, with cited evidence}
   ❌ {criterion} — {what is missing}
   ❔ {criterion} — {the judgement call for you}
-{Rework notes, or the question for the PO}
+
+Evidence the reviewer ran
+  - `{command}` → {what it showed}
+  - {…}
+
+CI signal: {green | red | pending}
+
+{Rework notes (if sent back), or the question (if needs you), or empty (if accepted)}
 ```
 
-## 5. Decide and transition
+You may **not** override the reviewer's per-AC judgement without surfacing the
+override explicitly (e.g. "PO override: accepted despite ❌ — see comment below").
+That keeps the audit trail honest: the reviewer's draft is the independent verdict;
+your rollup is the action.
 
-- **All criteria met** → **merge the PR and close the loop**: find the problem's open PR (via its
-  linked PR / branch name), confirm **CI is green** (`gh pr checks`), then **squash-merge** it into
-  the integration branch (`gh pr merge {pr} --squash --delete-branch`) and move the problem to the
-  `completed` state (Done). Remove the problem's worktree if one remains (`git worktree remove`).
-  **Never merge red** — if CI isn't green, treat it as *sent back* below.
-  *(Ops-only run — `kind:ops`: there is no PR to merge. Skip the merge + worktree cleanup and just
-  move the problem to Done.)*
-- **Any criterion unmet** (or CI red) → move the problem back to the *In Progress* state, with the
-  unmet criteria written as **actionable rework notes** in the verdict comment. Leave the PR open —
-  a fresh `/backlogd:solve` adds commits to the same branch. Do **not** re-dispatch a developer
-  yourself. *(Ops-only run — `kind:ops`: there is no PR. A fresh `/backlogd:solve` re-dispatches
-  ops units with the rework notes; the ops developer logs the new actions on the unit.)*
+## 5. Decide and transition — orchestrator-owned
 
-  Also record the rework event on the graph (best-effort — must never block the verdict).
-  Use a reviewer session id (e.g. `review-{identifier}-{YYYYMMDDHHMMSS}`) and pass the rework
-  notes so only their hash is stored (no note text leaks into `.backlogd/`):
+Act on the reviewer's rollup:
+
+- **`accepted`** (every AC `✅` AND CI green) → **merge the PR and close the loop**:
+  find the problem's open PR (via its linked PR / branch name), confirm **CI is
+  green** (`gh pr checks`), then **squash-merge** it into the integration branch
+  (`gh pr merge {pr} --squash --delete-branch`) and move the problem to the
+  `completed` state (Done). Remove the problem's worktree if one remains
+  (`git worktree remove`). **Never merge red** — if CI isn't green, treat it as
+  *sent back* below.
+  *(Ops-only run — `kind:ops`: there is no PR to merge. Skip the merge + worktree
+  cleanup and just move the problem to Done.)*
+- **`sent back`** (any AC `❌` OR CI red) → move the problem back to the *In
+  Progress* state, with the reviewer's `❌` notes carried into your rollup comment
+  as **actionable rework notes**. Leave the PR open — a fresh `/backlogd:solve`
+  adds commits to the same branch. Do **not** re-dispatch a developer yourself.
+  *(Ops-only run — `kind:ops`: there is no PR. A fresh `/backlogd:solve`
+  re-dispatches ops units with the rework notes; the ops developer logs the new
+  actions on the unit.)*
+
+  Also record the rework event on the graph (best-effort — must never block the
+  verdict). Use a reviewer session id (e.g. `review-{identifier}-{YYYYMMDDHHMMSS}`)
+  and pass the rework notes so only their hash is stored (no note text leaks into
+  `.backlogd/`):
 
       python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" rework \
           --session "review-{identifier}-$(date -u +%Y%m%dT%H%M%S)" \
           --problem {identifier} \
           --notes "{the unmet-criteria notes you just wrote}"
-- **A genuine judgement call** (`needs PO judgement`) → **leave it In Review** (PR open) and
-  surface the question to the product owner. Don't guess at a call that's theirs to make.
+- **`needs PO`** (any AC `❔` without `❌`) → **leave it In Review** (PR open) and
+  surface the question to the product owner. Don't guess at a call that's theirs to
+  make.
 
 Confirm the transition + merge (or the deliberate non-merge) succeeded.
 
@@ -111,6 +196,8 @@ Confirm the transition + merge (or the deliberate non-merge) succeeded.
 
 ```
 {identifier} — {title}
-  acceptance   -> {n met}/{n total} criteria
-  verdict      -> accepted (PR merged → Done) | sent back (PR open → In Progress) | needs you (← {question})
+  reviewer    -> {accepted | sent back | needs PO}, evidence cited
+  acceptance  -> {n met}/{n total} criteria, {k} needs-PO
+  CI          -> {green | red | pending}
+  verdict     -> accepted (PR merged → Done) | sent back (PR open → In Progress) | needs you (← {question})
 ```
