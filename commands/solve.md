@@ -47,31 +47,57 @@ get to the step. Sub-skills carry the dry-run carve-outs.
    `problem`-labelled candidate (state then priority). If unshaped, run `/backlogd:scope`'s
    flow inline; pause for the product owner only on genuine ambiguity.
 
-4. **Units + worktree (or ops route)** → **`skills/solve/walk.md`**. Determine units of
+4. **Resume / reconcile** → **`skills/solve/resume.md`**. Read Linear state, the
+   branch + worktree, and `python scripts/graph.py run-status --problem {unit}` for every
+   unit. Classify each as `completed` / `in-progress-mine` / `untouched` / `inconsistent`.
+   Skip already-`completed` units on re-dispatch; reuse an existing branch/worktree;
+   pause and surface to the product owner on any `inconsistent` signal — do not guess. On
+   a first-ever invocation every unit is `untouched` and this step is a no-op.
+
+5. **Units + worktree (or ops route)** → **`skills/solve/walk.md`**. Determine units of
    work (single issue / sub-issues / Project form); a unit is ready only when its
    `blocked-by` are `completed`. **Decide the route by the `kind:ops` label** before
    touching git: every ready unit ops → ops-only path (no worktree, no PR — load
    **`skills/solve/ops.md`**); none ops → standard path (open the isolated worktree +
    branch off the integration branch and remember the path as `$WT`); mixed → stop and
-   ask the PO to split.
+   ask the PO to split. **Skip the worktree-add step if reconcile in step 4 already reused
+   one** — `$WT` was set there (standard path only). **On the standard path, the walk
+   then groups ready units into parallel groups** (units with no `blocked-by` between
+   them, capped by `BACKLOGD_CONCURRENCY_MAX` — default 2, max 4) and adds a per-unit
+   worktree + sub-branch (`backlogd-wt-{identifier}-unit-{unit}` /
+   `{gitBranchName}--unit-{unit}`) for every unit in a group of ≥2. Single-unit groups
+   skip the sub-branch and run on `$WT` directly — byte-identical to the pre-#321
+   sequential walk. **As the walk reads each unit's `blocked-by` relations** (to compute
+   the ready set), load **`skills/linear/blocked-label.md`** and re-evaluate the
+   `blocked` label on every `problem`-labelled unit — the helper attaches the label when
+   any open blocker is not yet `completed`/`canceled`, and detaches it when the blockers
+   clear. It is a no-op when the labels already match.
 
-5. **Per-unit dispatch** → **`skills/solve/dispatch.md`** *(standard path)* or
+6. **Per-unit dispatch** → **`skills/solve/dispatch.md`** *(standard path)* or
    **`skills/solve/ops.md`** *(ops-only path — `gh`/repo-ops actions, no worktree, no
-   commit, no PR; the developer posts an action log on the unit)*. For each ready unit in
-   dependency order: claim → inject prior-work + record `dispatch_started` → dispatch the
-   `backlogd:developer` with an inline envelope → capture the result → record
+   commit, no PR; the developer posts an action log on the unit)*. For each ready unit:
+   **skip if reconcile classified it `completed`**; otherwise claim → inject prior-work
+   + record `dispatch_started` → dispatch the `backlogd:developer` with an inline
+   envelope → capture the result → **run the quality gate (`skills/solve/gate.md` —
+   tester + reviewer pre-commit-gate; 2-round cap; standard path only)** → record
    `dispatch_completed` (outcome + latency) → transition by `Outcome` (`solved` →
    `completed`; `partial`/`blocked` → leave in progress and surface to the PO, stop the
-   run) → commit on the problem's branch *(skipped on the ops path — no diff)*. One
+   run) → commit on the unit's branch (the problem branch for a sequential single-unit
+   group; the per-unit sub-branch for a parallel group — `skills/solve/walk.md` collects
+   the sub-branches into the problem branch after the group returns) *(skipped on the
+   ops path — no diff)*. **A parallel group dispatches every unit in one response
+   (multiple `Agent()` calls — Claude Code's native concurrency seam); the orchestrator
+   waits for all of them and does not abort siblings on a `partial`/`blocked`.** One
    commit per unit on the standard path.
 
-6. **Handoff at In Review** → **`skills/solve/handoff.md`**. When every unit is
+7. **Handoff at In Review** → **`skills/solve/handoff.md`**. When every unit is
    `completed`: push and open the PR into the integration branch *(skipped on the ops
    path — there is no PR)*, record `pr_opened` *(standard path only)* + `run_completed`
-   on the graph, post the high-level PO-facing solution brief on the problem issue
-   (pointing at the action logs on the units when ops-only), move the problem to
-   *In Review*, and stop. Do **not** mark Done — `/backlogd:review` (or the PO) accepts
-   later.
+   *(with `--fanout` set to the peak parallel-group size from step 5; `1` if the walk
+   stayed sequential)* on the graph, post the high-level PO-facing solution brief on the
+   problem issue (pointing at the action logs on the units when ops-only), move the
+   problem to *In Review*, and stop. Do **not** mark Done — `/backlogd:review` (or the
+   PO) accepts later.
 
 ## Report
 
@@ -81,10 +107,11 @@ Tell the user what happened, end to end:
 {identifier} — {title}
   route    -> standard (worktree + PR)  |  ops-only (no worktree, no PR)
   units    -> {n} solved{, k blocked}
+  walk     -> sequential | parallel (peak fanout {k} of {n} units; concurrency_max={c})
   branch   -> {gitBranchName} → PR into {integration}     ← standard only
                 (no PR — ops actions logged on each unit) ← ops-only
   results  -> recorded on each unit
-  graph    -> dispatch_started/completed + run_completed recorded (best-effort)
+  graph    -> dispatch_started/completed + run_completed (fanout={k}) recorded (best-effort)
                  + pr_opened                                       ← standard only
   problem  -> In Review (solution brief posted)  |  paused: {blocker}
 ```

@@ -15,6 +15,12 @@ the plan; the world is untouched.
   use `includeRelations: true` per unit to show `blocked-by`.
 - **Graph:** `python scripts/graph.py prior-work --problem {identifier}` per unit; a
   graph failure falls through with an empty block.
+- **Resume reconcile reads** (`skills/solve/resume.md`): `python scripts/graph.py
+  run-status --problem {unit}` per unit, `git ls-remote --heads origin
+  {gitBranchName}`, `git branch --list {gitBranchName}`, `git worktree list
+  --porcelain`, and (if a worktree at the expected path exists) `git -C "$WT" status
+  --porcelain` / `rev-parse HEAD`. Pure reads — no `git worktree add`, no `checkout`.
+  Render the classification in section (d) of the plan; never act on it.
 
 ## Forbidden
 
@@ -45,13 +51,30 @@ the plan; the world is untouched.
 
 (d) Unit walk plan
   route: standard (worktree + PR) | ops-only (no worktree, no PR) | mixed (would stop + ask PO)
-  worktree path / branch off origin/{integration}      ← standard only; for ops-only print "(no worktree — ops path)"
-  units (dispatch order, with blocked-by + ready? + kind:ops?)
+  worktree path / branch off origin/{integration}      ← standard only; for ops-only print
+                                                          "(no worktree — ops path)";
+                                                          for resume-reuse print "(reuse existing)"
+  concurrency_max: $BACKLOGD_CONCURRENCY_MAX (default 2, clamped to [1,4])
+  parallel groups (computed read-only — for each group: unit ids, group size, per-unit
+         sub-branch + worktree path the real run would create at
+         backlogd-wt-{identifier}-unit-{unit}; size==1 groups print as "(sequential)").
+         Show every group in dispatch order; the peak group size is the run's
+         peak_fanout — note it explicitly.
+  units (dispatch order, with blocked-by + ready? + kind:ops? + resolved subagent_type per
+         unit + resume class: completed / in-progress-mine / untouched / inconsistent)
 
 (e) Per-unit dispatch envelope — verbatim, for each unit
-  (standard envelope from `skills/solve/dispatch.md` step 2 with `{$WT path}` for code
-  units; ops envelope from `skills/solve/ops.md` step 3 — no `$WT` line — for `kind:ops`
-  units; include the `## Prior work` block when the query printed one)
+  (standard envelope from `skills/solve/dispatch.md` step 3 with `{$WT path}` for code
+  units in a sequential group, or `{$WT_unit path}` for code units in a parallel group
+  — i.e. the per-unit sub-worktree path the real run would use; ops envelope from
+  `skills/solve/ops.md` step 3 — no `$WT` line — for `kind:ops` units; include the
+  `## Prior work` block when the query printed one. Above the envelope for code units,
+  print the resolved `subagent_type` for this unit — see `skills/solve/dispatch.md`
+  step 2 for the resolution rule; in dry run, surface any ambiguity (multiple `agent:*`
+  labels) or missing-specialist as a note **without** exiting — the run is read-only.
+  When the unit is in a parallel group, also print a single-line annotation **above the
+  envelope** noting "parallel group {n}/{total}, size {k}" so the preview makes the
+  fanout obvious.)
 ```
 
 Exit with: `[dry-run] no writes performed — Linear, git, and graph are unchanged.`
@@ -66,4 +89,7 @@ Exit with: `[dry-run] no writes performed — Linear, git, and graph are unchang
   `skills/solve/ops.md` per unit.
 - **Mixed units** — print (a)–(c); in (d) note `route: mixed — would stop and ask PO to
   split or pick one path`; skip (e).
+- **Resume `inconsistent`** — print sections (a)–(d), label the unit `inconsistent`, and
+  print the pause message template from `skills/solve/resume.md` § 4 inside (d). Skip (e);
+  a real run would not dispatch. The dry-run still exits cleanly (it acts on nothing).
 - **Linear MCP not connected** — same as the real run: stop and ask the user to enable it.

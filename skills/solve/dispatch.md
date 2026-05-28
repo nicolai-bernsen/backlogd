@@ -1,6 +1,6 @@
 ---
 name: solve-dispatch
-description: Per-unit dispatch loop for /backlogd:solve — claim the unit, inject prior work from the graph, record dispatch_started, hand the developer an inline envelope, capture the result, record dispatch_completed with outcome + latency, transition state by outcome, and commit per unit.
+description: Per-unit dispatch envelope for /backlogd:solve — claim the unit, resolve the specialist from its agent:* label (or fall back to generic developer), inject prior work from the graph, record dispatch_started, hand the developer an inline envelope, capture the result, record dispatch_completed with outcome + latency, transition state by outcome, and commit per unit. Callable once per unit either sequentially (single-unit group, default) or concurrently (parallel group — multiple Agent() calls in one response, each with its own per-unit worktree). The envelope is single-unit; the orchestrator in skills/solve/walk.md decides whether to call it once or N-way in parallel.
 ---
 
 # solve — per-unit dispatch
@@ -8,6 +8,13 @@ description: Per-unit dispatch loop for /backlogd:solve — claim the unit, inje
 > **Dry run:** in `--dryrun` mode, do **not** execute this section. Instead, walk the
 > units read-only, render the dispatch envelope verbatim per unit, and follow
 > `skills/solve/dryrun.md`. No `Agent` call, no state transition, no graph write, no commit.
+>
+> **Resume:** for each unit, check what `skills/solve/resume.md` classified it as. **Skip
+> any unit reconcile marked `completed`** — no claim, no envelope, no graph write, no
+> commit; the prior run already handled it (its `dispatch_completed` edge is on the graph
+> and Linear already says `Done`). Process `in-progress-mine` and `untouched` units below
+> exactly as you would in a fresh run. If reconcile surfaced an `inconsistent` unit the
+> orchestrator already paused — this skill is not reached.
 
 > **Ops-only run?** If `skills/solve/walk.md` routed this run to the ops-only path (every
 > ready unit carries the **`kind:ops`** label), **do not run this section** — follow
@@ -15,10 +22,44 @@ description: Per-unit dispatch loop for /backlogd:solve — claim the unit, inje
 > developer takes `gh` / repo-ops actions and posts an action log on the unit. The two
 > paths are mutually exclusive per run.
 
-For each ready unit, in dependency order:
+## Single-unit envelope (called once per unit)
+
+This skill is **single-unit**: it describes the work of one dispatch. `skills/solve/walk.md`
+calls it once per ready unit. When the walk has built a **parallel group** of ≥2 units,
+it issues multiple `Agent()` calls **in one response** (Claude Code's native concurrency
+seam) so all dispatches in the group run concurrently — each one consumes this skill
+independently. Per-parallel-unit, the worktree handed to the developer is the unit's own
+`$WT_unit` (the path the walk created at `backlogd-wt-{identifier}-unit-{unit}`); per
+sequential-unit, it is the shared `$WT` (the problem-branch worktree). Substitute the
+correct one into the envelope below.
+
+For each ready unit (in a parallel group: each unit in the group; in a sequential walk:
+each unit in `blocked-by` order):
 
 1. **Claim it** — move the unit to the *In Progress* state (from `skills/solve/identity.md`).
-2. **Inject prior work + record dispatch start** — both are best-effort; a graph failure
+
+2. **Resolve the specialist for this unit.** Read the unit issue's `labels` and look for
+   exactly one `agent:<suffix>` label (the `agent:*` family is backlogd-owned — see
+   `skills/linear/references/linear-mcp.md`). Map that label to a subagent name with the
+   rule **`agent:<suffix>` → `developer-<suffix>`**, then verify the specialist is
+   discoverable — its agent file lives at either
+   `${CLAUDE_PLUGIN_ROOT:-.}/agents/developer-<suffix>.md` or
+   `.claude/agents/developer-<suffix>.md` (per-repo wins on clash). Decide the
+   `subagent_type` to dispatch:
+   - **No `agent:*` label** → dispatch generic `developer` (the fallback —
+     `agents/developer.md`). This preserves today's behaviour.
+   - **One `agent:*` label and the specialist is discoverable** → dispatch
+     `developer-<suffix>`.
+   - **One `agent:*` label but `developer-<suffix>.md` is not discoverable** → **stop the
+     run cleanly.** Surface to the PO: the label, the expected file path, and a short
+     list of available specialists (names collected from the two discovery globs). Do
+     not guess past a missing specialist; the PO fixes the label and re-runs.
+   - **Multiple `agent:*` labels on the unit** → **stop the run cleanly.** Surface the
+     ambiguity to the PO with the labels found and ask them to leave exactly one.
+
+   Remember the resolved `subagent_type` (call it `$AGENT`) for the dispatch in step 3.
+
+3. **Inject prior work + record dispatch start** — both are best-effort; a graph failure
    must never block the dispatch. First query for prior work:
 
        python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" prior-work --problem {identifier}
@@ -37,14 +78,15 @@ For each ready unit, in dependency order:
        python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" labeled \
            --session "$SESSION" --problem {identifier} --labels {label1} {label2} ...
 
-   Then call the `backlogd:developer` subagent with the Agent tool, handing it the unit
-   as an **inline** context envelope, including the unit's **issue id** so it can post
-   its own progress there. It owns the *how*; you own all structure and state:
+   Then call the **resolved subagent** (`$AGENT` from step 2 — `developer` or
+   `developer-<suffix>`) with the Agent tool, handing it the unit as an **inline** context
+   envelope, including the unit's **issue id** so it can post its own progress there. It
+   owns the *how*; you own all structure and state:
 
    > Solve this problem. Take a concrete action toward resolving it, post your progress to
    > your issue, then report what you did and the outcome.
    >
-   > Work in this worktree — make all your file changes under it: {$WT}
+   > Work in this worktree — make all your file changes under it: {$WT or $WT_unit for this unit}
    >
    > Problem ({identifier}, issue id {id}): {title}
    >
@@ -52,12 +94,35 @@ For each ready unit, in dependency order:
    >
    > {the `## Prior work` block from the query above — include only if it printed one}
 
-3. **Capture** the developer's final structured summary verbatim.
-4. **Confirm its record** — the developer posts its own progress/result comment on the
+   For a **parallel group** call, substitute the unit's own `$WT_unit` (the path
+   `skills/solve/walk.md` created at `backlogd-wt-{identifier}-unit-{unit}`) into the
+   worktree line. Each parallel sub-developer inherits the orchestrator's loaded tool
+   grant — `agents/developer.md` carries no `tools:` frontmatter (removed in #345), so
+   the runtime propagates parent context per dispatch. No per-dispatch pre-load is
+   needed.
+
+4. **Capture** the developer's final structured summary verbatim. **In a parallel group,
+   do not abort sibling dispatches when one returns `partial`/`blocked` — let every
+   dispatch in the group finish, then process each per step 7 below.** (See
+   `skills/solve/walk.md` § "Dispatch a parallel group" for the wait-and-collect
+   contract.)
+
+5. **Confirm its record** — the developer posts its own progress/result comment on the
    unit issue (the `**[backlogd developer]**` comment). Verify it landed; do **not**
    re-post it yourself (no double-posting). Add at most a one-line orchestrator note only
    if something is genuinely missing.
-5. **Record dispatch completion on the graph** — write the per-unit outcome with the
+
+5b. **Run the quality gate** → **`skills/solve/gate.md`**. Load it; it dispatches the
+   tester and the reviewer (`pre-commit-gate` mode) against the unit the resolved
+   specialist just edited. If the gate returns **`needs-changes`**, re-enter **step 3**
+   above (re-dispatch the resolved specialist with the gate's rework notes prepended to
+   the envelope), then re-enter this gate stage. Bounded by a 2-round hard cap inside
+   `gate.md` — on the 3rd would-be re-dispatch the gate returns `blocked` and the
+   `partial`/`blocked` handling in step 7 takes it from there. If the gate returns
+   **`ok`**, continue to step 6; carry any `untestable:` items the gate captured forward
+   so `skills/solve/handoff.md` can surface them in the PO solution brief.
+
+6. **Record dispatch completion on the graph** — write the per-unit outcome with the
    latency the CLI derives automatically from the `dispatch_started` edge above
    (best-effort — never block the loop):
 
@@ -65,17 +130,31 @@ For each ready unit, in dependency order:
            --session "$SESSION" --problem {identifier} \
            --outcome {solved|partial|blocked}
 
-6. **Transition the unit** by the developer's reported `Outcome`:
+7. **Transition the unit** by the developer's reported `Outcome`:
    - `solved` → move the unit to a `completed` state.
    - `partial` or `blocked` → **leave it in progress** and surface it to the product owner
      as a clear question (a genuine blocker — do not guess past it); leave the issue in its
-     started state and **stop** the run.
+     started state. **In a sequential single-unit group** stop the run immediately. **In a
+     parallel group** still capture/transition this unit, but let the sibling dispatches in
+     the group finish first; once every dispatch in the group has returned and been
+     transitioned (and after the walk's collect step in `skills/solve/walk.md`), stop the
+     run if any unit in the group was `partial`/`blocked`. Never start the next parallel
+     group on a non-`solved` outcome.
 
-7. **Commit the unit** on the problem's branch — one commit per unit, conventional message
-   referencing the issue (the developer ran no git; you own the commit):
+8. **Commit the unit** on the problem's branch (or, in a parallel group, on the unit's
+   sub-branch) — one commit per unit, conventional message referencing the issue (the
+   developer ran no git; you own the commit). Use `$WT` for a sequential single-unit
+   group and `$WT_unit` for a unit in a parallel group:
 
-       git -C "$WT" add -A
-       git -C "$WT" commit -m "{type}(#{identifier}): {what this unit did}"
+       git -C "$WT_or_WT_unit" add -A
+       git -C "$WT_or_WT_unit" commit -m "{type}(#{identifier}): {what this unit did}"
+
+   In a parallel group, the per-unit commit lands on the unit's sub-branch
+   (`{gitBranchName}--unit-{unit-identifier}`); `skills/solve/walk.md`'s collect step
+   fast-forward-merges that sub-branch into the problem branch after every dispatch in
+   the group has returned. Identity-guard checks (`backlogd.expectedEmail` /
+   `hooks/git/pre-commit`) apply automatically — `git config` is per-repo and shared
+   across all linked worktrees of the same repo.
 
 ## Note on file-edge writes (low-signal)
 

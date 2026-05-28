@@ -45,7 +45,7 @@ compute on their own.
 | **`dispatch_started`** | `ts` | `skills/solve/dispatch.md` — when the orchestrator hands the unit to a developer subagent. |
 | **`dispatch_completed`** | `outcome` (`solved` / `partial` / `blocked`), `latency_ms` | `skills/solve/dispatch.md` — when the developer returns. `latency_ms` is derived from the matching `dispatch_started`. |
 | **`pr_opened`** | `ts` | `skills/solve/handoff.md` — immediately after `gh pr create`. |
-| **`run_completed`** | `wall_time_ms` | `skills/solve/handoff.md` — at end of handoff. Wall time is derived from the earliest `dispatch_started` for the same problem/session. |
+| **`run_completed`** | `wall_time_ms`, `fanout` (peak parallel-group size — 1 sequential, ≥2 parallel walk) | `skills/solve/handoff.md` — at end of handoff. Wall time is derived from the earliest `dispatch_started` for the same problem/session; `fanout` comes from the orchestrator's parallel-walk bookkeeping (`skills/solve/walk.md`). |
 | **`rework`** | `notes_hash` (sha256 prefix; the note text itself is **never stored**) | `commands/review.md` — when the reviewer sends a problem back to *In Progress*. Each event uses a per-event session suffix so multiple events accumulate. |
 | **`labeled`** | `labels` (list of Linear label names, e.g. `["area:graph", "problem"]`) | `skills/solve/dispatch.md` — optional; lets `graph.py report` aggregate blocker frequency by `area:*` without re-reading Linear. |
 
@@ -85,6 +85,7 @@ Some edge types carry **extra fields** beyond the base. They're added at the top
 | `outcome` | `dispatch_completed` | `"solved"` / `"partial"` / `"blocked"` | Developer's reported result. |
 | `latency_ms` | `dispatch_completed` | integer | Wall time from `dispatch_started` to completion. |
 | `wall_time_ms` | `run_completed` | integer | Total wall time from the earliest `dispatch_started` to the run end. |
+| `fanout` | `run_completed` | integer ≥1 | Peak parallel-group size observed during the run. `1` for a sequential / single-unit run; `≥2` when the parallel walk fanned out (#321). |
 | `notes_hash` | `rework` | string (12-char sha256 prefix) | Stable handle for the rework notes; **never** the notes themselves. |
 | `labels` | `labeled` | list of strings | Linear label names attached to the problem at dispatch time. |
 

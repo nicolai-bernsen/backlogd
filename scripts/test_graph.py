@@ -324,6 +324,148 @@ class MetricsTest(unittest.TestCase):
         m = json.loads(buf.getvalue())
         self.assertEqual(m["dispatches"]["partial"], 1)
 
+    def test_run_end_records_fanout(self):
+        # The parallel-walk metadata added in #321: --fanout on run-end is
+        # stored on the run_completed edge as a passthrough field.
+        graph.main(["run-end", "--session", "s1", "--problem", "NB-1",
+                    "--ts", "2026-05-01T10:00:00Z", "--fanout", "3"])
+        run = [e for e in graph.read_graph()
+               if e["type"] == "run_completed"][0]
+        self.assertEqual(run["fanout"], 3)
+
+    def test_run_end_without_fanout_is_backward_compatible(self):
+        # An old caller (no --fanout) writes the edge without the field;
+        # the metrics aggregate handles its absence cleanly.
+        graph.main(["run-end", "--session", "s1", "--problem", "NB-1",
+                    "--ts", "2026-05-01T10:00:00Z"])
+        run = [e for e in graph.read_graph()
+               if e["type"] == "run_completed"][0]
+        self.assertNotIn("fanout", run)
+        m = graph.metrics()
+        # No fanout-bearing edges -> aggregate reports n=0, max=None.
+        self.assertEqual(m["fanout"]["n"], 0)
+        self.assertIsNone(m["fanout"]["max"])
+        self.assertEqual(m["fanout"]["parallel_runs"], 0)
+
+    def test_metrics_aggregates_fanout(self):
+        # Three runs: 2 sequential (fanout=1), 1 parallel (fanout=3).
+        graph.main(["run-end", "--session", "s1", "--problem", "NB-1",
+                    "--ts", "2026-05-01T10:00:00Z", "--fanout", "1"])
+        graph.main(["run-end", "--session", "s2", "--problem", "NB-2",
+                    "--ts", "2026-05-02T10:00:00Z", "--fanout", "1"])
+        graph.main(["run-end", "--session", "s3", "--problem", "NB-3",
+                    "--ts", "2026-05-03T10:00:00Z", "--fanout", "3"])
+        m = graph.metrics()
+        self.assertEqual(m["fanout"]["n"], 3)
+        self.assertEqual(m["fanout"]["max"], 3)
+        self.assertEqual(m["fanout"]["parallel_runs"], 1)
+        self.assertAlmostEqual(m["fanout"]["parallel_rate"], 1/3)
+
+
+class RunStatusTest(unittest.TestCase):
+    """`run_status` + `run-status` CLI for /backlogd:solve's resume reconcile (#322)."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        os.environ["BACKLOGD_GRAPH_DIR"] = str(pathlib.Path(self._tmp.name) / "graph")
+
+    def tearDown(self):
+        os.environ.pop("BACKLOGD_GRAPH_DIR", None)
+        self._tmp.cleanup()
+
+    def test_run_status_empty_store_reports_untouched(self):
+        st = graph.run_status("NB-322")
+        self.assertEqual(st["problem"], "NB-322")
+        self.assertEqual(st["units"]["NB-322"]["state"], "untouched")
+        self.assertEqual(st["units"]["NB-322"]["sessions"], [])
+        self.assertIsNone(st["units"]["NB-322"]["outcome"])
+
+    def test_run_status_marks_completed_when_dispatch_completed_exists(self):
+        graph.write_edges("s1", [
+            graph.dispatch_started_edge("s1", "NB-322", ts="2026-05-01T10:00:00Z"),
+            graph.dispatch_completed_edge("s1", "NB-322", "solved",
+                                          ts="2026-05-01T10:05:00Z",
+                                          latency_ms=300_000),
+        ])
+        st = graph.run_status("NB-322")
+        unit = st["units"]["NB-322"]
+        self.assertEqual(unit["state"], "completed")
+        self.assertEqual(unit["outcome"], "solved")
+        self.assertEqual(unit["sessions"], ["s1"])
+        self.assertEqual(unit["last_completed"], "2026-05-01T10:05:00Z")
+        self.assertEqual(unit["last_started"], "2026-05-01T10:00:00Z")
+
+    def test_run_status_marks_in_progress_when_start_has_no_completion(self):
+        # A crashed mid-walk: dispatch_started recorded, dispatch_completed never landed.
+        graph.write_edges("s1", [
+            graph.dispatch_started_edge("s1", "NB-322", ts="2026-05-01T10:00:00Z"),
+        ])
+        st = graph.run_status("NB-322")
+        unit = st["units"]["NB-322"]
+        self.assertEqual(unit["state"], "in-progress")
+        self.assertIsNone(unit["outcome"])
+        self.assertEqual(unit["sessions"], ["s1"])
+        self.assertEqual(unit["last_started"], "2026-05-01T10:00:00Z")
+        self.assertIsNone(unit["last_completed"])
+
+    def test_run_status_collects_sessions_across_runs(self):
+        # Two sessions both attempted the unit; one crashed (no completion),
+        # the other later finished it. Both sessions should be listed; the
+        # state collapses to `completed` because a completion edge exists.
+        graph.write_edges("s-crashed", [
+            graph.dispatch_started_edge("s-crashed", "NB-322",
+                                        ts="2026-05-01T09:00:00Z"),
+        ])
+        graph.write_edges("s-rerun", [
+            graph.dispatch_started_edge("s-rerun", "NB-322",
+                                        ts="2026-05-01T10:00:00Z"),
+            graph.dispatch_completed_edge("s-rerun", "NB-322", "solved",
+                                          ts="2026-05-01T10:05:00Z"),
+        ])
+        st = graph.run_status("NB-322")
+        unit = st["units"]["NB-322"]
+        self.assertEqual(unit["state"], "completed")
+        self.assertEqual(sorted(unit["sessions"]), ["s-crashed", "s-rerun"])
+
+    def test_run_status_picks_latest_outcome_when_multiple_completions(self):
+        # A unit re-dispatched after a partial: the more recent outcome wins.
+        graph.write_edges("s1", [
+            graph.dispatch_completed_edge("s1", "NB-322", "partial",
+                                          ts="2026-05-01T10:00:00Z"),
+        ])
+        graph.write_edges("s2", [
+            graph.dispatch_completed_edge("s2", "NB-322", "solved",
+                                          ts="2026-05-02T10:00:00Z"),
+        ])
+        st = graph.run_status("NB-322")
+        unit = st["units"]["NB-322"]
+        self.assertEqual(unit["state"], "completed")
+        self.assertEqual(unit["outcome"], "solved")
+        self.assertEqual(unit["last_completed"], "2026-05-02T10:00:00Z")
+
+    def test_run_status_treats_legacy_solves_as_untouched(self):
+        # Legacy `solves` edges have no started/completed semantics — the
+        # resume flow only fires on the new edge types, so a unit known only
+        # via `solves` is reported as `untouched` and the orchestrator falls
+        # back to Linear state.
+        graph.write_edges("legacy", [graph.solves_edge("legacy", "NB-322")])
+        st = graph.run_status("NB-322")
+        self.assertEqual(st["units"]["NB-322"]["state"], "untouched")
+
+    def test_run_status_cli_prints_json_to_stdout(self):
+        graph.write_edges("s1", [
+            graph.dispatch_completed_edge("s1", "NB-322", "solved",
+                                          ts="2026-05-01T10:00:00Z"),
+        ])
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = graph.main(["run-status", "--problem", "NB-322"])
+        self.assertEqual(rc, 0)
+        payload = json.loads(buf.getvalue())
+        self.assertEqual(payload["problem"], "NB-322")
+        self.assertEqual(payload["units"]["NB-322"]["state"], "completed")
+        self.assertEqual(payload["units"]["NB-322"]["outcome"], "solved")
+
 
 class BackwardCompatTest(unittest.TestCase):
     """Existing on-disk graphs must keep parsing, and existing CLI shape stays."""

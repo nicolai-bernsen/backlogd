@@ -10,6 +10,8 @@ will save us both time.
 - **Want to change code?** Open a draft PR early and explain the reasoning. Small,
   focused changes land faster than large ones.
 - **Keep it green.** CI runs on every push and pull request. Don't merge red.
+- **Play by the same rules as the agent loop.** Human contributions ship to the same
+  [Definition of Done](docs/scrum/definition-of-done.md) that `/backlogd:review` enforces on agent PRs.
 
 ## Working on the plugin
 
@@ -37,8 +39,13 @@ match is **hard-blocked** by `hooks/git/pre-commit`, and each Claude Code sessio
 on a mismatch via the plugin's SessionStart hook. The guard is a no-op until
 `backlogd.expectedEmail` is set, so it never interferes with other repos.
 
-> Running concurrent Claude Code sessions? Give each its **own checkout** (a dedicated
-> `git clone`), never a shared one — see #301.
+> Running concurrent Claude Code sessions? Give each its own isolated **git worktree** (or,
+> as a stronger fallback, its own dedicated `git clone`) — never a shared checkout. The
+> pattern (worktree per session, identity-guard arm step, `git worktree lock` /
+> no-prune-while-live, the dedicated-clone escalation, and the rejected third-party
+> orchestrators) is in
+> [`skills/worktree-isolation/SKILL.md`](skills/worktree-isolation/SKILL.md) — load that
+> skill in any session that opens or re-enters a worktree. Background: #301.
 
 ## Branching & releases
 

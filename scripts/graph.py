@@ -21,7 +21,7 @@ Each file is a JSON array of edge objects::
      "ts": "<ISO 8601 UTC>", "session": "<session id>", ...extras}
 
 Some edge types carry extra fields beyond the base — ``outcome``, ``latency_ms``,
-``wall_time_ms``, ``notes_hash``, ``labels``. They are passed through as-is.
+``wall_time_ms``, ``fanout``, ``notes_hash``, ``labels``. They are passed through as-is.
 
 Schema (pruned)
 ---------------
@@ -42,6 +42,8 @@ Edge types:
   ``latency_ms`` (developer wall time)
 * ``pr_opened``         — session -> problem (handoff PR opened)
 * ``run_completed``     — session -> problem; carries ``wall_time_ms`` (whole run)
+  and ``fanout`` (peak parallel-group size: 1 for sequential, ≥2 when the
+  parallel walk fanned out — added in #321)
 * ``rework``            — session -> problem; recorded by ``/backlogd:review``
   when sending back to *In Progress*; carries an optional ``notes_hash``
 * ``labeled``           — session -> problem; carries ``labels`` (list of label
@@ -110,6 +112,7 @@ __all__ = [
     "write_edges",
     "read_graph",
     "prior_work",
+    "run_status",
     "metrics",
     "emit",
 ]
@@ -272,12 +275,19 @@ def pr_opened_edge(session_id, problem_identifier, ts=None) -> dict:
 
 
 def run_completed_edge(session_id, problem_identifier,
-                       ts=None, wall_time_ms=None) -> dict:
-    """Build a ``run_completed`` edge with optional ``wall_time_ms`` for the whole run."""
+                       ts=None, wall_time_ms=None, fanout=None) -> dict:
+    """Build a ``run_completed`` edge with optional ``wall_time_ms`` for the whole run.
+
+    ``fanout`` (added with the parallel-dispatch work in #321) records the **peak
+    parallel-group size** observed during the run: ``1`` for a sequential / single-unit
+    run, ``≥2`` when at least one parallel group ran. The field is additive — old
+    readers ignore it, ``metrics`` reads it back when present so the report can break
+    out parallel-vs-sequential effects on ``run_wall_time``.
+    """
     return make_edge(
         session_node(session_id), problem_node(problem_identifier),
         "run_completed", session_id, ts,
-        wall_time_ms=wall_time_ms,
+        wall_time_ms=wall_time_ms, fanout=fanout,
     )
 
 
@@ -473,6 +483,105 @@ def prior_work(problem_identifier: str, edges=None, max_related: int = 5) -> lis
     return lines
 
 
+# --- run-status query (read-only, for /backlogd:solve --resume) -----------
+
+def run_status(problem_identifier: str, edges=None) -> dict:
+    """Reduce per-unit agent-execution edges for a problem to a resume-ready summary.
+
+    Used by ``/backlogd:solve``'s reconcile step (see ``skills/solve/resume.md``)
+    to decide, for every unit that touches this problem across **all** sessions,
+    whether it's already ``completed``, currently ``in-progress`` (a session
+    recorded ``dispatch_started`` but never a matching ``dispatch_completed``),
+    or has no agent-execution history at all. The orchestrator cross-references
+    this with Linear state and the worktree before re-dispatching.
+
+    Returns a dict::
+
+        {
+          "problem": "NB-322",
+          "units": {
+            "NB-322": {
+              "state": "completed" | "in-progress" | "untouched",
+              "sessions": ["s1", "s2", ...],
+              "last_started": "<ISO ts or None>",
+              "last_completed": "<ISO ts or None>",
+              "outcome": "solved" | "partial" | "blocked" | None,
+            },
+            ...
+          },
+        }
+
+    Decision rules per unit (same target node, all sessions considered):
+
+    - **completed** — any ``dispatch_completed`` edge exists for the unit. The
+      most recent one wins; ``outcome`` is its ``outcome`` field. (Linear may
+      still say ``Done`` even when the graph has only legacy ``solves`` data —
+      that's why the orchestrator also reads Linear state.)
+    - **in-progress** — there is at least one ``dispatch_started`` but no
+      ``dispatch_completed`` for the unit. The session that recorded the start
+      is in ``sessions``; if multiple sessions did, all are listed (the
+      orchestrator surfaces that as an inconsistency to the product owner).
+    - **untouched** — no ``dispatch_started`` and no ``dispatch_completed`` for
+      the unit. (A unit with only legacy ``solves`` edges is also reported as
+      ``untouched`` here so the new resume flow doesn't assume legacy semantics;
+      the orchestrator falls back to Linear state for these.)
+
+    Because the graph here is **scoped to one problem**, the top-level
+    ``problem`` field is the input identifier and the inner ``units`` dict keys
+    by the identifier we know — call sites that walk sub-issues call this once
+    per sub-issue and merge. Sub-issue discovery itself stays in Linear; the
+    graph is per-target.
+
+    Pure read; never raises. An empty store yields a single ``untouched`` entry
+    so the caller can write the resume report uniformly.
+    """
+    edges = read_graph() if edges is None else edges
+    target = problem_node(problem_identifier)
+
+    starts = []   # (ts, session)
+    completes = []  # (ts, session, outcome)
+    for e in edges:
+        if not isinstance(e, dict) or e.get("tgt") != target:
+            continue
+        etype = e.get("type")
+        if etype == "dispatch_started":
+            starts.append((e.get("ts") or "", e.get("session")))
+        elif etype == "dispatch_completed":
+            completes.append(
+                (e.get("ts") or "", e.get("session"), e.get("outcome"))
+            )
+
+    sessions = sorted({s for _ts, s in starts if s}
+                      | {s for _ts, s, _o in completes if s})
+
+    last_started_ts = max((ts for ts, _s in starts if ts), default=None)
+    if completes:
+        ts_sorted = sorted(completes)
+        last_completed_ts, _sess, last_outcome = ts_sorted[-1]
+    else:
+        last_completed_ts, last_outcome = None, None
+
+    if completes:
+        state = "completed"
+    elif starts:
+        state = "in-progress"
+    else:
+        state = "untouched"
+
+    return {
+        "problem": problem_identifier,
+        "units": {
+            problem_identifier: {
+                "state": state,
+                "sessions": sessions,
+                "last_started": last_started_ts,
+                "last_completed": last_completed_ts,
+                "outcome": last_outcome,
+            }
+        },
+    }
+
+
 # --- emit (legacy write) ---------------------------------------------------
 
 def emit(session_id: str, problem_identifier: str, files) -> list:
@@ -538,6 +647,13 @@ def metrics(edges=None) -> dict:
             "p50": <int or None>,
             "p90": <int or None>,
           },
+          "fanout": {                     # parallel-walk aggregate (#321)
+            "n":   <int>,                 # runs with a recorded fanout field
+            "max": <int or None>,         # largest peak-group size observed
+            "p50": <int or None>,
+            "parallel_runs": <int>,       # runs whose peak was >=2
+            "parallel_rate": <float or None>,
+          },
           "by_area":  {                   # area-label aggregates
             "area:graph":   {"dispatches": N, "blocked": K, "partial": K, "rework": K},
             ...
@@ -595,16 +711,23 @@ def metrics(edges=None) -> dict:
     # Run wall time — prefer the wall_time_ms field on run_completed; otherwise
     # compute from the earliest dispatch_started → run_completed ts.
     run_wall_times = []
+    # Parallel fanout — collected per run from the run_completed `fanout` field
+    # (added in #321). Old graphs without the field simply contribute nothing
+    # here, and the aggregate reports n=0.
+    fanouts = []
     for e in by_type.get("run_completed", []):
         wall = e.get("wall_time_ms")
         if isinstance(wall, (int, float)) and wall >= 0:
             run_wall_times.append(int(wall))
-            continue
-        start_ts = dispatch_starts.get((e.get("tgt"), e.get("session")))
-        if start_ts and e.get("ts"):
-            delta = _ms_between(start_ts, e.get("ts"))
-            if delta is not None and delta >= 0:
-                run_wall_times.append(delta)
+        else:
+            start_ts = dispatch_starts.get((e.get("tgt"), e.get("session")))
+            if start_ts and e.get("ts"):
+                delta = _ms_between(start_ts, e.get("ts"))
+                if delta is not None and delta >= 0:
+                    run_wall_times.append(delta)
+        fan = e.get("fanout")
+        if isinstance(fan, int) and fan >= 1:
+            fanouts.append(fan)
 
     # Rework — count events + distinct problems with at least one rework.
     rework_events = by_type.get("rework", [])
@@ -653,6 +776,7 @@ def metrics(edges=None) -> dict:
             return None
         return num / denom
 
+    parallel_runs = sum(1 for f in fanouts if f >= 2)
     return {
         "problems": problems_total,
         "dispatches": {
@@ -677,6 +801,13 @@ def metrics(edges=None) -> dict:
             "n": len(run_wall_times),
             "p50": _percentile(run_wall_times, 50),
             "p90": _percentile(run_wall_times, 90),
+        },
+        "fanout": {
+            "n": len(fanouts),
+            "max": max(fanouts) if fanouts else None,
+            "p50": _percentile(fanouts, 50),
+            "parallel_runs": parallel_runs,
+            "parallel_rate": _rate(parallel_runs, len(fanouts)),
         },
         "by_area": dict(by_area),
         "by_area_note": by_area_note,
@@ -708,6 +839,23 @@ def _cmd_prior_work(args) -> int:
     print()
     for line in lines:
         print(f"- {line}")
+    return 0
+
+
+def _cmd_run_status(args) -> int:
+    """Print the per-unit agent-execution state for a problem (resume input).
+
+    JSON-only output by default so the orchestrator can parse it; the human
+    summary text goes to stderr so a curious operator can still read it.
+    """
+    status = run_status(args.problem)
+    print(json.dumps(status, indent=2))
+    unit = status["units"][args.problem]
+    summary = (
+        f"[backlogd-graph] run-status {args.problem}: state={unit['state']}, "
+        f"sessions={unit['sessions'] or '[]'}, outcome={unit['outcome']}"
+    )
+    print(summary, file=sys.stderr)
     return 0
 
 
@@ -779,12 +927,22 @@ def _cmd_run_end(args) -> int:
         if start_ts:
             wall_ms = _ms_between(start_ts, end_ts)
 
+    fanout = args.fanout
+    if fanout is not None:
+        # Clamp defensively; the walk already clamps to [1, 4] but a stray
+        # caller shouldn't poison the graph.
+        if fanout < 1:
+            fanout = 1
+        if fanout > 64:  # generous ceiling — the walk's hard cap is 4
+            fanout = 64
+
     write_edges(args.session, [
         run_completed_edge(args.session, args.problem,
-                           ts=end_ts, wall_time_ms=wall_ms),
+                           ts=end_ts, wall_time_ms=wall_ms, fanout=fanout),
     ])
     ms_note = f", wall_time={wall_ms}ms" if wall_ms is not None else ""
-    print(f"[backlogd-graph] run_completed {args.problem}{ms_note} "
+    fan_note = f", fanout={fanout}" if fanout is not None else ""
+    print(f"[backlogd-graph] run_completed {args.problem}{ms_note}{fan_note} "
           f"(session {args.session})", file=sys.stderr)
     return 0
 
@@ -854,6 +1012,7 @@ def _cmd_report(args) -> int:
     rw = m["rework"]
     pr = m["dispatch_to_pr_ms"]
     wt = m["run_wall_time_ms"]
+    fn = m["fanout"]
 
     print("# backlogd — agent-execution metrics")
     print()
@@ -873,6 +1032,14 @@ def _cmd_report(args) -> int:
     print(f"| Dispatch→PR latency p90 (n={pr['n']}) | {_format_ms(pr['p90'])} |")
     print(f"| Run wall time p50 (n={wt['n']}) | {_format_ms(wt['p50'])} |")
     print(f"| Run wall time p90 (n={wt['n']}) | {_format_ms(wt['p90'])} |")
+    if fn["n"]:
+        parallel_note = (
+            f"{fn['parallel_runs']}/{fn['n']} runs ran a parallel group "
+            f"({_format_rate(fn['parallel_rate'])})"
+        )
+        max_fan = fn["max"] if fn["max"] is not None else "—"
+        print(f"| Parallel walk (peak group size; #321) | "
+              f"max={max_fan}, {parallel_note} |")
     print()
     print("## Blocker frequency by area")
     print()
@@ -895,6 +1062,8 @@ def main(argv=None) -> int:
 
     Reads:
       * ``prior-work``      — print Prior work block for a problem (best-effort).
+      * ``run-status``      — print per-unit agent-execution state as JSON
+        (used by ``/backlogd:solve``'s resume reconcile step).
       * ``report``          — print agent-execution metrics summary.
 
     Agent-execution writes (the new flow):
@@ -948,6 +1117,14 @@ def main(argv=None) -> int:
                     help="emit the raw metrics dict as JSON instead of markdown")
     pr.set_defaults(func=_cmd_report)
 
+    rs = sub.add_parser(
+        "run-status",
+        help="print per-unit agent-execution state for a problem as JSON "
+             "(input for /backlogd:solve's resume reconcile)")
+    rs.add_argument("--problem", required=True,
+                    help="Linear identifier of the unit to inspect, e.g. NB-322")
+    rs.set_defaults(func=_cmd_run_status)
+
     # --- agent-execution writes -----------------------------------------
     ds = sub.add_parser("dispatch-start",
                         help="record a dispatch_started edge for a unit")
@@ -985,6 +1162,10 @@ def main(argv=None) -> int:
                      help="explicit run start timestamp; otherwise the earliest "
                           "dispatch_started for this problem/session")
     re_.add_argument("--wall-time-ms", type=int, default=None)
+    re_.add_argument("--fanout", type=int, default=None,
+                     help="peak parallel-group size observed during this run "
+                          "(1=sequential, ≥2=parallel walk). Recorded on the "
+                          "run_completed edge for the metrics aggregate (#321).")
     re_.set_defaults(func=_cmd_run_end)
 
     rw = sub.add_parser("rework",
