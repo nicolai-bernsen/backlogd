@@ -1,13 +1,13 @@
 ---
 name: solve-handoff
-description: Hand a solved problem back to the product owner — push the branch, open the PR into the integration branch, post a high-level PO-facing solution brief, and move the problem to In Review (the PO accepts via /backlogd:review).
+description: Hand a solved problem back to the product owner — push the branch, open the PR into the integration branch, record pr_opened + run_completed on the graph, post a high-level PO-facing solution brief, and move the problem to In Review (the PO accepts via /backlogd:review).
 ---
 
 # solve — handoff at In Review
 
 > **Dry run:** in `--dryrun` mode, this section does not run — the dry run exits after
-> printing the plan (see `skills/solve/dryrun.md`). No push, no PR, no comment, no
-> *In Review* transition.
+> printing the plan (see `skills/solve/dryrun.md`). No push, no PR, no graph write, no
+> comment, no *In Review* transition.
 
 When every unit is `completed`, the problem is solved. Do **not** mark it Done —
 `/backlogd:review` (or the PO) accepts later. Instead:
@@ -22,7 +22,21 @@ re-run); put the issue identifier in the title/body so Linear links the PR to th
 
 (No `gh` available? Push the branch and ask the PO to open the PR.)
 
-## 2. Post a high-level, PO-facing solution brief
+## 2. Record the PR open + run completion on the graph
+
+Best-effort — a graph write must never block the handoff. Record the PR open time
+immediately after the PR exists, and the run completion at the very end. The
+`dispatch_started` edges from `skills/solve/dispatch.md` give both calls their start
+clock automatically (so `dispatch_to_pr` latency and `run_wall_time` are derived for
+you):
+
+    python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" pr-opened \
+        --session "$SESSION" --problem {identifier}
+
+    python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" run-end \
+        --session "$SESSION" --problem {identifier}
+
+## 3. Post a high-level, PO-facing solution brief
 
 Post one comment on the problem issue, edited in place, with the `**[backlogd]**` badge.
 Write it for a product owner who owns the solution but is not reviewing code:
@@ -40,7 +54,7 @@ Artifacts: {files/areas changed, links, or what the PO now has}
 (On a single-issue problem it sits alongside the developer's `**[backlogd developer]**`
 work-log comment — a PO summary plus the work log, not a duplicate.)
 
-## 3. Move the problem to In Review
+## 4. Move the problem to In Review
 
 Move the problem to the *In Review* state (resolved in `skills/solve/identity.md`), then
 **stop** — the run is complete. `/backlogd:review` (or the PO) verifies the AC and merges

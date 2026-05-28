@@ -4,13 +4,17 @@ What the nodes and edges *are*, and how they sit on disk. This is the concept re
 [`../SKILL.md`](../SKILL.md); read it when you're unsure what a node id or edge means. For the
 runnable lookups, see [`graph-queries.md`](graph-queries.md).
 
-## The model in one line
+## The model in two lines
 
-> A **session** `solves` a **problem**, and a **session** `touches` the **modules** (files) it
-> changed.
+> **Primary signal:** a **session** dispatches a **problem**, completes it (with an
+> outcome and latency), opens a PR, finishes the run; later, a reviewer may mark the
+> problem for rework.
+>
+> **Low-signal aside (legacy / read-only on new runs):** a **session** `touches` the
+> **modules** (files) it changed.
 
-That's the whole graph. Everything a lookup does is: pivot through sessions to connect problems
-and files.
+Every edge is rooted at a session. Problems, files, and outcomes connect *through* the
+session that worked on them.
 
 ## Nodes — the `kind:backend:native_id` convention
 
@@ -19,47 +23,72 @@ segment is omitted for kinds that aren't owned by an external system.
 
 | Kind | Id form | Example | Notes |
 |---|---|---|---|
-| **session** | `session:<session id>` | `session:nicolaibernsen/nb-264-graph-core-…` | The session id is the git branch name (or any session label). 2-part — a session is local, not backend-owned. |
-| **problem** | `problem:linear:<identifier>` | `problem:linear:NB-264` | The native id is the Linear issue identifier (`NB-N`). This is the one place the graph references Linear — by id only, never by copying Linear's data. |
-| **module** | `module:<file path>` | `module:scripts/graph.py` | The native id is the repo-relative file path; backslashes are normalised to `/`. 2-part — a file isn't backend-owned. |
+| **session** | `session:<session id>` | `session:nicolaibernsen/nb-320-...` | The session id is the git branch name (or any session label). 2-part — a session is local, not backend-owned. |
+| **problem** | `problem:linear:<identifier>` | `problem:linear:NB-320` | The native id is the Linear issue identifier (`NB-N`). The graph references Linear by id only — never by copying Linear's data. |
+| **module** | `module:<file path>` | `module:scripts/graph.py` | The native id is the repo-relative file path; backslashes normalised to `/`. 2-part — a file isn't backend-owned. Used by *legacy* `touches` edges only. |
 
 **Always construct and compare ids via this convention** — don't hand-assemble them ad hoc.
 The shipped helper (`scripts/graph.py`) exposes `session_node()`, `problem_node()`,
 `module_node()`, and the generic `node_id(kind, backend, native_id)` so callers stay
-consistent. To go the other way (id → display), strip the known prefix: `module:` →
-file path, `problem:linear:` → `NB-N`.
+consistent. To go the other way (id → display), strip the known prefix: `module:` → file
+path, `problem:linear:` → `NB-N`.
 
-## Edges — two types, both rooted at a session
+## Edges — agent-execution (primary) + legacy
+
+### Agent-execution edges — what only the loop knows
+
+All point from a session to a problem. They capture the dimension Linear and git can't
+compute on their own.
+
+| Type | Carries | Recorded by |
+|---|---|---|
+| **`dispatch_started`** | `ts` | `skills/solve/dispatch.md` — when the orchestrator hands the unit to a developer subagent. |
+| **`dispatch_completed`** | `outcome` (`solved` / `partial` / `blocked`), `latency_ms` | `skills/solve/dispatch.md` — when the developer returns. `latency_ms` is derived from the matching `dispatch_started`. |
+| **`pr_opened`** | `ts` | `skills/solve/handoff.md` — immediately after `gh pr create`. |
+| **`run_completed`** | `wall_time_ms` | `skills/solve/handoff.md` — at end of handoff. Wall time is derived from the earliest `dispatch_started` for the same problem/session. |
+| **`rework`** | `notes_hash` (sha256 prefix; the note text itself is **never stored**) | `commands/review.md` — when the reviewer sends a problem back to *In Progress*. Each event uses a per-event session suffix so multiple events accumulate. |
+| **`labeled`** | `labels` (list of Linear label names, e.g. `["area:graph", "problem"]`) | `skills/solve/dispatch.md` — optional; lets `graph.py report` aggregate blocker frequency by `area:*` without re-reading Linear. |
+
+### Legacy edges — kept readable, no longer emitted on new runs
 
 | Type | Direction | Meaning |
 |---|---|---|
-| **`solves`** | session → problem | This session worked on / resolved this problem. |
-| **`touches`** | session → module | This session changed this file. |
-
-Both edges start at a `session` node. Problems and files are **never linked directly** — they
-connect only *through* the session that worked on both. That's why every lookup pivots through
-sessions (see the recipes).
+| **`solves`** | session → problem | This session worked on / resolved this problem. **Superseded** by `dispatch_completed`. The `prior_work` query treats both as "solve evidence". |
+| **`touches`** | session → module | This session changed this file. **Low-signal** — `git log` already provides this. New runs do **not** emit it; the `emit` CLI is retained for back-compat. |
 
 ## Edge object shape (`backlogd/v1`)
 
-Each stored edge is a JSON object:
+Each stored edge is a JSON object. Base fields:
 
 ```json
 {
   "v": "backlogd/v1",
-  "src": "session:nicolaibernsen/nb-264-graph-core-stdlib-emit-helper-json-store",
-  "tgt": "problem:linear:NB-264",
-  "type": "solves",
-  "ts": "2026-05-27T15:10:00Z",
-  "session": "nicolaibernsen/nb-264-graph-core-stdlib-emit-helper-json-store"
+  "src": "session:demo",
+  "tgt": "problem:linear:NB-320",
+  "type": "dispatch_completed",
+  "ts": "2026-05-28T10:05:00Z",
+  "session": "demo"
 }
 ```
 
 - `v` — schema version (`backlogd/v1`).
 - `src` / `tgt` — node ids (above).
-- `type` — `solves` or `touches`.
+- `type` — one of the edge types in the tables above.
 - `ts` — ISO-8601 UTC emit time.
 - `session` — the owning session id (also the `src`'s native part); part of the dedup key.
+
+Some edge types carry **extra fields** beyond the base. They're added at the top level
+(not nested) so old readers can ignore them and new readers see them directly:
+
+| Field | On edge types | Type | Meaning |
+|---|---|---|---|
+| `outcome` | `dispatch_completed` | `"solved"` / `"partial"` / `"blocked"` | Developer's reported result. |
+| `latency_ms` | `dispatch_completed` | integer | Wall time from `dispatch_started` to completion. |
+| `wall_time_ms` | `run_completed` | integer | Total wall time from the earliest `dispatch_started` to the run end. |
+| `notes_hash` | `rework` | string (12-char sha256 prefix) | Stable handle for the rework notes; **never** the notes themselves. |
+| `labels` | `labeled` | list of strings | Linear label names attached to the problem at dispatch time. |
+
+Unknown extras are passed through as-is — the schema is **additive**.
 
 ## On-disk store
 
@@ -69,13 +98,17 @@ Each stored edge is a JSON object:
   become `__` (so a branch name is filesystem-safe). Each file is a JSON **array of edges**.
 - **Append-only & deduplicated.** New edges are merged into the session file; duplicates
   collapse on the key **`(src, tgt, type, session)`**. Reading the whole graph unions every
-  session file and de-dupes on the same key.
+  session file and de-dupes on the same key. Re-runs naturally overwrite the older edge for
+  the same key (e.g. a retried dispatch updates its latency).
+- **Rework events use a session suffix** (`<session>#rework-<ts>`) so multiple rework
+  events on the same problem don't collapse into one.
 - **Gitignored** (`.backlogd/`). The store is local memory, not committed source — so on a
   fresh checkout it's absent, and lookups simply return nothing.
 
-## Why it's separate from Linear
+## Why it's separate from Linear and git
 
 Linear (via the official MCP) already owns work-item hierarchy, relations, comments, and PR
-links — all readable on demand. This graph stores only what Linear *can't* see: the
-session→file dimension. A lookup returns Linear `NB-N` ids; resolve their titles/status in
+links — all readable on demand. Git owns file-authorship history. This graph stores only
+what neither can compute: the **behaviour of the agent loop itself** (dispatch outcomes,
+latencies, rework rate). A lookup returns Linear `NB-N` ids; resolve their titles/status in
 Linear **separately** (see the `linear` skill). Keep the graph query itself offline.
