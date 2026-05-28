@@ -51,51 +51,58 @@ def _problem(node):  # "problem:linear:NB-9" -> "NB-9"
     return node[len("problem:linear:"):] if node.startswith("problem:linear:") else node
 ```
 
-## 1. problem-history — *which files did problem X touch?*
+> **Note.** Recipes 1–3 query the *legacy* file-edge dimension (`touches` /
+> `solves`). New runs no longer emit `touches`, so on a fresh graph these will return
+> nothing — they keep working against historical data. For the primary signal of the
+> graph (agent-execution metrics), skip to recipe 4 or run `graph.py report`.
 
-> Answers AC: *"what files relate to problem X."* Sessions that `solves` X → modules those
+## 1. problem-history — *which files did problem X touch?* (legacy / low-signal)
+
+> Sessions that solved X (either `solves` or `dispatch_completed`) → modules those
 > sessions `touches`.
 
 ```python
 PROBLEM = "NB-241"   # <- the Linear identifier
 
-edges    = load_edges()
-target   = f"problem:linear:{PROBLEM}"
-sessions = {e["src"] for e in edges if e["type"] == "solves" and e["tgt"] == target}
-files    = sorted({_file(e["tgt"]) for e in edges
-                   if e["type"] == "touches" and e["src"] in sessions})
+edges      = load_edges()
+target     = f"problem:linear:{PROBLEM}"
+solve_like = {"solves", "dispatch_completed"}
+sessions   = {e["src"] for e in edges if e["type"] in solve_like and e["tgt"] == target}
+files      = sorted({_file(e["tgt"]) for e in edges
+                     if e["type"] == "touches" and e["src"] in sessions})
 
 if not files:
-    print(f"No recorded files for {PROBLEM} (graph may be empty).")
+    print(f"No recorded files for {PROBLEM} (graph may be empty or new-flow only).")
 else:
     print(f"Files touched while solving {PROBLEM}:")
     for f in files:
         print(f"  {f}")
 ```
 
-## 2. module-history — *which problems touched file Y?*
+## 2. module-history — *which problems touched file Y?* (legacy / low-signal)
 
-> Answers AC: *"what problems touched file Y."* Sessions that `touches` Y → problems those
-> sessions `solves`.
+> Sessions that `touches` Y → problems those sessions solved (either `solves` or
+> `dispatch_completed`).
 
 ```python
 MODULE = "scripts/graph.py"   # <- repo-relative path (forward slashes)
 
-edges    = load_edges()
-target   = f"module:{MODULE}"
-sessions = {e["src"] for e in edges if e["type"] == "touches" and e["tgt"] == target}
-problems = sorted({_problem(e["tgt"]) for e in edges
-                   if e["type"] == "solves" and e["src"] in sessions})
+edges      = load_edges()
+target     = f"module:{MODULE}"
+solve_like = {"solves", "dispatch_completed"}
+sessions   = {e["src"] for e in edges if e["type"] == "touches" and e["tgt"] == target}
+problems   = sorted({_problem(e["tgt"]) for e in edges
+                     if e["type"] in solve_like and e["src"] in sessions})
 
 if not problems:
-    print(f"No recorded problems for {MODULE} (graph may be empty).")
+    print(f"No recorded problems for {MODULE} (graph may be empty or new-flow only).")
 else:
     print(f"Problems whose sessions touched {MODULE}:")
     for p in problems:
         print(f"  {p}")
 ```
 
-## 3. find-similar — *which past problems share a touch-set with problem X?*
+## 3. find-similar — *which past problems share a touch-set with problem X?* (legacy / low-signal)
 
 > Build each problem's touch-set (the union of files its solving sessions touched), then rank
 > every *other* problem by overlap with X's set. Sorted by Jaccard similarity, then shared
@@ -105,6 +112,7 @@ else:
 PROBLEM = "NB-264"   # <- the problem to find neighbours of
 
 edges = load_edges()
+solve_like = {"solves", "dispatch_completed"}
 
 # session -> its touched modules, and session -> its solved problems
 sess_modules  = defaultdict(set)
@@ -112,7 +120,7 @@ sess_problems = defaultdict(set)
 for e in edges:
     if e["type"] == "touches":
         sess_modules[e["src"]].add(e["tgt"])
-    elif e["type"] == "solves":
+    elif e["type"] in solve_like:
         sess_problems[e["src"]].add(e["tgt"])
 
 # problem -> union of modules across the sessions that solved it
@@ -139,6 +147,42 @@ else:
         print(f"  {p}  jaccard={jac:.2f}  shared={n}: {', '.join(shared)}")
 ```
 
+## 4. agent-execution metrics — *how is the loop performing?*
+
+> The primary signal of the graph. For the rolled-up view (rework rate, partial rate,
+> p50/p90 dispatch→PR latency, blocker frequency by `area:*`), use the CLI directly:
+
+```bash
+python scripts/graph.py report           # markdown table
+python scripts/graph.py report --json    # the raw metrics dict
+```
+
+Need a slice of the data the report doesn't expose? Read it inline with the same loader
+above and filter on `type`:
+
+```python
+edges = load_edges()
+
+# Per-outcome counts
+from collections import Counter
+outcomes = Counter(e.get("outcome") for e in edges if e["type"] == "dispatch_completed")
+print(outcomes)  # Counter({'solved': 12, 'blocked': 3, 'partial': 1})
+
+# Slowest dispatches (descending latency_ms)
+slow = sorted(
+    (e for e in edges if e["type"] == "dispatch_completed" and e.get("latency_ms")),
+    key=lambda e: -e["latency_ms"],
+)[:5]
+for e in slow:
+    print(f"  {_problem(e['tgt'])}: {e['latency_ms']/1000:.1f}s ({e.get('outcome')})")
+
+# Problems that have come back from review
+rework = {_problem(e["tgt"]) for e in edges if e["type"] == "rework"}
+```
+
+The full list of agent-execution edge types and their extra fields is in
+[`graph-schema.md`](graph-schema.md) → "Agent-execution edges".
+
 ## Notes
 
 - **Empty results are normal**, not errors — the store is gitignored and may be absent or
@@ -149,9 +193,13 @@ else:
 - **Resolve details in Linear.** A lookup returns `NB-N` ids and file paths only. To get a
   problem's title/status, read it in Linear via the MCP (see the `linear` skill) — keep the
   graph query itself offline.
-- **Programmatic counterparts.** The same logic is exposed as CLI subcommands on
-  `scripts/graph.py` for the scrum-master loop: `prior-work --problem NB-N` prints a
-  ready-to-inject "Prior work" block (problem-history + find-similar) or nothing when there's no
-  history, and `emit --session S --problem NB-N --stdin` appends `solves`/`touches` edges from
-  piped file paths. Both are best-effort (always exit 0). See `commands/solve.md` for how they
-  wire into the loop.
+- **Programmatic counterparts.** Most of the logic is exposed as CLI subcommands on
+  `scripts/graph.py`:
+  - **Reads:** `prior-work --problem NB-N` (Prior work block, problem-history + find-similar);
+    `report` (markdown table of agent-execution metrics); `report --json` (raw dict).
+  - **Agent-execution writes (orchestrator-only):** `dispatch-start`, `dispatch-end --outcome`,
+    `pr-opened`, `run-end`, `rework --notes "…"`, `labeled --labels area:foo …`.
+  - **Legacy write:** `emit --session S --problem NB-N --stdin` appends `solves` + `touches`
+    edges from piped file paths (retained for back-compat; not used by the new loop).
+  All subcommands are best-effort (always exit 0). See `skills/solve/dispatch.md`,
+  `skills/solve/handoff.md`, and `commands/review.md` for how the writes wire into the loop.

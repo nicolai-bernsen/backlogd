@@ -78,6 +78,7 @@ Follow the **promote-on-discovery** rule from `skills/linear/`; do not predict s
 - **When in doubt, stay an Issue.** Promotion on evidence is cheap; a premature Project that
   never closes is not.
 
+<<<<<<< HEAD
 ## 4.5. Pick the specialist
 
 Once the spec, AC, and decomposition are settled, pick the **specialist** developer that
@@ -121,6 +122,22 @@ so explicitly in §6 (e.g. `specialist -> developer (no specialist matched)`).
 The PO owns the label: flipping `agent:<a>` → `agent:<b>` between scope and solve
 re-routes the next dispatch. Multiple `agent:*` labels on one issue are an error solve
 will catch.
+=======
+## 4b. Apply `kind:ops` if the problem is repo-ops
+
+If the problem's outcome is **GitHub repo operations or external content** (topics,
+Discussions, releases, repo metadata, labels, `good first issue`s, awesome-list
+submissions, drafts in `docs/`) — i.e. there is no source diff to land — apply the
+**`kind:ops` label** to the problem (and to any sub-issues that are themselves ops-only).
+`/backlogd:solve` routes ops-labelled units through `skills/solve/ops.md` (no worktree,
+no PR; the developer takes `gh` actions and posts an action log).
+
+- Create the label on the team via `create_issue_label({ team, name: "kind:ops" })` if
+  `list_issue_labels` shows it is missing. It is just a routing flag — no automation
+  beyond that.
+- If the problem is **mixed** (some units ops, some units code), prefer to split it into
+  two problems at shaping time rather than letting `solve` halt on the mixed case.
+>>>>>>> origin/dev
 
 ## 5. Set priority and stop
 
@@ -139,7 +156,11 @@ Show what you shaped so it is visible in the transcript:
 Shaped: {identifier} — {title}
   acceptance criteria  -> {n} written
   decomposition        -> single issue | {n} sub-issues (blocked-by wired) | promoted to Project "{name}" ({n} issues, {m} milestones)
+<<<<<<< HEAD
   specialist           -> developer-{suffix} (label agent:{suffix}) | developer (no specialist matched) | per sub-issue: NB-N -> developer-{suffix}, …
+=======
+  route                -> standard (code → worktree + PR) | ops-only (kind:ops, no PR)
+>>>>>>> origin/dev
   priority             -> {priority}
 Ready for: /backlogd:solve {identifier}
 ```

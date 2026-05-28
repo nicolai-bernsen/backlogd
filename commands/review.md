@@ -54,6 +54,13 @@ evidence — read, don't trust blindly:
   and the problem's **open PR** and its CI) enough to judge whether each criterion truly holds.
   You are checking **AC satisfaction**, not doing a line-by-line style review.
 
+**Ops-only run?** If the problem carries the **`kind:ops`** label (or every unit does — see
+`skills/solve/ops.md`), there is no PR to inspect. The artifacts are the `**[backlogd developer]**`
+**action logs** on each unit and the GitHub surfaces those `gh` calls changed — verify by
+re-reading them (`gh repo view --json …`, `gh release list`, `gh label list`, etc.) and by reading
+any drafts the developer added to the tree (e.g. `docs/PROMOTION.md` lands on the standard path via
+a code unit, but ops units can also reference such drafts).
+
 Judge each criterion: **met** / **unmet** / **needs PO judgement** (a call only the product owner
 can make — e.g. "is this *good enough*?").
 
@@ -79,10 +86,22 @@ Acceptance criteria
   the integration branch (`gh pr merge {pr} --squash --delete-branch`) and move the problem to the
   `completed` state (Done). Remove the problem's worktree if one remains (`git worktree remove`).
   **Never merge red** — if CI isn't green, treat it as *sent back* below.
+  *(Ops-only run — `kind:ops`: there is no PR to merge. Skip the merge + worktree cleanup and just
+  move the problem to Done.)*
 - **Any criterion unmet** (or CI red) → move the problem back to the *In Progress* state, with the
   unmet criteria written as **actionable rework notes** in the verdict comment. Leave the PR open —
   a fresh `/backlogd:solve` adds commits to the same branch. Do **not** re-dispatch a developer
-  yourself.
+  yourself. *(Ops-only run — `kind:ops`: there is no PR. A fresh `/backlogd:solve` re-dispatches
+  ops units with the rework notes; the ops developer logs the new actions on the unit.)*
+
+  Also record the rework event on the graph (best-effort — must never block the verdict).
+  Use a reviewer session id (e.g. `review-{identifier}-{YYYYMMDDHHMMSS}`) and pass the rework
+  notes so only their hash is stored (no note text leaks into `.backlogd/`):
+
+      python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" rework \
+          --session "review-{identifier}-$(date -u +%Y%m%dT%H%M%S)" \
+          --problem {identifier} \
+          --notes "{the unmet-criteria notes you just wrote}"
 - **A genuine judgement call** (`needs PO judgement`) → **leave it In Review** (PR open) and
   surface the question to the product owner. Don't guess at a call that's theirs to make.
 
