@@ -1,6 +1,6 @@
 ---
 name: solve-walk
-description: Determine units of work for /backlogd:solve and open the problem's isolated worktree + branch — maps single-issue / sub-issues / Project form to units, walks ready ones in blocked-by order, and sets up one branch -> one PR.
+description: Determine units of work for /backlogd:solve, route by the kind:ops label (standard vs ops-only path), and — on the standard path only — open the problem's isolated worktree + branch. Maps single-issue / sub-issues / Project form to units, walks ready ones in blocked-by order, and sets up one branch -> one PR (or skips git entirely for ops-only).
 ---
 
 # solve — units + worktree
@@ -17,6 +17,24 @@ A unit is **ready** only when every issue it is `blocked-by` is already `complet
 ready units in dependency order; never start a unit whose blockers are still open. If
 units remain but none are ready (an open `blocked-by` that will not clear), surface that
 to the product owner as a clear question and **stop** — do not guess past a blocker.
+
+## Route ops-only problems before the worktree
+
+Before opening a worktree, decide whether this run is on the **ops-only path**. Check the
+**`kind:ops` label** on each ready unit:
+
+- **All ready units carry `kind:ops`** → ops-only run. **Skip the worktree section
+  below**, leave `$WT` unset, and follow **`skills/solve/ops.md`** instead of
+  `skills/solve/dispatch.md`. There is no commit, no push, and no PR — only `gh` /
+  repo-ops actions logged on each unit. The PO solution brief on the parent problem still
+  lands (see `skills/solve/handoff.md`).
+- **No ready units carry `kind:ops`** → standard run. Open the worktree as below and
+  follow `skills/solve/dispatch.md`.
+- **Mixed** (some ops units, some code units) → **stop** and ask the product owner to
+  split the problem in two or pick one path; do not guess. (Out of scope for v1.)
+
+See **`skills/solve/ops.md`** for the ops-only details — detection signal, dispatch
+envelope, and the graph-emit/no-PR carve-outs.
 
 ## Open a worktree + branch for the problem
 

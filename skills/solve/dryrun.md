@@ -40,23 +40,27 @@ the plan; the world is untouched.
 [dry-run] /backlogd:solve {identifier|<top of queue>}
 
 (a) Identity
-  team / states (pickup, review, completed by type) / label "problem" / session id
+  team / states (pickup, review, completed by type) / labels ("problem", "kind:ops" if present) / session id
 
 (b) Picked problem
-  {identifier} — {title} / state ({type}) / shaped? yes|no
+  {identifier} — {title} / state ({type}) / shaped? yes|no / kind:ops? yes|no
 
 (c) Triage decision
   "already shaped — proceeding"
   | "not shaped — would run /backlogd:scope inline (spec + AC, decompose if earned, pause PO if ambiguous)"
 
 (d) Unit walk plan
-  worktree path / branch off origin/{integration}   (or "reuse existing" if resume found one)
-  units (dispatch order, with blocked-by + ready? + resume class:
+  route: standard (worktree + PR) | ops-only (no worktree, no PR) | mixed (would stop + ask PO)
+  worktree path / branch off origin/{integration}      ← standard only; for ops-only print
+                                                          "(no worktree — ops path)";
+                                                          for resume-reuse print "(reuse existing)"
+  units (dispatch order, with blocked-by + ready? + kind:ops? + resume class:
          completed / in-progress-mine / untouched / inconsistent)
 
 (e) Per-unit dispatch envelope — verbatim, for each unit
-  (same envelope `skills/solve/dispatch.md` step 2 hands the developer, with the {$WT
-  path} and the `## Prior work` block — omit the block if the query printed nothing)
+  (standard envelope from `skills/solve/dispatch.md` step 2 with `{$WT path}` for code
+  units; ops envelope from `skills/solve/ops.md` step 3 — no `$WT` line — for `kind:ops`
+  units; include the `## Prior work` block when the query printed one)
 ```
 
 Exit with: `[dry-run] no writes performed — Linear, git, and graph are unchanged.`
@@ -66,6 +70,11 @@ Exit with: `[dry-run] no writes performed — Linear, git, and graph are unchang
 - **No problem to pick** — print the standard "No problems to solve…" message and exit.
 - **Unshaped problem** — print (a)–(c), note the real run would invoke scope inline (or
   pause for the PO on ambiguity), skip (d) and (e).
+- **Ops-only problem** — print all sections; in (d) note `route: ops-only (no worktree, no
+  PR)` and skip the worktree-path line; in (e) print the ops envelope from
+  `skills/solve/ops.md` per unit.
+- **Mixed units** — print (a)–(c); in (d) note `route: mixed — would stop and ask PO to
+  split or pick one path`; skip (e).
 - **Resume `inconsistent`** — print sections (a)–(d), label the unit `inconsistent`, and
   print the pause message template from `skills/solve/resume.md` § 4 inside (d). Skip (e);
   a real run would not dispatch. The dry-run still exits cleanly (it acts on nothing).

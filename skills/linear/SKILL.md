@@ -63,6 +63,16 @@ grant (`get_issue` / `list_comments` / `save_comment` only; see `agents/develope
 
 - The **`problem` label** is the opt-in pickup signal: an issue carrying `problem` is
   product-owner-filed work for backlogd. Nothing without the label is picked up.
+- The **`kind:ops` label** is the optional *route signal*: an issue (problem or unit)
+  carrying `kind:ops` is **ops-only** — its solution is GitHub repo-ops or external
+  content drafts, not a code diff. `/backlogd:solve` reads the label per-unit and routes
+  ops units through `skills/solve/ops.md` (no worktree, no commit, no PR; the developer
+  takes `gh`/repo-ops actions and posts an action log on the unit). `/backlogd:scope`
+  applies the label when shaping a problem that is clearly repo-ops; it creates the
+  label on the team via `create_issue_label` if it does not yet exist. The label is *just
+  a routing flag* — no priority, no automation beyond this path. Mixed problems (some ops
+  units, some code units) are out of scope for v1 — `solve` stops and asks the PO to
+  split.
 - **Continuous flow — no Cycles.** Problems are pulled on demand; backlogd does not run
   time-boxed sprints in the core loop. Read progress from states (and, for Projects, the
   progress graph and health) — never a burndown.
