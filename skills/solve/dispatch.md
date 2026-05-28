@@ -8,6 +8,13 @@ description: Per-unit dispatch loop for /backlogd:solve — claim the unit, inje
 > **Dry run:** in `--dryrun` mode, do **not** execute this section. Instead, walk the
 > units read-only, render the dispatch envelope verbatim per unit, and follow
 > `skills/solve/dryrun.md`. No `Agent` call, no state transition, no graph write, no commit.
+>
+> **Resume:** for each unit, check what `skills/solve/resume.md` classified it as. **Skip
+> any unit reconcile marked `completed`** — no claim, no envelope, no graph write, no
+> commit; the prior run already handled it (its `dispatch_completed` edge is on the graph
+> and Linear already says `Done`). Process `in-progress-mine` and `untouched` units below
+> exactly as you would in a fresh run. If reconcile surfaced an `inconsistent` unit the
+> orchestrator already paused — this skill is not reached.
 
 For each ready unit, in dependency order:
 

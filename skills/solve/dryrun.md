@@ -15,6 +15,12 @@ the plan; the world is untouched.
   use `includeRelations: true` per unit to show `blocked-by`.
 - **Graph:** `python scripts/graph.py prior-work --problem {identifier}` per unit; a
   graph failure falls through with an empty block.
+- **Resume reconcile reads** (`skills/solve/resume.md`): `python scripts/graph.py
+  run-status --problem {unit}` per unit, `git ls-remote --heads origin
+  {gitBranchName}`, `git branch --list {gitBranchName}`, `git worktree list
+  --porcelain`, and (if a worktree at the expected path exists) `git -C "$WT" status
+  --porcelain` / `rev-parse HEAD`. Pure reads — no `git worktree add`, no `checkout`.
+  Render the classification in section (d) of the plan; never act on it.
 
 ## Forbidden
 
@@ -44,8 +50,9 @@ the plan; the world is untouched.
   | "not shaped — would run /backlogd:scope inline (spec + AC, decompose if earned, pause PO if ambiguous)"
 
 (d) Unit walk plan
-  worktree path / branch off origin/{integration}
-  units (dispatch order, with blocked-by + ready?)
+  worktree path / branch off origin/{integration}   (or "reuse existing" if resume found one)
+  units (dispatch order, with blocked-by + ready? + resume class:
+         completed / in-progress-mine / untouched / inconsistent)
 
 (e) Per-unit dispatch envelope — verbatim, for each unit
   (same envelope `skills/solve/dispatch.md` step 2 hands the developer, with the {$WT
@@ -59,4 +66,7 @@ Exit with: `[dry-run] no writes performed — Linear, git, and graph are unchang
 - **No problem to pick** — print the standard "No problems to solve…" message and exit.
 - **Unshaped problem** — print (a)–(c), note the real run would invoke scope inline (or
   pause for the PO on ambiguity), skip (d) and (e).
+- **Resume `inconsistent`** — print sections (a)–(d), label the unit `inconsistent`, and
+  print the pause message template from `skills/solve/resume.md` § 4 inside (d). Skip (e);
+  a real run would not dispatch. The dry-run still exits cleanly (it acts on nothing).
 - **Linear MCP not connected** — same as the real run: stop and ask the user to enable it.

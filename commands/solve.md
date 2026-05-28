@@ -47,19 +47,29 @@ get to the step. Sub-skills carry the dry-run carve-outs.
    `problem`-labelled candidate (state then priority). If unshaped, run `/backlogd:scope`'s
    flow inline; pause for the product owner only on genuine ambiguity.
 
-4. **Units + worktree** → **`skills/solve/walk.md`**. Determine units of work (single
+4. **Resume / reconcile** → **`skills/solve/resume.md`**. Read Linear state, the
+   branch + worktree, and `python scripts/graph.py run-status --problem {unit}`
+   for every unit. Classify each as `completed` / `in-progress-mine` /
+   `untouched` / `inconsistent`. Skip already-`completed` units on re-dispatch;
+   reuse an existing branch/worktree; pause and surface to the product owner on
+   any `inconsistent` signal — do not guess. On a first-ever invocation every
+   unit is `untouched` and this step is a no-op.
+
+5. **Units + worktree** → **`skills/solve/walk.md`**. Determine units of work (single
    issue / sub-issues / Project form); a unit is ready only when its `blocked-by` are
    `completed`. Open the isolated worktree + branch off the integration branch; remember
-   the path as `$WT`.
+   the path as `$WT`. **Skip the worktree-add step if reconcile already reused one** —
+   `$WT` was set in step 4.
 
-5. **Per-unit dispatch** → **`skills/solve/dispatch.md`**. For each ready unit in
-   dependency order: claim → inject prior-work + record `dispatch_started` →
+6. **Per-unit dispatch** → **`skills/solve/dispatch.md`**. For each ready unit in
+   dependency order: **skip if reconcile classified it `completed`**; otherwise
+   claim → inject prior-work + record `dispatch_started` →
    dispatch the `backlogd:developer` with an inline envelope → capture the result →
    record `dispatch_completed` (outcome + latency) → transition by `Outcome`
    (`solved` → `completed`; `partial`/`blocked` → leave in progress and surface to
    the PO, stop the run) → commit on the problem's branch. One commit per unit.
 
-6. **Handoff at In Review** → **`skills/solve/handoff.md`**. When every unit is
+7. **Handoff at In Review** → **`skills/solve/handoff.md`**. When every unit is
    `completed`: push, open the PR into the integration branch, record `pr_opened` +
    `run_completed` on the graph, post the high-level PO-facing solution brief on
    the problem issue, move the problem to *In Review*, and stop. Do **not** mark
