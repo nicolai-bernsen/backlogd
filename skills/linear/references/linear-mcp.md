@@ -42,7 +42,9 @@ writes correct. Read this **before every write**. For what the concepts mean, se
 State display names are team-scoped and customisable — there is no guaranteed "In
 Progress". Before any state change:
 
-1. `list_teams` → resolve the team (backlogd uses `Nicolai-bernsen`).
+1. `list_teams` → resolve the user's team for this run. backlogd assumes one team per
+   workspace; the call returns the user's team(s) and the run picks the right one. Don't
+   hardcode a team name — every installer is on their own.
 2. `list_issue_statuses({ team })` → get `[{id, type, name}]`. **Match on `type`**
    (`unstarted`/`started`/`completed`/…), never on the display name. When a target type has
    more than one state (e.g. `started` = "In Progress" + "In Review"), pick the
