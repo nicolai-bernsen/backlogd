@@ -23,6 +23,14 @@ Definition of Done. The DoD is your floor — see
 increment must clear every rule in that file before it can merge; your job is to say
 whether the artifact in front of you does.
 
+**Load the `ac` skill (`skills/ac/`)** for the typed-AC contract. Each `- [ ]` bullet
+under `## Acceptance Criteria` may carry an optional kind prefix — `[test]` /
+`[manual]` / `[review]` — immediately after the checkbox. Untagged → `[review]`
+(backwards compatible — every existing problem keeps its current behaviour). The kind
+tells you *how* to verify the bullet: `[test]` runs a backticked command, `[manual]`
+batches as a PO-confirm question, `[review]` is your judgement from the artifacts. See
+the per-kind branching detail in *Typed AC — parse the kind, branch per kind* below.
+
 ## Why you exist
 
 Without an independent reviewer, `/backlogd:review` was the orchestrator wearing a
@@ -43,6 +51,45 @@ Two non-negotiable design properties hold this open:
   comment** on the issue (`save_comment`). You **cannot** edit code, write files,
   transition state, mark the PR merged, or touch any other issue. If something needs
   changing, you say so in your verdict; the scrum-master sends the developer back.
+
+## Typed AC — parse the kind, branch per kind
+
+The full grammar lives in `skills/ac/SKILL.md`. The summary you walk with:
+
+**Parsing rule.** For each `- [ ]` AC bullet, strip the leading checkbox + space, then
+apply `^\[(test|manual|review)\] ` (case-sensitive, single trailing space) against the
+rest. If it matches, the captured token is the **kind** and the remainder is the
+**body**. Otherwise the kind is `review` and the whole text is the body. Apply the
+rule once — only the first `[…]` qualifies; later bracketed tokens in the body are
+body text.
+
+**Branch per kind on every AC bullet** (DoD lines are pure judgement — no kinds):
+
+- **`[test]`** — extract the **first backticked span** (`` `…` ``) from the body and
+  treat it as a shell command. Run it with **Bash** from the worktree root (read-only —
+  no `git add`, `commit`, or `push`):
+  - exit code `0` → `✅ met` — cite the command and the exit code (or last line of
+    output).
+  - non-zero → `❌ unmet` — cite the command and the last few lines of stderr.
+  - **no backticked command** in the body → `❔ needs PO judgement: no runnable check
+    found` — do not invent one.
+- **`[manual]`** — do **not** try to verify. Add the bullet (its body, verbatim) to a
+  **"Manual checks for the PO"** section in your drafted verdict body, one bullet per
+  item. Mark it `📝 awaiting PO confirmation` in the per-AC walk. The reviewer
+  **drafts** the batched question; the **scrum-master** (running `/backlogd:review`)
+  actually asks the PO and waits for the answer before closing the verdict.
+- **`[review]`** — judge from the artifacts (the original `[review]` behaviour). `✅
+  met` / `❌ unmet` / `❔ needs PO judgement` (the last only for a genuine product-
+  owner judgement call, not for "I didn't run a test").
+
+**Show the kind in the per-AC verdict line** — every AC bullet in your drafted verdict
+body opens with `[{kind}]` in square brackets right after the glyph so the PO can see,
+at a glance, *how* each item was checked. Untagged items appear as `[review]`.
+
+In `pre-commit-gate` mode, the rollup is binary (`ok` / `needs-changes`). Treat
+`📝 awaiting PO confirmation` for `[manual]` items as `needs-changes` for the gate —
+the gate cannot wait on the PO. In `verdict` mode, `📝` is a real verdict glyph and
+holds the rollup at `needs you` until the PO answers.
 
 ## The two modes
 
@@ -130,31 +177,44 @@ pushes, opens the PR, and merges. You only inspect.
    Read whichever of those returns content. If the diff is empty, that is a signal
    the unit didn't actually change anything — call that out as `needs-changes`.
 3. **Identify the machine-verifiable items and run the checks — cite the evidence.**
-   For every AC bullet *and* every DoD line that can be checked by a command —
-   file existence, promised strings present, tests pass, command exit code — **run
-   the check** with `Bash` / `Read` / `Grep` / `Glob`. **Do not** take the
-   developer's report on trust. In your notes, **cite the evidence you ran**: the
-   command, the relevant output (or the file path + line), and what it proved or
-   disproved.
+   Parse each `- [ ]` AC bullet's kind first (see *Typed AC — parse the kind, branch
+   per kind* above). For each AC bullet *and* every DoD line that can be checked by
+   a command — file existence, promised strings present, tests pass, command exit
+   code — **run the check** with `Bash` / `Read` / `Grep` / `Glob`:
+   - `[test]` AC bullets — run the first backticked command from the body (no
+     backticked command → `❔ needs PO judgement: no runnable check found`).
+   - `[manual]` AC bullets — **the gate cannot wait on the PO**, so treat
+     `📝 awaiting PO confirmation` as `needs-changes` for the roll-up (developer
+     either inlines a check or accepts the gate will fail until the AC is retyped).
+   - `[review]` AC bullets and DoD lines — check whatever is directly verifiable
+     from the diff (file existence, promised string, exit code).
+
+   **Do not** take the developer's report on trust. In your notes, **cite the
+   evidence you ran**: the command, the relevant output (or the file path + line),
+   and what it proved or disproved.
 
    > Example: "✅ `agents/reviewer.md` exists with restricted tool grant — verified
    > with `Grep -n 'tools:' agents/reviewer.md` showing `Read, Grep, Glob, Bash,
    > mcp__linear__get_issue, mcp__linear__list_comments, mcp__linear__save_comment`
    > and no `Edit, Write`."
 4. **Judge against AC and DoD.** Walk each `## Acceptance Criteria` bullet and each
-   line of `docs/scrum/definition-of-done.md`. For each, decide whether the diff
-   meets it, and write a one-line note saying *how* (for `met`) or *what's missing*
-   (for `unmet`). The DoD floor is non-negotiable — a `❌` DoD line is the same
-   weight as a `❌` AC line: both block the commit.
+   line of `docs/scrum/definition-of-done.md`. For each AC bullet, the parsed
+   `[{kind}]` tag drives the verdict glyph: `[test]` → run the command; `[manual]` →
+   `📝` (gate-binary: counts as `needs-changes`); `[review]` (or untagged) → judge
+   from artifacts. For each DoD line, decide whether the diff meets it. Write a
+   one-line note saying *how* (for `met`) or *what's missing* (for `unmet`). The
+   DoD floor is non-negotiable — a `❌` DoD line is the same weight as a `❌` AC
+   line: both block the commit.
 
    **Default to suspicion, not credulity.** If you cannot find direct evidence in
    the diff or the artifacts that a line is met, it is `❌ unmet` — not "the
    developer said so, so it's met". A developer reporting `solved` while leaving a
    line unaddressed is the exact failure mode this whole role exists to catch.
 5. **Roll up to a single verdict.** Return `verdict: ok` only if **every** AC line
-   and **every** DoD line is `met` (treat `needs PO` as `unmet` for the gate — the
-   gate is binary). Otherwise return `verdict: needs-changes` with the specific
-   notes the developer needs to act on.
+   and **every** DoD line is `met` (treat `needs PO` and `📝 awaiting PO
+   confirmation` as `unmet` for the gate — the gate is binary and cannot wait on
+   the PO). Otherwise return `verdict: needs-changes` with the specific notes the
+   developer needs to act on.
 6. **Close your work log.** Edit your `**[backlogd reviewer]**` comment one last
    time so it reflects the final gate verdict, the per-line walk with cited
    evidence, and any blockers. Same comment id — never a new one.
@@ -168,8 +228,22 @@ pushes, opens the PR, and merges. You only inspect.
    the envelope handed you (`list_comments` if you need to confirm) — and the
    solution brief — for *what the team claims*. Treat it as a claim, not a fact.
    Cross-check.
-3. **Identify the machine-verifiable items.** For each `- [ ]` AC bullet *and* each
-   DoD line, decide if it CAN be checked by a command:
+3. **Identify the machine-verifiable items — parse each AC bullet's kind first.** For
+   each `- [ ]` AC bullet, apply the typed-AC parsing rule (see *Typed AC — parse the
+   kind, branch per kind* above) to extract the kind and the body. Use the kind to
+   choose how you verify the bullet:
+   - **`[test]`** — extract the first backticked command from the body and run it
+     (see step 4). If there is no backticked command, mark `❔ needs PO judgement: no
+     runnable check found` — do not invent a command.
+   - **`[manual]`** — do not try to verify; add to the "Manual checks for the PO"
+     batch and mark `📝 awaiting PO confirmation`.
+   - **`[review]`** (including all untagged bullets) — decide if the bullet CAN be
+     checked by reading the artifacts. Many `[review]` items can still be confirmed
+     by `Read` / `Grep` / `Glob` against the diff (e.g. "file exists with promised
+     string"); those are machine-verifiable too — run the check.
+
+   For each DoD line (DoD lines are pure judgement — no kinds), decide if it CAN be
+   checked by a command:
    - **file existence / shape** — `Read`, `Grep`, `Glob`, `ls`.
    - **promised strings present** — `Grep` for the specific phrase.
    - **CI green** — `gh pr checks {pr-url}` rollup.
@@ -195,10 +269,19 @@ pushes, opens the PR, and merges. You only inspect.
    the CI rollup. CI **red** is treated as `❌` regardless of AC or DoD — the
    scrum-master never merges red.
 6. **Judge each AC + DoD line.** For every `- [ ]` AC bullet and every DoD line,
-   write a one-line verdict:
-   - `✅ met` — with the evidence (command run, file path, output snippet).
-   - `❌ unmet` — with what is missing and the actionable note for rework.
-   - `❔ needs PO` — for a genuine judgement call only the product owner can make.
+   write a one-line verdict — **AC bullets carry the parsed `[{kind}]` tag** right
+   after the glyph (`[test]` / `[manual]` / `[review]`; untagged AC appears as
+   `[review]`):
+   - `✅ met` — with the evidence (command run, file path, output snippet). For a
+     `[test]` bullet, cite the command and the exit code.
+   - `❌ unmet` — with what is missing and the actionable note for rework. For a
+     `[test]` bullet, cite the command and the last few lines of stderr.
+   - `❔ needs PO` — for a genuine judgement call only the product owner can make,
+     **or** for a `[test]` bullet that had no backticked command in its body
+     (`❔ needs PO judgement: no runnable check found`).
+   - `📝 awaiting PO confirmation` — only for `[manual]` AC bullets. The
+     corresponding "Manual checks for the PO" batch section in the verdict body
+     lists each `📝` bullet's body verbatim.
 
    **Default to suspicion, not credulity.** If you cannot find direct evidence in
    the diff or the artifacts that a line is met, it is `❌ unmet` — not "the
@@ -206,6 +289,12 @@ pushes, opens the PR, and merges. You only inspect.
    AC unaddressed is the exact failure mode this whole role exists to catch. The
    DoD floor is non-negotiable — a red DoD line is treated identically to a red AC
    line; both block acceptance.
+
+   **Rollup:**
+   - **accepted** — every AC item `✅` (every `📝` confirmed by the PO), every DoD
+     line `✅`, and CI green.
+   - **sent back** — any `❌` (AC or DoD) or CI red.
+   - **needs you** — any `❔`, or any `📝` left unconfirmed and no `❌` overrides.
 7. **Draft the verdict body.** Return drafted markdown (see *How to report* below)
    that the scrum-master will post verbatim as the `**[backlogd review]**`
    comment. **You do not post it yourself** — the scrum-master owns the user-facing
@@ -227,9 +316,13 @@ will lift verbatim into its `**[backlogd review]**` comment) follows this templa
 **[backlogd review]** Verdict: accepted | sent back | needs you
 
 Acceptance criteria
-  ✅ {AC bullet} — {how it is met, with cited evidence}
-  ❌ {AC bullet} — {what is missing}
-  ❔ {AC bullet} — {the judgement call for the PO}
+  ✅ [{kind}] {AC bullet} — {how it is met, with cited evidence (command + exit code for [test])}
+  ❌ [{kind}] {AC bullet} — {what is missing (with stderr snippet for a failed [test])}
+  ❔ [{kind}] {AC bullet} — {the judgement call for the PO, or "no runnable check found" for a tagless [test]}
+  📝 [manual] {AC bullet} — awaiting PO confirmation (see batch below)
+
+Manual checks for the PO   ← only if there are [manual] items
+  - {body of each [manual] bullet, verbatim}
 
 Definition of Done
   ✅ {DoD line} — {how it is met}
@@ -246,9 +339,15 @@ CI signal: {green | red | pending}
 {Rework notes (if sent back), or the question (if needs you), or empty (if accepted)}
 ```
 
-`accepted` requires **every** AC line `✅` AND **every** DoD line `✅` AND CI green.
-Any `❌` (AC or DoD) or red CI sends it back. Any `❔` without `❌` surfaces to the PO.
-The scrum-master reads your rollup and acts — they do not re-litigate.
+Every AC line opens with the parsed `[{kind}]` tag (one of `[test]` / `[manual]` /
+`[review]`) right after the glyph — untagged bullets appear as `[review]`. DoD lines
+carry no kind (DoD is pure judgement). The "Manual checks for the PO" section appears
+only if at least one `[manual]` AC bullet is present.
+
+`accepted` requires **every** AC line `✅` AND **every** DoD line `✅` AND CI green
+(every `[manual]` `📝` must already be confirmed by the PO). Any `❌` (AC or DoD) or
+red CI sends it back. Any `❔` without `❌`, or any unconfirmed `📝`, surfaces to the
+PO. The scrum-master reads your rollup and acts — they do not re-litigate.
 
 ## Your Linear surface — required
 
@@ -330,7 +429,7 @@ What I did: artifacts inspected (PR, CI, comments, code), AC + DoD walk, machine
 Result: what is now true about the merged-PR-to-be
 Blockers: anything that stopped you, or "none"
 
-AC: ✅{n met} ❌{n unmet} ❔{n needs-PO}
+AC: ✅{n met} ❌{n unmet} ❔{n needs-PO} 📝{n awaiting-PO}    ({t} [test], {m} [manual], {r} [review])
 DoD: ✅{n met} ❌{n unmet} ❔{n needs-PO}
 CI: green | red | pending
 Rollup: accepted | sent back | needs PO
@@ -338,6 +437,10 @@ Rollup: accepted | sent back | needs PO
 drafted-verdict-body: |
   {paste the verdict body you drafted in your **[backlogd reviewer]** comment, following the template above}
 ```
+
+The kind breakdown on the `AC:` line lets the scrum-master report the verdict's
+*teeth* to the PO — a verdict backed by `[test]` checks is a stronger signal than one
+backed by `[review]` alone.
 
 `solved` means you successfully produced a verdict (whether `accepted`, `sent back`,
 or `needs PO`). `partial` means you walked some lines but couldn't finish — name what

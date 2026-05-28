@@ -99,17 +99,21 @@ list`, `gh label list`, etc.
 Then call the **`backlogd:reviewer` subagent** with the Agent tool, handing it the
 problem as an **inline** context envelope. The envelope is the reviewer's entire
 world — anything not in it is invisible to it. Mirror the developer envelope's
-no-implicit-context discipline. The reviewer reads the contract, walks every AC + every
-DoD line, and returns both its rollup (`accepted` / `sent back` / `needs PO`) **and** a
-**drafted verdict body** (markdown) you will post verbatim as the
-`**[backlogd review]**` comment in step 4:
+no-implicit-context discipline. The reviewer reads the contract (its agent prompt loads
+**`skills/ac/SKILL.md`** for the typed-AC grammar so it can branch per kind on each
+`## Acceptance Criteria` bullet), walks every AC + every DoD line, and returns both its
+rollup (`accepted` / `sent back` / `needs PO`) **and** a **drafted verdict body**
+(markdown) you will post verbatim as the `**[backlogd review]**` comment in step 4:
 
 > Review this problem in `verdict` mode. Read its `## Acceptance Criteria` and walk the
-> Definition of Done (`docs/scrum/definition-of-done.md`); run every machine-verifiable
-> check yourself (do not trust the developer's report — the whole point of an
-> independent review is to verify); inspect the PR diff and CI rollup; and return a
-> per-AC + per-DoD verdict. Post your progress and verdict draft to your issue's
-> `**[backlogd reviewer]**` comment. Touch only this one issue.
+> Definition of Done (`docs/scrum/definition-of-done.md`); load `skills/ac/SKILL.md` for
+> the typed-AC grammar and branch per kind on each bullet (`[test]` runs the backticked
+> command, `[manual]` batches into "Manual checks for the PO", `[review]` is Claude
+> judgement; untagged → `[review]`); run every machine-verifiable check yourself (do not
+> trust the developer's report — the whole point of an independent review is to verify);
+> inspect the PR diff and CI rollup; and return a per-AC + per-DoD verdict. Post your
+> progress and verdict draft to your issue's `**[backlogd reviewer]**` comment. Touch
+> only this one issue.
 >
 > Problem ({identifier}, issue id {id}): {title}
 >
@@ -146,9 +150,13 @@ the body in step 3; you **post** it — do not delegate posting. Use the reviewe
 **[backlogd review]** Verdict: accepted | sent back | needs you
 
 Acceptance criteria
-  ✅ {criterion} — {how it is met, with cited evidence}
-  ❌ {criterion} — {what is missing}
-  ❔ {criterion} — {the judgement call for you}
+  ✅ [{kind}] {criterion} — {how it is met, with cited evidence (command + exit code for [test])}
+  ❌ [{kind}] {criterion} — {what is missing, with stderr snippet for a failed [test]}
+  ❔ [{kind}] {criterion} — {the judgement call for you, or "no runnable check found" for a tagless [test]}
+  📝 [manual] {criterion} — awaiting PO confirmation (see batch below)
+
+Manual checks for the PO   ← only if there are [manual] items
+  - {body of each [manual] bullet, verbatim}
 
 Definition of Done
   ✅ {DoD line} — {how it is met}
@@ -163,6 +171,10 @@ CI signal: {green | red | pending}
 
 {Rework notes (if sent back), or the question (if needs you), or empty (if accepted)}
 ```
+
+The parsed AC `[{kind}]` tag (one of `[test]` / `[manual]` / `[review]`) appears in
+square brackets at the start of each AC line so the PO can see, at a glance, *how*
+each item was checked. Untagged AC items appear as `[review]` (the default).
 
 You may **not** override the reviewer's per-AC or per-DoD judgement without surfacing
 the override explicitly (e.g. "PO override: accepted despite ❌ — see comment below").
@@ -201,9 +213,14 @@ Act on the reviewer's rollup:
           --session "review-{identifier}-$(date -u +%Y%m%dT%H%M%S)" \
           --problem {identifier} \
           --notes "{the unmet-criteria notes you just wrote}"
-- **`needs PO`** (any AC `❔` without `❌`) → **leave it In Review** (PR open) and
-  surface the question to the product owner. Don't guess at a call that's theirs to
-  make.
+- **`needs PO`** (any AC `❔` without `❌`, **or** any `[manual]` items left as
+  `📝 awaiting PO confirmation`) → **leave it In Review** (PR open) and surface the
+  question(s) to the product owner. For `❔` items, don't guess at a call that's theirs
+  to make. For the `[manual]` batch, lift the reviewer's drafted "Manual checks for the
+  PO" section verbatim into the question you ask — each `📝` bullet needs a yes/no from
+  the PO before the verdict can close. Treat unanswered manual checks as a blocker, not
+  a silent pass: `accepted` requires every `📝` confirmed `✅`; an answered-no drops the
+  verdict to `sent back`; unanswered holds it at `needs you`.
 
 Confirm the transition + merge (or the deliberate non-merge) succeeded.
 
@@ -212,7 +229,11 @@ Confirm the transition + merge (or the deliberate non-merge) succeeded.
 ```
 {identifier} — {title}
   reviewer    -> {accepted | sent back | needs PO}, evidence cited
-  acceptance  -> {n met}/{n total} criteria, {k} needs-PO
+  acceptance  -> {n met}/{n total} criteria ({t} [test], {m} [manual], {r} [review]), {k} needs-PO
   CI          -> {green | red | pending}
   verdict     -> accepted (PR merged → Done) | sent back (PR open → In Progress) | needs you (← {question})
 ```
+
+The kind breakdown on the `acceptance` line lets the PO see, at a glance, how *teeth*
+the AC had — a verdict backed by `[test]` checks is a stronger signal than one backed
+by `[review]` alone.
