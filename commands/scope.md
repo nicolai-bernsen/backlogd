@@ -22,9 +22,14 @@ the user to enable it (see the README "Setup" section) — do not improvise anot
 
 ## 1. Resolve identity
 
-Before any write, resolve the team, its workflow states, and its labels at runtime, and cache
-them for the run (`skills/linear/references/linear-mcp.md` → "Resolve identity before you
-write"). Never hard-code a state's display name.
+Before any write, resolve the team, its workflow states, and its labels — **but read the
+per-repo identity cache first**: if `.backlogd/identity.json` exists and its `expires_at`
+is in the future, use the cached `team` / `statuses` / `labels` and **skip** the three
+`list_*` calls; otherwise call `list_teams` → `list_issue_statuses` → `list_issue_labels`
+and **rewrite** the cache with a fresh 24-hour `expires_at`. The exact procedure, schema,
+and manual-invalidation note are in `skills/linear/references/linear-mcp.md` →
+"Resolve identity before you write" → "Cache identity to `.backlogd/identity.json`".
+Resolve workflow states by `type`, never by display name.
 
 ## 2. Pick one problem
 
@@ -73,6 +78,21 @@ Follow the **promote-on-discovery** rule from `skills/linear/`; do not predict s
 - **When in doubt, stay an Issue.** Promotion on evidence is cheap; a premature Project that
   never closes is not.
 
+## 4b. Apply `kind:ops` if the problem is repo-ops
+
+If the problem's outcome is **GitHub repo operations or external content** (topics,
+Discussions, releases, repo metadata, labels, `good first issue`s, awesome-list
+submissions, drafts in `docs/`) — i.e. there is no source diff to land — apply the
+**`kind:ops` label** to the problem (and to any sub-issues that are themselves ops-only).
+`/backlogd:solve` routes ops-labelled units through `skills/solve/ops.md` (no worktree,
+no PR; the developer takes `gh` actions and posts an action log).
+
+- Create the label on the team via `create_issue_label({ team, name: "kind:ops" })` if
+  `list_issue_labels` shows it is missing. It is just a routing flag — no automation
+  beyond that.
+- If the problem is **mixed** (some units ops, some units code), prefer to split it into
+  two problems at shaping time rather than letting `solve` halt on the mixed case.
+
 ## 5. Set priority and stop
 
 Set the problem's **priority** so `/backlogd:solve` can order the queue. Leave **estimates
@@ -90,6 +110,7 @@ Show what you shaped so it is visible in the transcript:
 Shaped: {identifier} — {title}
   acceptance criteria  -> {n} written
   decomposition        -> single issue | {n} sub-issues (blocked-by wired) | promoted to Project "{name}" ({n} issues, {m} milestones)
+  route                -> standard (code → worktree + PR) | ops-only (kind:ops, no PR)
   priority             -> {priority}
 Ready for: /backlogd:solve {identifier}
 ```

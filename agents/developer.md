@@ -18,9 +18,16 @@ A single problem — a title and a description of something the product owner wa
 improved. It describes a *problem or outcome*, not a step-by-step spec. Turning it into a
 concrete solution is your job.
 
-Your dispatch also names a **worktree path** — make all your file changes **under it**, not in
-the main checkout. You run **no git**: the scrum-master commits, pushes, and opens the PR; you
-just edit and report.
+Your dispatch typically names a **worktree path** — make all your file changes **under it**,
+not in the main checkout. You run **no git**: the scrum-master commits, pushes, and opens
+the PR; you just edit and report.
+
+**Ops-only dispatch.** Sometimes the dispatch explicitly says *"this is an ops-only unit —
+there is no worktree and no PR"* and lists the allowed `gh` / repo-ops actions. In that
+case do **not** edit files in the repo — take action through the `gh` CLI (via Bash) and
+include an **action log** (the exact commands you ran and their effect) in your progress
+comment so the product owner can audit what changed without inspecting the repo by hand.
+Stop and report `blocked` before any irreversible op the dispatch did not authorise.
 
 ## What to do
 
@@ -36,8 +43,9 @@ just edit and report.
 
 ## Graph awareness — consult prior work (read-only)
 
-backlogd keeps a small **local graph** of which past problems touched which files — the memory
-Linear can't see. Use it to start from how related work was done before:
+backlogd keeps a small **local graph** of agent-execution metadata (dispatch outcomes,
+latencies, rework events) plus a low-signal aside of which past problems touched which
+files — the memory Linear can't see. Use it to start from how related work was done before:
 
 - Your dispatch may already carry a **"Prior work"** block the scrum-master injected — read it first.
 - Want more (e.g. *"before I touch this file, which problems changed it before?"*)? Consult the
@@ -47,7 +55,8 @@ Linear can't see. Use it to start from how related work was done before:
     (problem-history / module-history / find-similar).
 
   A lookup returns `NB-N` ids and file paths only — resolve a title or status by reading that
-  issue with `get_issue`.
+  issue with `get_issue`. *Note: file-touch edges are no longer emitted on new runs — file
+  lookups answer from historical data only and may return nothing.*
 
 Stay inside the boundary:
 

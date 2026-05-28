@@ -62,6 +62,13 @@ all Linear reads and writes; developer agents just solve and report.
 That's the prerequisite surface for the walking skeleton. File a problem, then point the
 orchestrator at your backlog.
 
+> **Identity cache.** On first use, the scrum-master commands resolve your Linear team,
+> its workflow states, and its labels, and snapshot them to `.backlogd/identity.json` with
+> a 24-hour TTL — subsequent runs short-circuit the three `list_*` calls. The directory is
+> gitignored. If you rename a workflow state or add a label backlogd should know about
+> inside the 24-hour window, **delete `.backlogd/identity.json`** to force a refresh on
+> the next run.
+
 > **How backlogd uses Linear** — the operating model (how a problem maps to issues,
 > sub-issues, projects, and milestones) and the exact Linear MCP usage live in the
 > [`skills/linear/`](skills/linear/SKILL.md) skill.
@@ -80,7 +87,9 @@ The first slice proves the whole loop with one command. From a clean checkout:
    ```
 
    (`solve` shapes the problem first if it isn't already; run `/backlogd:scope` yourself when
-   you want to review the shape and decomposition before solving.)
+   you want to review the shape and decomposition before solving. Add `--dryrun`
+   — `/backlogd:solve --dryrun {identifier}` — to preview the dispatch plan without touching
+   Linear or git.)
 
 4. Watch the loop:
    - the issue moves **Backlog → In Progress**,

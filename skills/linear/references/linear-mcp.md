@@ -42,14 +42,69 @@ writes correct. Read this **before every write**. For what the concepts mean, se
 State display names are team-scoped and customisable — there is no guaranteed "In
 Progress". Before any state change:
 
-1. `list_teams` → resolve the team (backlogd uses `Nicolai-bernsen`).
+1. `list_teams` → resolve the user's team for this run. backlogd assumes one team per
+   workspace; the call returns the user's team(s) and the run picks the right one. Don't
+   hardcode a team name — every installer is on their own.
 2. `list_issue_statuses({ team })` → get `[{id, type, name}]`. **Match on `type`**
    (`unstarted`/`started`/`completed`/…), never on the display name. When a target type has
    more than one state (e.g. `started` = "In Progress" + "In Review"), pick the
    **lowest-position** one for a forward transition.
 3. `list_issue_labels` / `list_users` as needed.
 
-Cache these for the run rather than re-fetching each task.
+#### Cache identity to `.backlogd/identity.json` (24-hour TTL)
+
+These three `list_*` calls return values that are **stable across hundreds of runs** —
+teams, workflow states, and labels rarely change — but the GraphQL layer has a
+complexity cap (see "Page narrowly" below), so re-fetching them every invocation
+compounds. **Cache the resolved identity** to a per-repo file with a TTL; on entry, read
+the cache first and only re-fetch when it is missing or stale.
+
+**Location.** `.backlogd/identity.json`, relative to the repository root (the `.backlogd/`
+directory is gitignored, so the cache never enters the public tree).
+
+**Schema.** Top-level keys are exactly:
+
+```json
+{
+  "team": { "id": "<uuid>", "name": "<team name>" },
+  "statuses": [
+    { "id": "<uuid>", "name": "Backlog",     "type": "backlog" },
+    { "id": "<uuid>", "name": "Todo",        "type": "unstarted" },
+    { "id": "<uuid>", "name": "In Progress", "type": "started" },
+    { "id": "<uuid>", "name": "In Review",   "type": "started" },
+    { "id": "<uuid>", "name": "Done",        "type": "completed" },
+    { "id": "<uuid>", "name": "Canceled",    "type": "canceled" }
+  ],
+  "labels":   [ { "id": "<uuid>", "name": "problem" }, ... ],
+  "expires_at": "<ISO-8601 UTC, 24h from write>"
+}
+```
+
+**Procedure (each backlogd command on entry, before any other Linear call).**
+
+1. **Read** `.backlogd/identity.json`. If the file exists, parse it and compare
+   `expires_at` to *now* (UTC). If `expires_at` is in the future, the cache is **fresh** —
+   use `team`, `statuses`, and `labels` from it directly and **skip** the three `list_*`
+   calls below.
+2. **Repopulate** if missing, unparseable, or stale: call `list_teams` →
+   `list_issue_statuses({ team })` → `list_issue_labels({ team })`, project them into the
+   schema above, set `expires_at` to *now + 24 hours* (ISO-8601, UTC, e.g. emitted by
+   `date -u --iso-8601=seconds`), and **rewrite** `.backlogd/identity.json` (overwrite the
+   whole file — it's a snapshot, not append-only). Create the `.backlogd/` directory if it
+   does not exist.
+3. **Resolve roles** from the cached `statuses` exactly as before — match on `type`, never
+   on display name. The cache stores the raw `{id, name, type}` triples, not the role
+   labels (pickup / review / accepted / …), so command-specific role resolution stays in
+   each command's prose.
+
+**Manual invalidation.** Delete `.backlogd/identity.json` to force a refresh on the next
+run. Do this if you rename a workflow state, add a label backlogd should know about, or
+otherwise reshape the team's Linear identity inside the 24-hour window — the cache will
+not pick it up until it expires or you remove the file.
+
+**Best-effort writes.** A failure to write the cache (e.g. read-only filesystem,
+permission error) must **never** block the run — fall through with the freshly-resolved
+identity for the current invocation, and try again next time.
 
 ### 2. `save_*` is upsert — read → capture `id` → write (idempotency)
 
@@ -122,3 +177,6 @@ do not implement or depend on it.
 - ❌ Redundant `state` writes that fight the git integration. ✅ Let push/PR/merge drive
   state.
 - ❌ Wide `list_issues` with no filters → complexity-cap errors. ✅ Filter + small `limit`.
+- ❌ Re-running `list_teams` / `list_issue_statuses` / `list_issue_labels` every invocation →
+  paid GraphQL complexity for values that almost never change. ✅ Read
+  `.backlogd/identity.json` first; only repopulate when missing/stale (24-hour TTL).

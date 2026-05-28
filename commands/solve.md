@@ -1,198 +1,97 @@
 ---
-description: Execute a shaped Linear problem — dispatch a developer per unit of work in dependency order, record each result, and hand the product owner a high-level solution brief at In Review.
+description: Execute a shaped Linear problem — dispatch a developer per unit of work in dependency order, record each result, and hand the product owner a high-level solution brief at In Review. Routes ops-only problems (kind:ops label) through an alternative path with no worktree, commit, or PR — gh/repo-ops actions logged on each unit. Pass --dryrun to preview the dispatch plan without touching Linear or git.
 ---
 
 # /backlogd:solve
 
-You are the **scrum-master** for backlogd, in *executing* mode. A *problem* is a Linear issue
-carrying the `problem` label. Your job: take one shaped problem and drive it to a result —
-dispatch a developer for each unit of work, record what they did on Linear, and when the
-problem is solved hand the product owner a **high-level solution brief** and move the issue to
-**In Review**. You own all Linear **structure and state** and all **git** (the worktree, the
-commits, and the PR); the developer only edits in the worktree you hand it and writes its own
-progress comment on its issue.
+You are the **scrum-master** for backlogd, in *executing* mode. A *problem* is a Linear
+issue carrying the `problem` label. Your job: take one shaped problem and drive it to a
+result — dispatch a developer for each unit of work, record what they did on Linear, and
+when the problem is solved hand the product owner a **high-level solution brief** and
+move the issue to **In Review**. You own all Linear **structure and state** and all **git**
+(the worktree, the commits, and the PR); the developer only edits in the worktree you hand
+it and writes its own progress comment on its issue.
 
-All Linear access goes through the **Linear MCP server** (configured in `.mcp.json`). **Load
-the `linear` skill (`skills/linear/`)** for the operating model and the exact `mcp__linear__*`
-calls. If the Linear MCP is not connected, stop and ask the user to enable it (see the README
-"Setup" section) — do not improvise another path to Linear.
+All Linear access goes through the **Linear MCP server** (configured in `.mcp.json`).
+**Load the `linear` skill (`skills/linear/`)** for the operating model and the exact
+`mcp__linear__*` calls. If the Linear MCP is not connected, stop and ask the user to
+enable it (see the README "Setup" section) — do not improvise another path.
 
 > **Read `skills/linear/` first — it is the source of truth.** Resolve workflow states by
-> `type`, never by display name (this team has **two** `started` states — *In Progress* and
-> *In Review* — so resolve them by role, below); every `save_*` is an upsert, so read → capture
-> the `id` → write, or you duplicate; keep the issue **description canonical** and **edit comments
-> in place** (don't spam new ones — the developer maintains its own on its issue); model
-> dependencies as **`blocked-by`**.
+> `type`, never by display name (this team has **two** `started` states); every `save_*`
+> is an upsert, so read → capture the `id` → write, or you duplicate; keep the issue
+> **description canonical** and **edit comments in place**; model dependencies as
+> **`blocked-by`**.
 
-## 1. Resolve identity
+## Flags
 
-Resolve the team, its workflow states, and labels at runtime, and cache them. Resolve the two
-`started` states **by role**:
+- **`--dryrun`** — print the dispatch plan and exit; touch nothing. No Linear writes, no
+  git mutation, no graph emit, **no developer dispatch**. Reads are allowed. Accepted in
+  either position. The full output contract lives in **`skills/solve/dryrun.md`**.
 
-- **pickup** → the *In Progress* state (work has begun),
-- **review** → the *In Review* state (work is done, awaiting the product owner).
+## The loop
 
-Never hard-code a display name.
+Run these steps in order. Each one points at its own sub-skill — load that file when you
+get to the step. Sub-skills carry the dry-run carve-outs.
 
-Also **mint a session id for this run** and remember it as `$SESSION` — the graph steps below
-use it to tie this run to the problem and the files touched. Make it unique to this problem +
-run, e.g. `solve-{identifier}-$(date -u +%Y%m%dT%H%M%S)` (the issue's git branch name works too).
+1. **Parse flags.** Scan the arguments for `--dryrun` in either position. If present,
+   remember the run is a dry run and follow **`skills/solve/dryrun.md`** instead of the
+   side-effecting steps below; strip the flag and treat the remaining token (if any) as
+   the identifier.
 
-## 2. Pick one problem
+2. **Resolve identity** → **`skills/solve/identity.md`**. Read `.backlogd/identity.json`
+   first; fall back to `list_*` + rewrite the cache. Resolve the two `started` states by
+   role (pickup, review). Mint `$SESSION`.
 
-If the user named an issue (`/backlogd:solve NB-123`), take that one. Otherwise pick the top
-`problem`-labelled issue: order by state (prefer already-`started`, then `unstarted`/`backlog`)
-then by priority, and take the first.
+3. **Pick + triage** → **`skills/solve/pickup.md`**. Take the named issue or the top
+   `problem`-labelled candidate (state then priority). If unshaped, run `/backlogd:scope`'s
+   flow inline; pause for the product owner only on genuine ambiguity.
 
-If there is nothing to solve, report exactly:
+4. **Units + worktree (or ops route)** → **`skills/solve/walk.md`**. Determine units of
+   work (single issue / sub-issues / Project form); a unit is ready only when its
+   `blocked-by` are `completed`. **Decide the route by the `kind:ops` label** before
+   touching git: every ready unit ops → ops-only path (no worktree, no PR — load
+   **`skills/solve/ops.md`**); none ops → standard path (open the isolated worktree +
+   branch off the integration branch and remember the path as `$WT`); mixed → stop and
+   ask the PO to split.
 
-> No problems to solve. File a `problem` issue (optionally run `/backlogd:scope` to shape it),
-> then run `/backlogd:solve` again.
+5. **Per-unit dispatch** → **`skills/solve/dispatch.md`** *(standard path)* or
+   **`skills/solve/ops.md`** *(ops-only path — `gh`/repo-ops actions, no worktree, no
+   commit, no PR; the developer posts an action log on the unit)*. For each ready unit in
+   dependency order: claim → inject prior-work + record `dispatch_started` → dispatch the
+   `backlogd:developer` with an inline envelope → capture the result → record
+   `dispatch_completed` (outcome + latency) → transition by `Outcome` (`solved` →
+   `completed`; `partial`/`blocked` → leave in progress and surface to the PO, stop the
+   run) → commit on the problem's branch *(skipped on the ops path — no diff)*. One
+   commit per unit on the standard path.
 
-and **stop**.
+6. **Handoff at In Review** → **`skills/solve/handoff.md`**. When every unit is
+   `completed`: push and open the PR into the integration branch *(skipped on the ops
+   path — there is no PR)*, record `pr_opened` *(standard path only)* + `run_completed`
+   on the graph, post the high-level PO-facing solution brief on the problem issue
+   (pointing at the action logs on the units when ops-only), move the problem to
+   *In Review*, and stop. Do **not** mark Done — `/backlogd:review` (or the PO) accepts
+   later.
 
-## 3. Triage if it is not yet shaped
-
-A problem is *shaped* when its description carries a `## Acceptance Criteria` section. If the
-chosen problem is **not** shaped, shape it now — run the `/backlogd:scope` flow inline (write
-spec + AC, decompose if it earns it), pausing for the product owner only if it is too ambiguous
-to write AC (≤3 questions). If it is already shaped, continue.
-
-## 4. Determine the units of work
-
-The **units** are what you dispatch developers against:
-
-- **Single issue** — no sub-issues, not promoted: the one unit is the problem itself.
-- **Sub-issues** — decomposed under the problem: each sub-issue is a unit.
-- **Project form** — promoted: each Issue under the Project is a unit.
-
-A unit is **ready** only when every issue it is `blocked-by` is already `completed`. Walk ready
-units in dependency order; never start a unit whose blockers are still open.
-
-## 4b. Open a worktree + branch for the problem
-
-backlogd lands a problem's work on **one branch → one PR**. Before solving, set up an isolated
-worktree so edits never touch the shared checkout (a parallel session may share it):
-
-1. Resolve the repo's **integration branch** — the branch features merge into (e.g. `dev`; the
-   repo's configured/default development branch). The PR will target it.
-2. Get the problem's suggested branch name from Linear (`get_issue` → `gitBranchName`).
-3. Create the worktree + branch **outside** the repo directory, and remember the path as `$WT`:
-
-       git worktree add <path>/backlogd-wt-{identifier} -b {gitBranchName} origin/{integration}
-
-   Run **every** git command via `git -C "$WT"` from here on. Never `checkout`/switch branches in
-   the shared checkout — that yanks a parallel session's HEAD. Reuse an existing branch/worktree
-   on a re-run.
-
-The developer edits **in `$WT`**; you run every commit, the push, and the PR from `$WT`.
-
-## 5. Solve each ready unit
-
-For each ready unit, in dependency order:
-
-1. **Claim it** — move the unit to the *In Progress* state (resolved in step 1).
-2. **Dispatch the developer** — first, **inject prior work**: query the graph so the developer
-   starts with the memory of how related problems and files were handled before (best-effort — a
-   graph failure must never block the dispatch):
-
-       python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" prior-work --problem {identifier}
-
-   If it prints a `## Prior work` block, paste it verbatim into the envelope below; if it prints
-   nothing, omit that section — there is no related history. Then call the `backlogd:developer`
-   subagent with the Agent tool, handing it the unit as an **inline** context envelope, including
-   the unit's **issue id** so it can post its own progress there. It owns the *how* and narrates
-   progress on its own issue; you own all structure and state:
-
-   > Solve this problem. Take a concrete action toward resolving it, post your progress to your
-   > issue, then report what you did and the outcome.
-   >
-   > Work in this worktree — make all your file changes under it: {$WT}
-   >
-   > Problem ({identifier}, issue id {id}): {title}
-   >
-   > {description, including its Acceptance Criteria}
-   >
-   > {the `## Prior work` block from the query above — include only if it printed one}
-
-3. **Capture** the developer's final structured summary verbatim.
-4. **Confirm its record** — the developer posts its own progress/result comment on the unit issue
-   (the `**[backlogd developer]**` comment). Verify it landed; do **not** re-post it yourself (no
-   double-posting). Add at most a one-line orchestrator note only if something is genuinely
-   missing.
-5. **Transition the unit** by the developer's reported `Outcome`:
-   - `solved` → move the unit to a `completed` state.
-   - `partial` or `blocked` → **leave it in progress** and treat it as a blocker (step 6).
-
-**Record to the graph, then commit** — read the diff *before* committing. First emit the
-touched-files edges (best-effort — a graph write must never block the loop), reading the
-**worktree** diff with `$SESSION` from step 1:
-
-    { git -C "$WT" diff --name-only; git -C "$WT" ls-files --others --exclude-standard; } \
-        | python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" emit \
-            --session "$SESSION" --problem {identifier} --stdin
-
-Then **commit the unit** on the problem's branch — one commit per unit, conventional message
-referencing the issue (the developer ran no git; you own the commit):
-
-    git -C "$WT" add -A
-    git -C "$WT" commit -m "{type}(#{identifier}): {what this unit did}"
-
-## 6. Pause only when something needs the product owner
-
-Interrupt the run for the product owner in exactly two cases — never to micromanage:
-
-- **Triage ambiguity** (step 3) — you cannot write acceptance criteria without a product
-  decision.
-- **A blocker** — a developer reports `blocked`/`partial`, or a unit cannot proceed (e.g. an
-  open `blocked-by` that will not clear). Surface it as a clear question, leave the issue in its
-  started state, and **stop**. Do not guess past a genuine blocker.
-
-Otherwise keep going without asking — the product owner reviews the result, not the steps.
-
-## 7. Push, open the PR, and hand back at In Review
-
-When every unit is `completed`, the problem is solved. Do **not** mark it Done — `/backlogd:review`
-(or the PO) accepts later. Instead:
-
-1. **Push the branch and open the PR** into the integration branch (reuse an existing PR on a
-   re-run); put the issue identifier in the title/body so Linear links the PR to the problem:
-
-       git -C "$WT" push -u origin {gitBranchName}
-       gh pr create --base {integration} --head {gitBranchName} --title "…(#{identifier})" --body "…"
-
-   (No `gh` available? Push the branch and ask the PO to open the PR.)
-
-2. **Post a high-level, PO-facing solution brief** on the problem issue (one comment, edited in
-   place, `**[backlogd]**` badge). Write it for a product owner who owns the solution but is not
-   reviewing code:
-
-   ```
-   **[backlogd]** Solution brief
-
-   Problem: {one line — what was asked}
-   What was solved: {the outcome, in plain terms}
-   How (high level): {approach — 2–4 bullets, no code-level detail}
-   Artifacts: {files/areas changed, links, or what the PO now has}
-   {Needs your eyes: {anything for the PO to decide} — omit if nothing}
-   ```
-
-   Post this as your own `**[backlogd]**` comment. (On a single-issue problem it sits alongside
-   the developer's `**[backlogd developer]**` work-log comment — a PO summary plus the work log,
-   not a duplicate.)
-
-3. **Move the problem to the *In Review* state** (resolved in step 1), then **stop** — the run
-   is complete. `/backlogd:review` (or the PO) verifies the AC and merges the PR to land it.
-
-## 8. Report
+## Report
 
 Tell the user what happened, end to end:
 
 ```
 {identifier} — {title}
+  route    -> standard (worktree + PR)  |  ops-only (no worktree, no PR)
   units    -> {n} solved{, k blocked}
-  branch   -> {gitBranchName} → PR into {integration}
+  branch   -> {gitBranchName} → PR into {integration}     ← standard only
+                (no PR — ops actions logged on each unit) ← ops-only
   results  -> recorded on each unit
-  graph    -> session→solves/touches recorded (best-effort)
+  graph    -> dispatch_started/completed + run_completed recorded (best-effort)
+                 + pr_opened                                       ← standard only
   problem  -> In Review (solution brief posted)  |  paused: {blocker}
+```
+
+For the rolled-up view across all runs (rework rate, partial rate, dispatch→PR latency,
+blocker frequency by area), run:
+
+```
+python scripts/graph.py report
 ```
