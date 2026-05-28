@@ -1,5 +1,5 @@
 ---
-description: Execute a shaped Linear problem — dispatch a developer per unit of work in dependency order, record each result, and hand the product owner a high-level solution brief at In Review.
+description: Execute a shaped Linear problem — dispatch a developer per unit of work in dependency order, record each result, and hand the product owner a high-level solution brief at In Review. Pass --dryrun to print the dispatch plan without touching Linear or git.
 ---
 
 # /backlogd:solve
@@ -12,6 +12,15 @@ problem is solved hand the product owner a **high-level solution brief** and mov
 commits, and the PR); the developer only edits in the worktree you hand it and writes its own
 progress comment on its issue.
 
+## Flags
+
+- **`--dryrun`** — print the dispatch plan and exit; touch nothing. No Linear writes (no state
+  transitions, no comments, no description edits), no git mutations (no worktree, no branch, no
+  commit, no push, no PR), and **no developer subagent is dispatched**. Reads are allowed (the
+  Linear `list_*` / `get_*` calls and the graph `prior-work` lookup). Accepted in either
+  position: `/backlogd:solve --dryrun {identifier}` or `/backlogd:solve {identifier} --dryrun`.
+  See [Dry-run mode](#dry-run-mode) below.
+
 All Linear access goes through the **Linear MCP server** (configured in `.mcp.json`). **Load
 the `linear` skill (`skills/linear/`)** for the operating model and the exact `mcp__linear__*`
 calls. If the Linear MCP is not connected, stop and ask the user to enable it (see the README
@@ -23,6 +32,13 @@ calls. If the Linear MCP is not connected, stop and ask the user to enable it (s
 > the `id` → write, or you duplicate; keep the issue **description canonical** and **edit comments
 > in place** (don't spam new ones — the developer maintains its own on its issue); model
 > dependencies as **`blocked-by`**.
+
+## 0. Parse flags
+
+Before anything else, scan the command arguments for `--dryrun` (accept it in either position —
+before or after the identifier). If it is present, remember the run is a **dry run** and follow
+the [Dry-run mode](#dry-run-mode) section below instead of the regular side-effecting flow.
+Strip the flag from the arguments and treat the remaining token (if any) as the identifier.
 
 ## 1. Resolve identity
 
@@ -58,6 +74,10 @@ chosen problem is **not** shaped, shape it now — run the `/backlogd:scope` flo
 spec + AC, decompose if it earns it), pausing for the product owner only if it is too ambiguous
 to write AC (≤3 questions). If it is already shaped, continue.
 
+> **Dry run:** in `--dryrun` mode, do **not** run scope inline. Decide whether the problem is
+> shaped (read-only), record the triage decision for the plan output, and follow
+> [Dry-run mode](#dry-run-mode).
+
 ## 4. Determine the units of work
 
 The **units** are what you dispatch developers against:
@@ -70,6 +90,10 @@ A unit is **ready** only when every issue it is `blocked-by` is already `complet
 units in dependency order; never start a unit whose blockers are still open.
 
 ## 4b. Open a worktree + branch for the problem
+
+> **Dry run:** in `--dryrun` mode, do **not** create the worktree or branch. Resolve the
+> integration branch and the suggested branch name read-only, compute the path you *would* use,
+> and report them in the plan ([Dry-run mode](#dry-run-mode)).
 
 backlogd lands a problem's work on **one branch → one PR**. Before solving, set up an isolated
 worktree so edits never touch the shared checkout (a parallel session may share it):
@@ -88,6 +112,11 @@ worktree so edits never touch the shared checkout (a parallel session may share 
 The developer edits **in `$WT`**; you run every commit, the push, and the PR from `$WT`.
 
 ## 5. Solve each ready unit
+
+> **Dry run:** in `--dryrun` mode, do **not** execute this section. Instead, walk the units
+> read-only, render the dispatch envelope verbatim per unit, and follow
+> [Dry-run mode](#dry-run-mode). No `Agent` call, no state transition, no graph emit, no
+> commit.
 
 For each ready unit, in dependency order:
 
@@ -152,6 +181,10 @@ Otherwise keep going without asking — the product owner reviews the result, no
 
 ## 7. Push, open the PR, and hand back at In Review
 
+> **Dry run:** in `--dryrun` mode, this section does not run — the dry run exits after printing
+> the plan in step 5 (see [Dry-run mode](#dry-run-mode)). No push, no PR, no comment, no
+> *In Review* transition.
+
 When every unit is `completed`, the problem is solved. Do **not** mark it Done — `/backlogd:review`
 (or the PO) accepts later. Instead:
 
@@ -196,3 +229,104 @@ Tell the user what happened, end to end:
   graph    -> session→solves/touches recorded (best-effort)
   problem  -> In Review (solution brief posted)  |  paused: {blocker}
 ```
+
+## Dry-run mode
+
+When `--dryrun` is set (see [Flags](#flags)), run the loop as a **preview**: do every read you
+would normally do, decide what you *would* do at each step, but **make no writes** — to Linear,
+to git, or to the graph — and **do not dispatch the developer subagent**. The output is the
+plan; the world is untouched.
+
+### What you may do
+
+- **Linear reads only.** Use `list_*` / `get_*` (e.g. `list_teams`, `list_issue_statuses`,
+  `list_issue_labels`, `get_issue`, `list_comments`, `list_issues`) to resolve identity, find
+  the problem, and walk the units. Read `includeRelations: true` on each unit so you can show
+  the `blocked-by` chain.
+- **Graph reads only.** Run `python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" prior-work
+  --problem {identifier}` per unit to gather the `## Prior work` block you would inject. A
+  graph failure must not block the preview — fall through with an empty block.
+
+### What you must NOT do
+
+- **No `mcp__linear__save_*` calls** of any kind — no `save_issue` (no state transition, no
+  description edit, no relations write, no `assignee` change, no shaped-on-the-fly description),
+  no `save_comment` (no progress note, no solution brief), no `save_project` / `save_milestone`.
+- **No git mutation.** No `git worktree add`, no `git -C "$WT" checkout / commit / push`, no `gh
+  pr create / merge`. Compute the worktree path and branch name you *would* use and show them in
+  the plan, but do not create them.
+- **No graph `emit`.** Run only read-side `graph.py` commands; never the `emit` write.
+- **No developer dispatch.** Do not call the `Agent` tool for `backlogd:developer`. Print the
+  envelope you would have handed it, verbatim, instead.
+- **No inline triage write.** If the problem is unshaped, do not run `/backlogd:scope`'s writes
+  inline — instead describe what scope *would* do (see "Triage decision" below). The dry-run
+  exits after printing the plan whether the problem is shaped or not.
+
+### What to print
+
+Print the plan in this exact order — one section per labelled block — so the contributor can
+read the dispatch decision before any state change:
+
+```
+[dry-run] /backlogd:solve {identifier|<top of queue>}
+
+(a) Identity
+  team           -> {team name}
+  states         -> started/pickup="{name}" ({type=started})
+                    started/review="{name}" ({type=started})
+                    completed     ="{name}" ({type=completed})
+  label          -> "problem" -> {resolved | MISSING}
+  session id     -> {$SESSION value that would be minted}
+
+(b) Picked problem
+  {identifier} — {title}
+  state          -> {state name} ({type})
+  shaped?        -> yes | no
+
+(c) Triage decision
+  {"already shaped — proceeding to unit walk"
+   | "not shaped — would run /backlogd:scope inline to write spec + AC{, decompose if it earns it}{, pause for PO if ambiguous}"}
+
+(d) Unit walk plan
+  worktree       -> {path that would be created}
+  branch         -> {gitBranchName} off origin/{integration}
+  units (dispatch order):
+    1. {unit-identifier} — {unit-title}   [{state}]
+         blocked-by: {open blockers | none}
+         ready?:     {ready | waiting on {blockers}}
+    2. ...
+  (single-issue problem -> one unit: the problem itself)
+
+(e) Per-unit dispatch envelope
+  --- unit 1: {unit-identifier} ---
+  > Solve this problem. Take a concrete action toward resolving it, post your progress to your
+  > issue, then report what you did and the outcome.
+  >
+  > Work in this worktree — make all your file changes under it: {$WT path that would be used}
+  >
+  > Problem ({unit-identifier}, issue id {unit-id}): {unit-title}
+  >
+  > {unit description, including its Acceptance Criteria}
+  >
+  > {## Prior work block from the graph query, verbatim — omit if the query printed nothing}
+  --- unit 2: ... ---
+  ...
+```
+
+Then exit cleanly with a one-line confirmation that nothing was written:
+
+```
+[dry-run] no writes performed — Linear, git, and graph are unchanged.
+```
+
+Do **not** continue into step 5 (Solve each ready unit) or beyond. The dry run ends here.
+
+### Edge cases
+
+- **No problem to pick** — print the same "No problems to solve…" message the real run would
+  print and exit; no writes were attempted in either flow.
+- **Unshaped problem** — print sections (a)–(c) and stop with a note that the real run would
+  invoke scope inline (or pause for the PO on ambiguity). Skip (d) and (e); there are no units
+  to walk until shaping completes.
+- **Linear MCP not connected** — same behaviour as the real run: stop and ask the user to enable
+  it. The dry run can't preview what it can't read.
