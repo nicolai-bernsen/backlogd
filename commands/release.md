@@ -2,6 +2,8 @@
 description: Cut a release — promote the integration branch to the release branch, bump the plugin version on a release branch, merge with a merge commit, tag vX.Y.Z, and back-merge so the two branches re-sync.
 ---
 
+<!-- release-script-version: 0.10.0 -->
+
 # /backlogd:release
 
 You are the **scrum-master** for backlogd, in *release* mode. backlogd ships as a Claude Code
@@ -23,6 +25,41 @@ the PR and report which step they need to finish.
 > a **merge commit, never a squash** — squashing a long-lived branch makes the two branches
 > drift; the integration branch is **never deleted**; and the release is **tagged** `vX.Y.Z`.
 > **Resolve the branch names and current version at runtime** — never hardcode them.
+
+## 0. Preflight — confirm the release script is current
+
+> **Stale-cache safeguard.** Claude Code loads `/backlogd:release` from your installed plugin
+> cache, which can lag the repo if `/plugin update` hasn't run since the last release. A script
+> that pre-dates a shipped fix (e.g. NB-311's §6 back-merge, fixed in v0.8.1) will silently run
+> the broken flow. This check refuses to proceed in that state.
+
+The `<!-- release-script-version: X.Y.Z -->` HTML comment near the top of *this* file records the
+`.claude-plugin/plugin.json` version the script was released with. Compare it to the working
+tree's current `plugin.json` version — strict semver compare:
+
+1. **Read the working-tree `plugin.json` version.** From the repo root: `Read` the file
+   `.claude-plugin/plugin.json`, extract the `version` field. Call it `$REPO_VERSION`.
+2. **Read this script's tag.** Find the first line in this file matching
+   `<!-- release-script-version: X.Y.Z -->`. Extract `X.Y.Z`. Call it `$SCRIPT_VERSION`. If the
+   tag is missing or malformed, treat the script as untrusted and bail per step 3's "older" path
+   — unknown age is more dangerous than known-stale.
+3. **Compare** with semver order (lexicographic over numeric components, not string compare):
+   - If **`$SCRIPT_VERSION < $REPO_VERSION`** (strictly older): **stop immediately** — do not
+     fetch, do not open a worktree, do not touch git. Report exactly:
+
+     > Your `/backlogd:release` script is from cache version **`$SCRIPT_VERSION`** but the repo
+     > is at **`$REPO_VERSION`**. Run `/plugin update` and re-invoke `/backlogd:release`.
+     > Releases require the latest release script to ensure shipped fixes (e.g. NB-311's §6
+     > back-merge) are in effect.
+
+   - Otherwise (`$SCRIPT_VERSION >= $REPO_VERSION` — cache is at least as fresh as the repo):
+     log one line `release script v$SCRIPT_VERSION (cache matches repo at v$REPO_VERSION) —
+     proceeding.` and continue to §1.
+
+Bumping the tag is a manual maintenance task — any PR that modifies `/backlogd:release`'s body
+must also bump `release-script-version` to the next intended release version. The release flow
+itself is the natural place to remember (the `chore(release): vX.Y.Z` commit can include a tag
+bump in the same change if needed).
 
 ## 1. Resolve the branches and current version
 

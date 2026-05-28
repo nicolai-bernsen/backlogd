@@ -78,6 +78,8 @@ Enforced on the repo:
 
 Releases promote `dev → main`:
 
+**Before you start:** run `/plugin update` so your local `/backlogd:release` cache matches the repo. Releases require the latest release script to ensure shipped fixes (e.g. NB-311's §6 back-merge — fixed in v0.8.1) are in effect; the script itself bails via the **§0 preflight** if the cached version is older than the repo's `plugin.json`. See `commands/release.md` for the check.
+
 1. Open a PR from `dev` into `main`.
 2. Bump `version` in `.claude-plugin/plugin.json` (semver) — required, or Claude Code's plugin cache hides the update.
 3. Merge to `main` with a **merge commit** (not squash — squashing a long-lived branch makes `dev` and `main` drift apart), then tag the release (`vX.Y.Z`). Leave `dev` in place.
