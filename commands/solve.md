@@ -42,13 +42,19 @@ Strip the flag from the arguments and treat the remaining token (if any) as the 
 
 ## 1. Resolve identity
 
-Resolve the team, its workflow states, and labels at runtime, and cache them. Resolve the two
-`started` states **by role**:
+Resolve the team, its workflow states, and labels — **read `.backlogd/identity.json` first**:
+if it exists and its `expires_at` is in the future, use the cached `team` / `statuses` /
+`labels` and **skip** the three `list_*` calls; otherwise call `list_teams` →
+`list_issue_statuses` → `list_issue_labels` and **rewrite** the cache with a fresh
+24-hour `expires_at`. The exact procedure, schema, and manual-invalidation note are in
+`skills/linear/references/linear-mcp.md` → "Resolve identity before you write" →
+"Cache identity to `.backlogd/identity.json`".
+
+From the resolved `statuses`, resolve the two `started` states **by role** (match on
+`type`, never on display name):
 
 - **pickup** → the *In Progress* state (work has begun),
 - **review** → the *In Review* state (work is done, awaiting the product owner).
-
-Never hard-code a display name.
 
 Also **mint a session id for this run** and remember it as `$SESSION` — the graph steps below
 use it to tie this run to the problem and the files touched. Make it unique to this problem +
