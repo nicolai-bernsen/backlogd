@@ -48,16 +48,35 @@ resolved:
 
 ## Per-unit ops dispatch
 
+The dispatch lifecycle is the same as `skills/solve/dispatch.md` — same graph writes
+(`dispatch_started` → developer → `dispatch_completed`) so `graph.py report` aggregates
+ops runs alongside code runs. The only differences are: **no worktree** in the envelope,
+the allowed-actions block, the action-log contract, and **no commit** at the end.
+
 For each ready ops unit, in `blocked-by` order:
 
 1. **Claim it** — move the unit to the *In Progress* state (resolved in
    `skills/solve/identity.md`).
-2. **Inject prior work** — same as the standard path, best-effort:
+
+2. **Inject prior work + record dispatch start** — best-effort; a graph failure must
+   never block the dispatch. First query for prior work:
 
        python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" prior-work --problem {identifier}
 
-3. **Dispatch the developer** with an inline **ops envelope** (note: no `$WT` line, an
-   explicit allowed-actions block, and the action-log contract):
+   Then record the dispatch start so the `dispatch_completed` edge later can derive its
+   latency:
+
+       python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" dispatch-start \
+           --session "$SESSION" --problem {identifier}
+
+   If the unit's Linear labels are at hand, record them too (so the metrics report can
+   break ops-blocker frequency down by `area:*`; `kind:ops` itself will surface naturally):
+
+       python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" labeled \
+           --session "$SESSION" --problem {identifier} --labels kind:ops {other labels}
+
+3. **Dispatch the developer** with an inline **ops envelope** (no `$WT` line, an explicit
+   allowed-actions block, and the action-log contract):
 
    > Solve this problem. Take a concrete action toward resolving it, post your progress to
    > your issue, then report what you did and the outcome.
@@ -97,27 +116,22 @@ For each ready ops unit, in `blocked-by` order:
    action-log comment on the unit. Verify it landed; do not re-post (no double-posting).
    Add at most a one-line orchestrator note only if the action log is genuinely missing.
 
-6. **Transition the unit** by reported `Outcome`:
+6. **Record dispatch completion on the graph** — write the per-unit outcome with the
+   latency the CLI derives automatically from the matching `dispatch_started` edge above
+   (best-effort — never block the loop):
+
+       python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" dispatch-end \
+           --session "$SESSION" --problem {identifier} \
+           --outcome {solved|partial|blocked}
+
+7. **Transition the unit** by reported `Outcome`:
    - `solved` → move the unit to a `completed` state.
    - `partial` / `blocked` → leave it in progress, surface to the product owner, **stop**.
-
-## Graph emit — no diff, so emit problem→session only
-
-There is no worktree diff to scan for touched files. Still emit the session edge so the
-graph records that this problem ran (best-effort — never block the loop on a graph
-failure). Omit `--stdin` / `--files` — `emit` defaults to no touches and just writes the
-`solves` edge:
-
-    python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" emit \
-        --session "$SESSION" --problem {identifier}
-
-(If the developer's action log names a file it touched on GitHub — e.g. an uploaded
-social-preview image — and that path also lives in the local tree, feed it explicitly via
-`--files path1 path2 …`. Do **not** scrape arbitrary paths out of free-form text.)
 
 ## No commit, no push, no PR
 
 Skip the commit, the push, and the PR for an ops-only run. The unit's outcome is the `gh`
 ops the developer logged on its issue — there is no diff to land. The standard
-`skills/solve/handoff.md` step that opens the PR is **bypassed for ops-only runs**; the
-solution brief + *In Review* transition still fire (see `handoff.md` for the carve-out).
+`skills/solve/handoff.md` `pr-opened` graph write is **also bypassed** (no PR → no
+`dispatch_to_pr` latency to record); `run-end` still fires so `run_wall_time` and the
+solution brief + *In Review* transition still land. See `handoff.md` for the carve-out.

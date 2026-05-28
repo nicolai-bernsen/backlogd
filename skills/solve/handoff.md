@@ -1,13 +1,13 @@
 ---
 name: solve-handoff
-description: Hand a solved problem back to the product owner — push the branch and open the PR into the integration branch (skipped on ops-only runs — there is no PR), post a high-level PO-facing solution brief, and move the problem to In Review (the PO accepts via /backlogd:review).
+description: Hand a solved problem back to the product owner — push the branch and open the PR into the integration branch (skipped on ops-only runs — there is no PR), record pr_opened (standard path only) + run_completed on the graph, post a high-level PO-facing solution brief, and move the problem to In Review (the PO accepts via /backlogd:review).
 ---
 
 # solve — handoff at In Review
 
 > **Dry run:** in `--dryrun` mode, this section does not run — the dry run exits after
-> printing the plan (see `skills/solve/dryrun.md`). No push, no PR, no comment, no
-> *In Review* transition.
+> printing the plan (see `skills/solve/dryrun.md`). No push, no PR, no graph write, no
+> comment, no *In Review* transition.
 
 When every unit is `completed`, the problem is solved. Do **not** mark it Done —
 `/backlogd:review` (or the PO) accepts later. Instead:
@@ -16,9 +16,10 @@ When every unit is `completed`, the problem is solved. Do **not** mark it Done �
 
 > **Ops-only run?** If this run took the **`kind:ops`** path (see `skills/solve/walk.md`
 > and `skills/solve/ops.md`) there is no `$WT`, no commit, and **no PR to open** — skip
-> this section and jump to *2. Post a high-level, PO-facing solution brief*. The
-> developer's `**[backlogd developer]**` action-log comments on the units are the
-> auditable artifact in place of a PR diff.
+> this section and jump to *§2 Record run completion on the graph* (skipping just the
+> `pr-opened` write), then continue to the solution brief in §3. The developer's
+> `**[backlogd developer]**` action-log comments on the units are the auditable artifact
+> in place of a PR diff.
 
 Push the branch and open the PR into the integration branch (reuse an existing PR on a
 re-run); put the issue identifier in the title/body so Linear links the PR to the problem:
@@ -28,7 +29,25 @@ re-run); put the issue identifier in the title/body so Linear links the PR to th
 
 (No `gh` available? Push the branch and ask the PO to open the PR.)
 
-## 2. Post a high-level, PO-facing solution brief
+## 2. Record the PR open + run completion on the graph
+
+Best-effort — a graph write must never block the handoff. Record the PR open time
+immediately after the PR exists, and the run completion at the very end. The
+`dispatch_started` edges from `skills/solve/dispatch.md` give both calls their start
+clock automatically (so `dispatch_to_pr` latency and `run_wall_time` are derived for
+you):
+
+    python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" pr-opened \
+        --session "$SESSION" --problem {identifier}
+
+    python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" run-end \
+        --session "$SESSION" --problem {identifier}
+
+> **Ops-only run?** Skip the `pr-opened` call — there is no PR, so the `dispatch_to_pr`
+> latency is undefined for this run. Still call `run-end`; the run completed, and
+> `run_wall_time` (earliest `dispatch_started` → run end) remains meaningful.
+
+## 3. Post a high-level, PO-facing solution brief
 
 Post one comment on the problem issue, edited in place, with the `**[backlogd]**` badge.
 Write it for a product owner who owns the solution but is not reviewing code:
@@ -52,7 +71,7 @@ GitHub surface(s) those calls changed (Topics, Discussions, Releases, labels, re
 metadata), and any external content drafted in the tree (e.g. `docs/PROMOTION.md`) — not
 a PR link, because there isn't one.
 
-## 3. Move the problem to In Review
+## 4. Move the problem to In Review
 
 Move the problem to the *In Review* state (resolved in `skills/solve/identity.md`), then
 **stop** — the run is complete. `/backlogd:review` (or the PO) verifies the AC and merges

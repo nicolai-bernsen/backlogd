@@ -21,7 +21,9 @@ the plan; the world is untouched.
 - **No `mcp__linear__save_*`** (state, description, relations, comments, projects).
 - **No git mutation.** No `worktree add`, `checkout / commit / push`, `gh pr create / merge`.
   Compute the path + branch name you *would* use; do not create them.
-- **No graph `emit`** — read-side `graph.py` only.
+- **No graph writes** — read-side `graph.py` only (`prior-work`, `report`).
+  No `dispatch-start` / `dispatch-end` / `pr-opened` / `run-end` / `rework` /
+  `labeled` / legacy `emit`.
 - **No developer dispatch** — do not call `Agent`; print the envelope verbatim.
 - **No inline triage write** — describe what `/backlogd:scope` *would* do in (c); the dry
   run exits whether shaped or not.

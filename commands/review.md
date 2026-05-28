@@ -91,8 +91,17 @@ Acceptance criteria
 - **Any criterion unmet** (or CI red) → move the problem back to the *In Progress* state, with the
   unmet criteria written as **actionable rework notes** in the verdict comment. Leave the PR open —
   a fresh `/backlogd:solve` adds commits to the same branch. Do **not** re-dispatch a developer
-  yourself. *(Ops-only run: no PR — a fresh `/backlogd:solve` re-dispatches ops units with the
-  rework notes; the ops developer logs the new actions on the unit.)*
+  yourself. *(Ops-only run — `kind:ops`: there is no PR. A fresh `/backlogd:solve` re-dispatches
+  ops units with the rework notes; the ops developer logs the new actions on the unit.)*
+
+  Also record the rework event on the graph (best-effort — must never block the verdict).
+  Use a reviewer session id (e.g. `review-{identifier}-{YYYYMMDDHHMMSS}`) and pass the rework
+  notes so only their hash is stored (no note text leaks into `.backlogd/`):
+
+      python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" rework \
+          --session "review-{identifier}-$(date -u +%Y%m%dT%H%M%S)" \
+          --problem {identifier} \
+          --notes "{the unmet-criteria notes you just wrote}"
 - **A genuine judgement call** (`needs PO judgement`) → **leave it In Review** (PR open) and
   surface the question to the product owner. Don't guess at a call that's theirs to make.
 

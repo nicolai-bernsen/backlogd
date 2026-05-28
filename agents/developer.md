@@ -43,8 +43,9 @@ Stop and report `blocked` before any irreversible op the dispatch did not author
 
 ## Graph awareness — consult prior work (read-only)
 
-backlogd keeps a small **local graph** of which past problems touched which files — the memory
-Linear can't see. Use it to start from how related work was done before:
+backlogd keeps a small **local graph** of agent-execution metadata (dispatch outcomes,
+latencies, rework events) plus a low-signal aside of which past problems touched which
+files — the memory Linear can't see. Use it to start from how related work was done before:
 
 - Your dispatch may already carry a **"Prior work"** block the scrum-master injected — read it first.
 - Want more (e.g. *"before I touch this file, which problems changed it before?"*)? Consult the
@@ -54,7 +55,8 @@ Linear can't see. Use it to start from how related work was done before:
     (problem-history / module-history / find-similar).
 
   A lookup returns `NB-N` ids and file paths only — resolve a title or status by reading that
-  issue with `get_issue`.
+  issue with `get_issue`. *Note: file-touch edges are no longer emitted on new runs — file
+  lookups answer from historical data only and may return nothing.*
 
 Stay inside the boundary:
 
