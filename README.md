@@ -81,6 +81,11 @@ The first slice proves the whole loop with one command. From a clean checkout:
 
    (`solve` shapes the problem first if it isn't already; run `/backlogd:scope` yourself when
    you want to review the shape and decomposition before solving.)
+   ### `/backlogd:status`
+
+Provides a read-only overview of current backlog progress, active work items, and blockers without making any changes to the project state.
+
+Use this command during standups or progress reviews to quickly check the current development status.
 
 4. Watch the loop:
    - the issue moves **Backlog → In Progress**,
