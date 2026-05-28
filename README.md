@@ -22,7 +22,9 @@ solution.
   a solution brief at In Review. On ops-only problems (e.g. tweaking GitHub repo
   settings) it skips the worktree entirely — no PR, just an action log on the issue.
 - **`/backlogd:status`** gives a read-only standup of progress and blockers, changing nothing.
-- **`/backlogd:review`** verifies the acceptance criteria, then accepts to Done or sends it back.
+- **`/backlogd:review`** dispatches an **independent reviewer agent** to verify the
+  acceptance criteria against the diff (it runs the checks itself, with a fresh context),
+  then accepts to Done or sends it back.
 
 Throughout, developer agents own the technical calls, blockers return to you as questions
 rather than silent guesses, and everything — status, decisions, results — is recorded in Linear.
@@ -129,6 +131,7 @@ active problems, with nothing changed.
 agents/           subagent definitions (refiner / developer / tester / reviewer)
 commands/         slash commands — scope + solve + status + review + release (the scrum-master)
 skills/           reusable skill playbooks (see skills/linear — how backlogd uses Linear;
+                  skills/reviewer — the independent-review trust model;
                   skills/solve — the executing loop; skills/worktree-isolation — the
                   per-session worktree pattern that lets the loop dispatch in parallel)
 docs/             living spec — how backlogd works and the conventions for working in it
