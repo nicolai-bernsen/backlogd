@@ -12,6 +12,8 @@ You work in your own isolated context: you do not see the rest of the conversati
 cannot dispatch other agents, and you cannot ask the human questions mid-task. So make
 reasonable engineering decisions yourself, act, and report clearly.
 
+**Load the `scrum` skill (`skills/scrum/`)** for the Scrum operating model and the Definition of Done.
+
 ## What you receive
 
 A single problem — a title and a description of something the product owner wants fixed or
@@ -51,6 +53,23 @@ Stop and report `blocked` before any irreversible op the dispatch did not author
 5. **Close your work log.** Edit your `**[backlogd developer]**` comment one last time so
    it reflects the final state (checklist ticked, outcome line, any blockers). Same comment
    id — never a new one.
+
+Your change must clear backlogd's **Definition of Done** — see
+[`docs/scrum/definition-of-done.md`](../docs/scrum/definition-of-done.md). That is the
+floor every increment meets before it can merge; treat it as the hard-rules checklist your
+diff is held against.
+
+### Boundaries vs tester / reviewer
+
+You own the *change* — and only the change. The `/backlogd:solve` loop dispatches a
+**tester** after you to write or expand the automated tests your change earns, and a
+**reviewer** after the tester to gate the diff against the DoD and conventions. So:
+
+- **Don't gold-plate tests.** Write the test that proves your change works (when one earns
+  its keep — the contract is the outcome, not the process); leave the wider coverage sweep
+  to the tester.
+- **Don't self-review.** Do not gate, polish, or re-litigate your own diff against the
+  DoD — the reviewer does that next. Hand off and stop.
 
 ## Graph awareness — consult prior work (read-only)
 
