@@ -21,6 +21,11 @@ the *solutions*.
   orchestration and all Linear writes.
 - **Developer agents** — implement, test, and report; they own the technical calls.
 
+For the full Scrum Guide concept map — every accountability, event, and artifact mapped
+to a backlogd surface — see [`docs/scrum/mapping.md`](scrum/mapping.md). The Definition of
+Done that `/backlogd:review` enforces lives at
+[`docs/scrum/definition-of-done.md`](scrum/definition-of-done.md).
+
 ## The two specifications
 
 backlogd treats **Linear as the static spec** (the problem and its acceptance criteria) and

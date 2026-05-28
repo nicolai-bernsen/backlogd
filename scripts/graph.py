@@ -21,7 +21,7 @@ Each file is a JSON array of edge objects::
      "ts": "<ISO 8601 UTC>", "session": "<session id>", ...extras}
 
 Some edge types carry extra fields beyond the base — ``outcome``, ``latency_ms``,
-``wall_time_ms``, ``notes_hash``, ``labels``. They are passed through as-is.
+``wall_time_ms``, ``fanout``, ``notes_hash``, ``labels``. They are passed through as-is.
 
 Schema (pruned)
 ---------------
@@ -42,6 +42,8 @@ Edge types:
   ``latency_ms`` (developer wall time)
 * ``pr_opened``         — session -> problem (handoff PR opened)
 * ``run_completed``     — session -> problem; carries ``wall_time_ms`` (whole run)
+  and ``fanout`` (peak parallel-group size: 1 for sequential, ≥2 when the
+  parallel walk fanned out — added in #321)
 * ``rework``            — session -> problem; recorded by ``/backlogd:review``
   when sending back to *In Progress*; carries an optional ``notes_hash``
 * ``labeled``           — session -> problem; carries ``labels`` (list of label
@@ -273,12 +275,19 @@ def pr_opened_edge(session_id, problem_identifier, ts=None) -> dict:
 
 
 def run_completed_edge(session_id, problem_identifier,
-                       ts=None, wall_time_ms=None) -> dict:
-    """Build a ``run_completed`` edge with optional ``wall_time_ms`` for the whole run."""
+                       ts=None, wall_time_ms=None, fanout=None) -> dict:
+    """Build a ``run_completed`` edge with optional ``wall_time_ms`` for the whole run.
+
+    ``fanout`` (added with the parallel-dispatch work in #321) records the **peak
+    parallel-group size** observed during the run: ``1`` for a sequential / single-unit
+    run, ``≥2`` when at least one parallel group ran. The field is additive — old
+    readers ignore it, ``metrics`` reads it back when present so the report can break
+    out parallel-vs-sequential effects on ``run_wall_time``.
+    """
     return make_edge(
         session_node(session_id), problem_node(problem_identifier),
         "run_completed", session_id, ts,
-        wall_time_ms=wall_time_ms,
+        wall_time_ms=wall_time_ms, fanout=fanout,
     )
 
 
@@ -638,6 +647,13 @@ def metrics(edges=None) -> dict:
             "p50": <int or None>,
             "p90": <int or None>,
           },
+          "fanout": {                     # parallel-walk aggregate (#321)
+            "n":   <int>,                 # runs with a recorded fanout field
+            "max": <int or None>,         # largest peak-group size observed
+            "p50": <int or None>,
+            "parallel_runs": <int>,       # runs whose peak was >=2
+            "parallel_rate": <float or None>,
+          },
           "by_area":  {                   # area-label aggregates
             "area:graph":   {"dispatches": N, "blocked": K, "partial": K, "rework": K},
             ...
@@ -695,16 +711,23 @@ def metrics(edges=None) -> dict:
     # Run wall time — prefer the wall_time_ms field on run_completed; otherwise
     # compute from the earliest dispatch_started → run_completed ts.
     run_wall_times = []
+    # Parallel fanout — collected per run from the run_completed `fanout` field
+    # (added in #321). Old graphs without the field simply contribute nothing
+    # here, and the aggregate reports n=0.
+    fanouts = []
     for e in by_type.get("run_completed", []):
         wall = e.get("wall_time_ms")
         if isinstance(wall, (int, float)) and wall >= 0:
             run_wall_times.append(int(wall))
-            continue
-        start_ts = dispatch_starts.get((e.get("tgt"), e.get("session")))
-        if start_ts and e.get("ts"):
-            delta = _ms_between(start_ts, e.get("ts"))
-            if delta is not None and delta >= 0:
-                run_wall_times.append(delta)
+        else:
+            start_ts = dispatch_starts.get((e.get("tgt"), e.get("session")))
+            if start_ts and e.get("ts"):
+                delta = _ms_between(start_ts, e.get("ts"))
+                if delta is not None and delta >= 0:
+                    run_wall_times.append(delta)
+        fan = e.get("fanout")
+        if isinstance(fan, int) and fan >= 1:
+            fanouts.append(fan)
 
     # Rework — count events + distinct problems with at least one rework.
     rework_events = by_type.get("rework", [])
@@ -753,6 +776,7 @@ def metrics(edges=None) -> dict:
             return None
         return num / denom
 
+    parallel_runs = sum(1 for f in fanouts if f >= 2)
     return {
         "problems": problems_total,
         "dispatches": {
@@ -777,6 +801,13 @@ def metrics(edges=None) -> dict:
             "n": len(run_wall_times),
             "p50": _percentile(run_wall_times, 50),
             "p90": _percentile(run_wall_times, 90),
+        },
+        "fanout": {
+            "n": len(fanouts),
+            "max": max(fanouts) if fanouts else None,
+            "p50": _percentile(fanouts, 50),
+            "parallel_runs": parallel_runs,
+            "parallel_rate": _rate(parallel_runs, len(fanouts)),
         },
         "by_area": dict(by_area),
         "by_area_note": by_area_note,
@@ -896,12 +927,22 @@ def _cmd_run_end(args) -> int:
         if start_ts:
             wall_ms = _ms_between(start_ts, end_ts)
 
+    fanout = args.fanout
+    if fanout is not None:
+        # Clamp defensively; the walk already clamps to [1, 4] but a stray
+        # caller shouldn't poison the graph.
+        if fanout < 1:
+            fanout = 1
+        if fanout > 64:  # generous ceiling — the walk's hard cap is 4
+            fanout = 64
+
     write_edges(args.session, [
         run_completed_edge(args.session, args.problem,
-                           ts=end_ts, wall_time_ms=wall_ms),
+                           ts=end_ts, wall_time_ms=wall_ms, fanout=fanout),
     ])
     ms_note = f", wall_time={wall_ms}ms" if wall_ms is not None else ""
-    print(f"[backlogd-graph] run_completed {args.problem}{ms_note} "
+    fan_note = f", fanout={fanout}" if fanout is not None else ""
+    print(f"[backlogd-graph] run_completed {args.problem}{ms_note}{fan_note} "
           f"(session {args.session})", file=sys.stderr)
     return 0
 
@@ -971,6 +1012,7 @@ def _cmd_report(args) -> int:
     rw = m["rework"]
     pr = m["dispatch_to_pr_ms"]
     wt = m["run_wall_time_ms"]
+    fn = m["fanout"]
 
     print("# backlogd — agent-execution metrics")
     print()
@@ -990,6 +1032,14 @@ def _cmd_report(args) -> int:
     print(f"| Dispatch→PR latency p90 (n={pr['n']}) | {_format_ms(pr['p90'])} |")
     print(f"| Run wall time p50 (n={wt['n']}) | {_format_ms(wt['p50'])} |")
     print(f"| Run wall time p90 (n={wt['n']}) | {_format_ms(wt['p90'])} |")
+    if fn["n"]:
+        parallel_note = (
+            f"{fn['parallel_runs']}/{fn['n']} runs ran a parallel group "
+            f"({_format_rate(fn['parallel_rate'])})"
+        )
+        max_fan = fn["max"] if fn["max"] is not None else "—"
+        print(f"| Parallel walk (peak group size; #321) | "
+              f"max={max_fan}, {parallel_note} |")
     print()
     print("## Blocker frequency by area")
     print()
@@ -1112,6 +1162,10 @@ def main(argv=None) -> int:
                      help="explicit run start timestamp; otherwise the earliest "
                           "dispatch_started for this problem/session")
     re_.add_argument("--wall-time-ms", type=int, default=None)
+    re_.add_argument("--fanout", type=int, default=None,
+                     help="peak parallel-group size observed during this run "
+                          "(1=sequential, ≥2=parallel walk). Recorded on the "
+                          "run_completed edge for the metrics aggregate (#321).")
     re_.set_defaults(func=_cmd_run_end)
 
     rw = sub.add_parser("rework",

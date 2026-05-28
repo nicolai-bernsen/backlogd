@@ -12,7 +12,10 @@ the plan; the world is untouched.
 ## Allowed (reads only)
 
 - **Linear:** `list_*` / `get_*` to resolve identity, find the problem, walk the units;
-  use `includeRelations: true` per unit to show `blocked-by`.
+  use `includeRelations: true` per unit to show `blocked-by`. The Step 0 pre-load (see
+  `commands/solve.md` → "Pre-load the deferred Linear MCP tools") may run its
+  **read-only** half here (`mcp__linear__get_issue`, `mcp__linear__list_comments`); the
+  `save_comment` half **must not** run under dryrun.
 - **Graph:** `python scripts/graph.py prior-work --problem {identifier}` per unit; a
   graph failure falls through with an empty block.
 - **Resume reconcile reads** (`skills/solve/resume.md`): `python scripts/graph.py
@@ -39,6 +42,10 @@ the plan; the world is untouched.
 ```
 [dry-run] /backlogd:solve {identifier|<top of queue>}
 
+(0) Pre-load plan (NB-340)
+  pre-load would call: mcp__linear__get_issue, mcp__linear__list_comments, mcp__linear__save_comment
+  load-bearing for the developer's [backlogd developer] comment on each unit
+
 (a) Identity
   team / states (pickup, review, completed by type) / labels ("problem", "kind:ops" if present) / session id
 
@@ -54,13 +61,27 @@ the plan; the world is untouched.
   worktree path / branch off origin/{integration}      ← standard only; for ops-only print
                                                           "(no worktree — ops path)";
                                                           for resume-reuse print "(reuse existing)"
-  units (dispatch order, with blocked-by + ready? + kind:ops? + resume class:
-         completed / in-progress-mine / untouched / inconsistent)
+  concurrency_max: $BACKLOGD_CONCURRENCY_MAX (default 2, clamped to [1,4])
+  parallel groups (computed read-only — for each group: unit ids, group size, per-unit
+         sub-branch + worktree path the real run would create at
+         backlogd-wt-{identifier}-unit-{unit}; size==1 groups print as "(sequential)").
+         Show every group in dispatch order; the peak group size is the run's
+         peak_fanout — note it explicitly.
+  units (dispatch order, with blocked-by + ready? + kind:ops? + resolved subagent_type per
+         unit + resume class: completed / in-progress-mine / untouched / inconsistent)
 
 (e) Per-unit dispatch envelope — verbatim, for each unit
-  (standard envelope from `skills/solve/dispatch.md` step 2 with `{$WT path}` for code
-  units; ops envelope from `skills/solve/ops.md` step 3 — no `$WT` line — for `kind:ops`
-  units; include the `## Prior work` block when the query printed one)
+  (standard envelope from `skills/solve/dispatch.md` step 3 with `{$WT path}` for code
+  units in a sequential group, or `{$WT_unit path}` for code units in a parallel group
+  — i.e. the per-unit sub-worktree path the real run would use; ops envelope from
+  `skills/solve/ops.md` step 3 — no `$WT` line — for `kind:ops` units; include the
+  `## Prior work` block when the query printed one. Above the envelope for code units,
+  print the resolved `subagent_type` for this unit — see `skills/solve/dispatch.md`
+  step 2 for the resolution rule; in dry run, surface any ambiguity (multiple `agent:*`
+  labels) or missing-specialist as a note **without** exiting — the run is read-only.
+  When the unit is in a parallel group, also print a single-line annotation **above the
+  envelope** noting "parallel group {n}/{total}, size {k}" so the preview makes the
+  fanout obvious.)
 ```
 
 Exit with: `[dry-run] no writes performed — Linear, git, and graph are unchanged.`

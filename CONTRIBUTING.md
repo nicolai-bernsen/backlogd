@@ -10,6 +10,8 @@ will save us both time.
 - **Want to change code?** Open a draft PR early and explain the reasoning. Small,
   focused changes land faster than large ones.
 - **Keep it green.** CI runs on every push and pull request. Don't merge red.
+- **Play by the same rules as the agent loop.** Human contributions ship to the same
+  [Definition of Done](docs/scrum/definition-of-done.md) that `/backlogd:review` enforces on agent PRs.
 
 ## Working on the plugin
 
@@ -20,6 +22,18 @@ This repo is a Claude Code plugin. The pieces live in conventional directories:
 - `skills/` — skill playbooks (e.g. [`skills/linear/`](skills/linear/SKILL.md) — how backlogd navigates Linear)
 - `hooks/` — lifecycle hooks
 - `.claude-plugin/plugin.json` — the manifest
+
+### MCP tools in subagent frontmatter — pre-load required (NB-340)
+
+If you add a new subagent that needs an `mcp__*` tool in its frontmatter, **add a
+pre-load step to the orchestrating command** that calls that tool from the
+orchestrator's context **before** the first `Agent({subagent_type: ...})` dispatch.
+Subagents inherit only the deferred MCP tools the parent has already loaded — a tool
+listed in the frontmatter is not guaranteed to be granted at runtime otherwise. See
+`commands/solve.md` step 0 and `skills/linear/SKILL.md` → *NB-340: tool-grant hazard
+the orchestrator must work around* for the pattern. Skipping the pre-load is the
+single most likely reason a "tools-look-right" subagent silently can't write to
+Linear.
 
 ### Git identity guard (run once)
 
@@ -37,8 +51,13 @@ match is **hard-blocked** by `hooks/git/pre-commit`, and each Claude Code sessio
 on a mismatch via the plugin's SessionStart hook. The guard is a no-op until
 `backlogd.expectedEmail` is set, so it never interferes with other repos.
 
-> Running concurrent Claude Code sessions? Give each its **own checkout** (a dedicated
-> `git clone`), never a shared one — see #301.
+> Running concurrent Claude Code sessions? Give each its own isolated **git worktree** (or,
+> as a stronger fallback, its own dedicated `git clone`) — never a shared checkout. The
+> pattern (worktree per session, identity-guard arm step, `git worktree lock` /
+> no-prune-while-live, the dedicated-clone escalation, and the rejected third-party
+> orchestrators) is in
+> [`skills/worktree-isolation/SKILL.md`](skills/worktree-isolation/SKILL.md) — load that
+> skill in any session that opens or re-enters a worktree. Background: #301.
 
 ## Branching & releases
 
