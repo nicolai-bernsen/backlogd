@@ -34,25 +34,29 @@ enable it (see the README "Setup" section) — do not improvise another path.
 Run these steps in order. Each one points at its own sub-skill — load that file when you
 get to the step. Sub-skills carry the dry-run carve-outs.
 
-0. **Pre-load the deferred Linear MCP tools (NB-340 hazard).** Subagents inherit only
-   the tools the parent has already loaded — a deferred MCP tool listed in the
-   subagent's frontmatter is **not** granted at runtime unless the parent has previously
-   called it (see `skills/linear/SKILL.md` → *NB-340: tool-grant hazard the orchestrator
-   must work around*). Before any developer dispatch in this command, **use each
-   `mcp__linear__*` tool the developer needs at least once from the orchestrator's
-   context** so the deferred tool is loaded and propagates:
+0. **Pre-load deferred tools (NB-340 / NB-346).** **Before any other Linear or subagent
+   operation in this command**, eagerly pre-load the Linear MCP deferred tools so a
+   subsequent `Agent({subagent_type: "developer" | "developer-<suffix>" | "tester" |
+   "reviewer", ...})` dispatched with an explicit `tools:` list receives the
+   `mcp__linear__*` tools it names. This is defense in depth at the orchestrator layer
+   for the NB-340 tool-grant hazard (see `skills/linear/SKILL.md` → *NB-340: tool-grant
+   hazard the orchestrator must work around*) — without it, a specialist with a
+   restricted `tools:` list (e.g. the NB-326 reviewer) may receive a stripped grant
+   at dispatch time even when its frontmatter names every Linear tool it needs.
 
-   - `mcp__linear__get_issue` — you'll call it naturally in step 3 (pickup) when reading
-     the chosen problem; that satisfies the pre-load.
-   - `mcp__linear__list_comments` — call it (e.g. to read existing comments on the
-     problem during pickup / triage).
-   - `mcp__linear__save_comment` — you'll use it in step 7 (handoff) for the solution
-     brief, but the developer needs the tool **before** the first dispatch in step 6.
-     If no Linear comment write has happened yet by the time you reach step 6, **force
-     the load** by editing your own scratch comment on the problem (or by posting the
-     run's opening "claiming this" line if you do one). The point is: invoke
-     `save_comment` from the orchestrator's context at least once before any
-     `Agent({subagent_type: "developer" | "developer-<suffix>", ...})` call.
+   Make a **single batched `ToolSearch` call** that names every `mcp__linear__*` tool
+   this command (or any subagent it dispatches — developer, tester, reviewer) may touch:
+
+   ```
+   ToolSearch(select: "mcp__linear__get_issue,mcp__linear__save_issue,mcp__linear__save_comment,mcp__linear__list_comments,mcp__linear__list_issue_statuses,mcp__linear__list_issue_labels,mcp__linear__list_issues,mcp__linear__list_teams,mcp__linear__list_milestones,mcp__linear__get_project,mcp__linear__save_milestone")
+   ```
+
+   This is the canonical pre-load list across all `/backlogd:*` commands — keep it
+   identical so the idiom is recognisable. `ToolSearch` is itself a deferred tool; if
+   it is not available (a future Claude Code version drops it), fall back to the prior
+   idiom: invoke each `mcp__linear__*` tool at least once from the orchestrator's
+   context before the first dispatch in step 6 (e.g. `get_issue` + `list_comments` in
+   step 3, `save_comment` via a scratch nudge if no comment write has happened yet).
 
    If you skip this step and the developer reports it cannot post its
    `**[backlogd developer]**` comment, that is the NB-340 tool-grant skew — re-run with
@@ -60,12 +64,13 @@ get to the step. Sub-skills carry the dry-run carve-outs.
    the contract (see `agents/developer.md` "Your Linear surface — required") says the
    work-log comment is mandatory and a missing one is a failed dispatch.
 
-   > **Dry run:** this step is **read-safe only** in `--dryrun` mode.
-   > `mcp__linear__get_issue` and `mcp__linear__list_comments` are reads and may run;
-   > `mcp__linear__save_comment` is a write and **must not run** under `--dryrun` (see
-   > `skills/solve/dryrun.md` → *Forbidden*). In `--dryrun`, note in the plan output
-   > that the pre-load **would** happen on a real run (and which tool may need the
-   > forced-load nudge), then continue.
+   > **Dry run:** `ToolSearch` is **read-only** — it is safe to run under `--dryrun`
+   > and is recommended even there so the dispatch-plan render itself proceeds
+   > normally if it touches any deferred tool. The fallback idiom's `save_comment`
+   > nudge is a write and must not run under `--dryrun` (see `skills/solve/dryrun.md`
+   > → *Forbidden*); in `--dryrun`, note in the plan output that the pre-load
+   > happened (or that the fallback nudge **would** happen on a real run) and
+   > continue.
 
 1. **Parse flags.** Scan the arguments for `--dryrun` in either position. If present,
    remember the run is a dry run and follow **`skills/solve/dryrun.md`** instead of the

@@ -13,9 +13,11 @@ the plan; the world is untouched.
 
 - **Linear:** `list_*` / `get_*` to resolve identity, find the problem, walk the units;
   use `includeRelations: true` per unit to show `blocked-by`. The Step 0 pre-load (see
-  `commands/solve.md` → "Pre-load the deferred Linear MCP tools") may run its
-  **read-only** half here (`mcp__linear__get_issue`, `mcp__linear__list_comments`); the
-  `save_comment` half **must not** run under dryrun.
+  `commands/solve.md` → "Pre-load deferred tools") runs a **read-only** `ToolSearch`
+  call across the canonical Linear MCP tool list — safe under dryrun and **recommended**
+  even there so the dispatch-plan render proceeds normally. The fallback idiom's
+  `save_comment` nudge (used only if `ToolSearch` is unavailable) is a write and
+  **must not** run under dryrun.
 - **Graph:** `python scripts/graph.py prior-work --problem {identifier}` per unit; a
   graph failure falls through with an empty block.
 - **Resume reconcile reads** (`skills/solve/resume.md`): `python scripts/graph.py

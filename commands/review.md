@@ -25,26 +25,33 @@ the README "Setup").
 > subagent is a separate context — you cannot answer questions for it; you can only
 > hand it a complete envelope and act on what it returns.
 
-## 0. Pre-load the deferred Linear MCP tools (NB-340 hazard)
+## 0. Pre-load deferred tools (NB-340 / NB-346)
 
-Subagents inherit only the tools the parent has already loaded — a deferred MCP tool
-listed in the subagent's frontmatter is **not** granted at runtime unless the parent
-has previously called it (see `skills/reviewer/SKILL.md` → *NB-340: tool-grant
-hazard*). Before any dispatch in this command, **use each `mcp__linear__*` tool the
-reviewer needs at least once from the orchestrator's context** so the deferred tool
-is loaded and propagates:
+**Before any other Linear or subagent operation in this command**, eagerly pre-load the
+Linear MCP deferred tools so the `backlogd:reviewer` dispatch in step 3 — which carries
+an explicit, deliberately-restricted `tools:` list (see `skills/reviewer/SKILL.md` →
+*NB-340: tool-grant hazard*) — receives the `mcp__linear__*` tools it names. This is
+defense in depth at the orchestrator layer for the NB-340 tool-grant hazard (see
+`skills/linear/SKILL.md` → *NB-340: tool-grant hazard the orchestrator must work
+around*).
 
-- `mcp__linear__get_issue` — call it (e.g. to read the In Review problem in step 2).
-- `mcp__linear__list_comments` — call it (e.g. to read existing comments on the
-  problem).
-- `mcp__linear__save_comment` — you'll use it in step 4 anyway; this is the
-  load-bearing one. If your run doesn't naturally call it before dispatch, force it by
-  posting/editing a placeholder comment on the orchestrator's own scratch (or by
-  using it for the identity-resolution narration if you do any).
+Make a **single batched `ToolSearch` call** that names every `mcp__linear__*` tool this
+command (or the reviewer it dispatches) may touch:
+
+```
+ToolSearch(select: "mcp__linear__get_issue,mcp__linear__save_issue,mcp__linear__save_comment,mcp__linear__list_comments,mcp__linear__list_issue_statuses,mcp__linear__list_issue_labels,mcp__linear__list_issues,mcp__linear__list_teams,mcp__linear__list_milestones,mcp__linear__get_project,mcp__linear__save_milestone")
+```
+
+This is the canonical pre-load list across all `/backlogd:*` commands — keep it
+identical so the idiom is recognisable. `ToolSearch` is itself a deferred tool; if it
+is not available (a future Claude Code version drops it), fall back to the prior
+idiom: invoke each `mcp__linear__*` tool at least once from the orchestrator's context
+before the dispatch in step 3 (`get_issue` + `list_comments` in step 2, and force
+`save_comment` via a scratch nudge if no comment write has happened yet).
 
 If you skip this step and the reviewer reports it cannot post its
 `**[backlogd reviewer]**` comment, that is the NB-340 tool-grant skew — re-run with
-the pre-load done, do not silently accept a tool-grant failure as a developer issue.
+the pre-load done, do not silently accept a tool-grant failure as a reviewer issue.
 
 ## 1. Resolve identity
 

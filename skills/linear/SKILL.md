@@ -44,35 +44,88 @@ the developer's tool grant (`get_issue` / `list_comments` / `save_comment` only;
 
 ## NB-340: tool-grant hazard the orchestrator must work around
 
-A finding from a parallel run (NB-340, Backlog) documents that subagent runtime tool
-grants behave as `frontmatter ∩ parent's currently-loaded deferred tools`. In plain
-English: even if the developer's frontmatter lists `mcp__linear__save_comment`, **the
-subagent may not actually have it at runtime unless the orchestrator has loaded it
-first** (via a prior call from its own context). The same hazard applies to
-`mcp__linear__get_issue` and `mcp__linear__list_comments`.
+A finding from a parallel run (NB-340, closed; investigation note at
+`docs/notes/subagent-mcp-tool-grant.md`) documents that subagent runtime tool grants
+behave as `frontmatter ∩ parent's currently-loaded deferred tools`. In plain English:
+even if a subagent's frontmatter lists `mcp__linear__save_comment`, **the subagent
+may not actually have it at runtime unless the orchestrator has loaded it first**.
+The same hazard applies to every `mcp__linear__*` tool and to `ToolSearch` itself.
 
 This is a Claude Code platform behaviour — not a backlogd bug — but every command that
-dispatches a subagent has to work around it. The mechanism backlogd uses:
+dispatches a subagent has to work around it. backlogd uses **two complementary
+mitigations**:
 
-- **The dispatching command pre-loads each `mcp__linear__*` tool** the subagent needs
-  by calling it at least once from the orchestrator's context, **before** any
-  `Agent({subagent_type: ...})` call. The two affected commands today:
+1. **Defense at the dispatched agent (NB-345).** `agents/developer.md` carries **no
+   `tools:` line** — it inherits the full tool surface from the orchestrator,
+   sidestepping the intersection entirely. The boundary moves into the system prompt
+   ("you have these tools at runtime, but the contract forbids their use except for
+   `save_comment` on your own issue"). Trade-off: lose harness-enforced tool
+   restriction, gain the functional capability the contract requires.
 
-  - `/backlogd:solve` step 0 — pre-loads `get_issue`, `list_comments`, and
-    `save_comment` for the **developer** (see `commands/solve.md`).
-  - `/backlogd:review` step 0 — same pre-load for the **reviewer** (see
-    `commands/review.md` and `skills/reviewer/SKILL.md` once NB-326 lands).
+2. **Defense at the orchestrator (NB-346).** Every `/backlogd:*` command begins with
+   a **§0 pre-load step** that calls `ToolSearch` once with the canonical Linear MCP
+   tool list — see *Deferred tools — pre-load before dispatch* below. This loads the
+   deferred tools into the parent's context **before** any subagent dispatch, so a
+   future specialist with an explicit `tools:` list (e.g. the NB-326 reviewer that
+   deliberately wants a restricted grant) receives the tools it names.
 
-- **If the subagent reports it could not post its `**[backlogd developer]**` (or
-  `**[backlogd reviewer]**`) comment**, treat that as a tool-grant skew, not a
-  subagent failure. Re-dispatch from a fresh session where the pre-load has happened;
-  do not silently accept a missing work-log comment as a "developer issue", and do not
-  substitute an orchestrator-authored work-log comment for the developer's — that
-  loses the audit trail the comment exists to record.
+The two are complementary, not alternatives. NB-345 keeps today's developer working
+even if a session forgets the §0 pre-load; NB-346 means a future restricted-grant
+specialist works without dropping back to the NB-345 workaround.
 
-NB-340 stays open as a separate root-cause investigation. The pre-load step above is
-the workaround; if the upstream platform behaviour changes, the workaround becomes
-load-bearing-free and we drop it.
+If a subagent still reports it could not post its `**[backlogd developer]**` (or
+`**[backlogd reviewer]**`) comment, treat that as a tool-grant skew, not a subagent
+failure. Re-dispatch from a fresh session; do not silently accept a missing work-log
+comment as a "developer issue", and do not substitute an orchestrator-authored
+work-log comment for the developer's — that loses the audit trail the comment exists
+to record.
+
+NB-340 closed as the platform-side root cause investigation; backlogd ships both
+mitigations and re-evaluates if the upstream behaviour changes.
+
+## Deferred tools — pre-load before dispatch
+
+Every `/backlogd:*` command begins with a **§0 "Pre-load deferred tools" step** that
+makes a single batched `ToolSearch` call naming the canonical Linear MCP tool list.
+This is the NB-346 orchestrator-layer mitigation for the NB-340 tool-grant hazard
+above — defense in depth so a subagent dispatched with an explicit `tools:` list that
+names Linear tools receives them at runtime, not a stripped intersection.
+
+**Canonical pre-load list** (write-capable verbs use the full set; read-only verbs
+may use the read-only subset but for idiom consistency every command uses the full
+list):
+
+```
+mcp__linear__get_issue
+mcp__linear__save_issue
+mcp__linear__save_comment
+mcp__linear__list_comments
+mcp__linear__list_issue_statuses
+mcp__linear__list_issue_labels
+mcp__linear__list_issues
+mcp__linear__list_teams
+mcp__linear__list_milestones
+mcp__linear__get_project
+mcp__linear__save_milestone
+```
+
+**The call** (identical across every `/backlogd:*` command's §0):
+
+```
+ToolSearch(select: "mcp__linear__get_issue,mcp__linear__save_issue,mcp__linear__save_comment,mcp__linear__list_comments,mcp__linear__list_issue_statuses,mcp__linear__list_issue_labels,mcp__linear__list_issues,mcp__linear__list_teams,mcp__linear__list_milestones,mcp__linear__get_project,mcp__linear__save_milestone")
+```
+
+The §0 step is the **first** step of each command, visible to anyone reading the
+file — never buried mid-flow. Inspiration: EveryInc/compound-engineering-plugin's
+`ce-code-review` SKILL.md uses the same Phase-0 pre-load idiom for `AskUserQuestion`.
+
+**Fallback.** `ToolSearch` is itself a deferred tool; if a future Claude Code version
+removes it, fall back to the prior idiom — invoke each `mcp__linear__*` tool at least
+once from the orchestrator's context before the first subagent dispatch. The
+identity-resolution path in each command already invokes `list_teams`,
+`list_issue_statuses`, and `list_issue_labels`, so the fallback is mostly free for
+the read-only tools; `save_comment` is the one a `/backlogd:solve` run may need to
+force via a scratch-comment nudge before its first developer dispatch.
 
 ## The standing structure
 
