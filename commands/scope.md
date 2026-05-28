@@ -78,6 +78,21 @@ Follow the **promote-on-discovery** rule from `skills/linear/`; do not predict s
 - **When in doubt, stay an Issue.** Promotion on evidence is cheap; a premature Project that
   never closes is not.
 
+## 4b. Apply `kind:ops` if the problem is repo-ops
+
+If the problem's outcome is **GitHub repo operations or external content** (topics,
+Discussions, releases, repo metadata, labels, `good first issue`s, awesome-list
+submissions, drafts in `docs/`) — i.e. there is no source diff to land — apply the
+**`kind:ops` label** to the problem (and to any sub-issues that are themselves ops-only).
+`/backlogd:solve` routes ops-labelled units through `skills/solve/ops.md` (no worktree,
+no PR; the developer takes `gh` actions and posts an action log).
+
+- Create the label on the team via `create_issue_label({ team, name: "kind:ops" })` if
+  `list_issue_labels` shows it is missing. It is just a routing flag — no automation
+  beyond that.
+- If the problem is **mixed** (some units ops, some units code), prefer to split it into
+  two problems at shaping time rather than letting `solve` halt on the mixed case.
+
 ## 5. Set priority and stop
 
 Set the problem's **priority** so `/backlogd:solve` can order the queue. Leave **estimates
@@ -95,6 +110,7 @@ Show what you shaped so it is visible in the transcript:
 Shaped: {identifier} — {title}
   acceptance criteria  -> {n} written
   decomposition        -> single issue | {n} sub-issues (blocked-by wired) | promoted to Project "{name}" ({n} issues, {m} milestones)
+  route                -> standard (code → worktree + PR) | ops-only (kind:ops, no PR)
   priority             -> {priority}
 Ready for: /backlogd:solve {identifier}
 ```

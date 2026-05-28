@@ -9,6 +9,12 @@ description: Per-unit dispatch loop for /backlogd:solve — claim the unit, inje
 > units read-only, render the dispatch envelope verbatim per unit, and follow
 > `skills/solve/dryrun.md`. No `Agent` call, no state transition, no graph emit, no commit.
 
+> **Ops-only run?** If `skills/solve/walk.md` routed this run to the ops-only path (every
+> ready unit carries the **`kind:ops`** label), **do not run this section** — follow
+> **`skills/solve/ops.md`** instead. There is no worktree, no commit, and no PR; the
+> developer takes `gh` / repo-ops actions and posts an action log on the unit. The two
+> paths are mutually exclusive per run.
+
 For each ready unit, in dependency order:
 
 1. **Claim it** — move the unit to the *In Progress* state (from `skills/solve/identity.md`).
