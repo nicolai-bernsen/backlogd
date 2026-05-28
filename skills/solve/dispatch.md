@@ -89,14 +89,15 @@ For each ready unit, in dependency order:
    re-post it yourself (no double-posting). Add at most a one-line orchestrator note only
    if something is genuinely missing.
 
-5b. **Run the quality gate** → **`skills/solve/gate.md`**. Load it and let it dispatch
-   the tester against the unit the developer just edited. If the gate returns
-   **`needs-changes`** (failing tests), re-enter **step 4** above (re-dispatch the
-   resolved specialist with the gate's rework notes prepended to the envelope), then
-   re-enter this gate stage. Re-dispatch is informal for now; the **formal 2-round hard
-   cap** lands with the reviewer pre-commit-gate in NB-335. If the gate returns **`ok`**,
-   continue to step 6; carry any `untestable:` items the gate captured forward so
-   `skills/solve/handoff.md` can surface them in the PO solution brief.
+5b. **Run the quality gate** → **`skills/solve/gate.md`**. Load it; it dispatches the
+   tester and the reviewer (`pre-commit-gate` mode) against the unit the resolved
+   specialist just edited. If the gate returns **`needs-changes`**, re-enter **step 3**
+   above (re-dispatch the resolved specialist with the gate's rework notes prepended to
+   the envelope), then re-enter this gate stage. Bounded by a 2-round hard cap inside
+   `gate.md` — on the 3rd would-be re-dispatch the gate returns `blocked` and the
+   `partial`/`blocked` handling in step 7 takes it from there. If the gate returns
+   **`ok`**, continue to step 6; carry any `untestable:` items the gate captured forward
+   so `skills/solve/handoff.md` can surface them in the PO solution brief.
 
 6. **Record dispatch completion on the graph** — write the per-unit outcome with the
    latency the CLI derives automatically from the `dispatch_started` edge above

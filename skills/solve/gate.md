@@ -5,8 +5,8 @@ description: Per-unit quality gate — dispatch the tester after the developer, 
 
 # solve — per-unit quality gate
 
-This skill loads from `skills/solve/dispatch.md` **between step 4 ("Confirm the
-developer's record") and step 5 ("Record dispatch completion on the graph")** on the
+This skill loads from `skills/solve/dispatch.md` **between step 5 ("Confirm its record")
+and step 6 ("Record dispatch completion on the graph")** on the
 standard path. It owns the developer↔tester↔reviewer loop: dispatch the tester against
 the unit, then the reviewer to gate the diff before commit, and either return `ok`
 (continue) or `needs-changes` with rework notes so dispatch.md can re-dispatch the
@@ -100,10 +100,10 @@ explicit counter:
   `gate_round`** before handing back to dispatch.md.
 - On the **3rd would-be re-dispatch** (i.e. when incrementing would push `gate_round`
   past 2), return **`blocked`** (not `needs-changes`) with the accumulated notes from
-  all rounds. dispatch.md's existing `partial`/`blocked` handling (step 6) takes it
+  all rounds. dispatch.md's existing `partial`/`blocked` handling (step 7) takes it
   from there: leave the unit in progress, surface to the product owner via the
-  orchestrator's pause path (see `commands/solve.md` step 6 + the existing dispatch.md
-  `partial`/`blocked` handling), and stop the run.
+  orchestrator's pause path (see `commands/solve.md` step 6 + dispatch.md step 7), and
+  stop the run.
 
 The counter is per-unit and lives in the scrum-master's working context across the
 loop; nothing is persisted.
@@ -112,10 +112,10 @@ loop; nothing is persisted.
 
 Return one of:
 
-- **`ok`** — continue to dispatch.md step 5. Carry any `untestable:` items forward for
+- **`ok`** — continue to dispatch.md step 6. Carry any `untestable:` items forward for
   the handoff brief.
 - **`needs-changes`** — return combined rework notes; dispatch.md re-enters its step 3
-  (developer dispatch) with those notes prepended, then re-enters this skill.
+  (resolved-specialist dispatch) with those notes prepended, then re-enters this skill.
   `gate_round` has been incremented.
 - **`blocked`** — the 2-round cap is exhausted; return accumulated notes. dispatch.md
   routes through its `partial`/`blocked` path, the orchestrator pauses, and the run
