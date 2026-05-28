@@ -44,30 +44,31 @@ and **stop**.
 
 ## 3. Verify against the acceptance criteria
 
-The problem's **description** holds the spec + `## Acceptance Criteria` (the contract). Gather the
-evidence — read, don't trust blindly:
+The problem's **description** holds the spec + `## Acceptance Criteria` (the contract). Dispatch
+the `backlogd:reviewer` subagent in **`verdict`** mode with an **inline** envelope, handing it
+everything you've gathered — read first, don't trust blindly:
 
-- the **`## Acceptance Criteria`** list;
-- the **developer's result** comment(s) and the **solution brief** on the problem (and on each
-  sub-issue, in the decomposed / Project form);
-- the **artifacts** themselves — inspect the actual change (`Read` / `Grep` / `Glob` / `Bash`,
-  and the problem's **open PR** and its CI) enough to judge whether each criterion truly holds.
-  You are checking **AC satisfaction**, not doing a line-by-line style review.
+- the **problem id** (so the reviewer can read the issue + post its progress comment there);
+- the problem's **title** and **`## Acceptance Criteria`** list;
+- every per-unit **`**[backlogd developer]**`** + **`**[backlogd tester]**`** progress comment
+  under the problem (single-issue: one of each; decomposed / Project: one set per sub-issue);
+- the **open PR url** and a summary of **CI signal** (green / red / pending) — *or* on a
+  **`kind:ops`** run, the per-unit `**[backlogd developer]**` **action logs** in place of the
+  PR (there is no PR; see `skills/solve/ops.md`). On ops, the reviewer verifies the action
+  logs against the GitHub surfaces those `gh` calls changed (`gh repo view --json …`,
+  `gh release list`, `gh label list`, etc.), plus any drafts the developer added to the tree.
 
-**Ops-only run?** If the problem carries the **`kind:ops`** label (or every unit does — see
-`skills/solve/ops.md`), there is no PR to inspect. The artifacts are the `**[backlogd developer]**`
-**action logs** on each unit and the GitHub surfaces those `gh` calls changed — verify by
-re-reading them (`gh repo view --json …`, `gh release list`, `gh label list`, etc.) and by reading
-any drafts the developer added to the tree (e.g. `docs/PROMOTION.md` lands on the standard path via
-a code unit, but ops units can also reference such drafts).
-
-Judge each criterion: **met** / **unmet** / **needs PO judgement** (a call only the product owner
-can make — e.g. "is this *good enough*?").
+The reviewer reads the contract, walks every AC + every DoD line, and returns a **drafted
+verdict body** (markdown) you will post verbatim as the `**[backlogd review]**` comment. You
+do **not** re-do the AC walk inline — the reviewer owns that judgement. Capture its returned
+`drafted-verdict-body` along with its `AC:` and `DoD:` glyph counts.
 
 ## 4. Post the verdict
 
 Post one review comment on the problem (edited in place on a re-run; visible `**[backlogd
-review]**` badge — Linear renders HTML comments as literal text):
+review]**` badge — Linear renders HTML comments as literal text). The reviewer agent **drafts**
+the body in step 3; you **post** it — do not delegate posting. Use the reviewer's
+`drafted-verdict-body` verbatim; the template it follows is:
 
 ```
 **[backlogd review]** Verdict: accepted | sent back | needs you
@@ -76,23 +77,31 @@ Acceptance criteria
   ✅ {criterion} — {how it is met}
   ❌ {criterion} — {what is missing}
   ❔ {criterion} — {the judgement call for you}
+
+Definition of Done
+  ✅ {DoD line} — {how it is met}
+  ❌ {DoD line} — {what is missing}
+  ❔ {DoD line} — {the judgement call for you}
 {Rework notes, or the question for the PO}
 ```
 
 ## 5. Decide and transition
 
-- **All criteria met** → **merge the PR and close the loop**: find the problem's open PR (via its
-  linked PR / branch name), confirm **CI is green** (`gh pr checks`), then **squash-merge** it into
-  the integration branch (`gh pr merge {pr} --squash --delete-branch`) and move the problem to the
-  `completed` state (Done). Remove the problem's worktree if one remains (`git worktree remove`).
-  **Never merge red** — if CI isn't green, treat it as *sent back* below.
+- **All criteria met AND all DoD lines met** → **merge the PR and close the loop**: find the
+  problem's open PR (via its linked PR / branch name), confirm **CI is green** (`gh pr checks`),
+  then **squash-merge** it into the integration branch (`gh pr merge {pr} --squash
+  --delete-branch`) and move the problem to the `completed` state (Done). Remove the problem's
+  worktree if one remains (`git worktree remove`). **Never merge red** — if CI isn't green, treat
+  it as *sent back* below.
   *(Ops-only run — `kind:ops`: there is no PR to merge. Skip the merge + worktree cleanup and just
   move the problem to Done.)*
-- **Any criterion unmet** (or CI red) → move the problem back to the *In Progress* state, with the
-  unmet criteria written as **actionable rework notes** in the verdict comment. Leave the PR open —
-  a fresh `/backlogd:solve` adds commits to the same branch. Do **not** re-dispatch a developer
-  yourself. *(Ops-only run — `kind:ops`: there is no PR. A fresh `/backlogd:solve` re-dispatches
-  ops units with the rework notes; the ops developer logs the new actions on the unit.)*
+- **Any criterion unmet OR any DoD line unmet** (or CI red) → move the problem back to the *In
+  Progress* state, with the unmet criteria **and unmet DoD lines** written as **actionable rework
+  notes** in the verdict comment. A red DoD line is treated identically to an unmet AC — the floor
+  is non-negotiable. Leave the PR open — a fresh `/backlogd:solve` adds commits to the same branch.
+  Do **not** re-dispatch a developer yourself. *(Ops-only run — `kind:ops`: there is no PR. A fresh
+  `/backlogd:solve` re-dispatches ops units with the rework notes; the ops developer logs the new
+  actions on the unit.)*
 
   Also record the rework event on the graph (best-effort — must never block the verdict).
   Use a reviewer session id (e.g. `review-{identifier}-{YYYYMMDDHHMMSS}`) and pass the rework
