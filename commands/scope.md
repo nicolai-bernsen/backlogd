@@ -50,33 +50,50 @@ A problem is *execution-ready* when its **description** carries a clear spec and
 `## Acceptance Criteria` section — the canonical signal `/backlogd:solve` looks for to know a
 problem is already shaped.
 
-- Read the problem. If it already has a spec and `## Acceptance Criteria`, refine only what is
-  unclear.
-- Otherwise write them: a short spec of the desired *outcome*, then `## Acceptance Criteria` as
-  a checklist of observable, testable statements.
-- **Only pause for the product owner** if the problem is too ambiguous to write acceptance
-  criteria, or a decision only they can make blocks shaping. Ask at most **3** questions, then
-  proceed. Do not guess at a genuine product decision.
+Read the problem. Then dispatch the `backlogd:refiner` subagent with the Agent tool,
+handing it the problem as an **inline** context envelope. The refiner owns the *shaping*
+(writing the spec + AC into the description, proposing a decomposition); you own all
+structure and state writes that follow.
 
-Write the spec and AC into the issue **description** with `save_issue` — pass the existing
-issue `id` so you update in place, never create a duplicate.
+> Shape this problem. Draft a spec + `## Acceptance Criteria` into its description,
+> propose a decomposition, and report your proposal and any genuine ambiguities.
+>
+> Problem ({identifier}, issue id {id}): {title}
+>
+> Current description: {description, verbatim}
+>
+> Team: {team} · Labels: {resolved labels} · States: {resolved workflow states}
+>
+> {the `## Prior work` block — include only if you have one}
+
+Capture the refiner's final structured summary. The refiner writes the description; you
+do **not** re-do it.
+
+- If `ambiguities` is non-empty, surface them to the product owner — ask **at most 3**
+  questions, then proceed. Leave the issue in its state and **stop** if the answer must
+  come from the product owner before shaping can continue. Do not guess past a genuine
+  ambiguity.
+- If `description-written: false`, the refiner could not shape the issue — surface its
+  `Blockers` to the product owner and stop.
 
 ## 4. Decompose — only as much as the problem earns
 
-Follow the **promote-on-discovery** rule from `skills/linear/`; do not predict size up front:
+Consume the refiner's `decomposition` proposal from step 3 and act on it. The refiner
+only **proposes**; you own every structural write. Follow the **promote-on-discovery**
+rule from `skills/linear/`; do not predict size up front:
 
-- **Default — keep it a single Issue.** A focused problem (one unit of work, no phases, no
-  internal dependencies) needs no decomposition. `/backlogd:solve` hands the whole issue to one
-  developer.
-- **Create sub-issues** (`save_issue` with `parentId`) when the problem breaks into **≥2
-  independently-solvable units**. Sequence them with **`blocked-by`** so `solve` can walk them
-  in dependency order. Keep roughly one level — do not nest deeply.
-- **Promote to a Project** when the problem reveals distinct **phases**, or enough scope that
-  sub-issues stop conveying progress. Create an Issue per unit under the Project, group phases
-  as **Milestones**, and wire `blocked-by` for ordering. (Engagement-level grouping is the
-  **Initiative** — see `skills/linear/`.)
-- **When in doubt, stay an Issue.** Promotion on evidence is cheap; a premature Project that
-  never closes is not.
+- **`single`** — keep it a single Issue. A focused problem (one unit of work, no phases,
+  no internal dependencies) needs no decomposition. `/backlogd:solve` hands the whole
+  issue to one developer. Nothing to write.
+- **`{n} sub-issues`** — create them (`save_issue` with `parentId`) using the refiner's
+  proposed titles, then wire the proposed `blocked-by` edges so `solve` can walk them in
+  dependency order. Keep roughly one level — do not nest deeply.
+- **`promote-to-project`** — create the Project, then create an Issue per unit under it
+  using the refiner's milestone groupings, and wire `blocked-by` for ordering.
+  (Engagement-level grouping is the **Initiative** — see `skills/linear/`.)
+- **When in doubt, stay an Issue.** Promotion on evidence is cheap; a premature Project
+  that never closes is not. If the refiner's proposal feels too aggressive for the
+  problem at hand, prefer the smaller shape.
 
 ## 4b. Apply `kind:ops` if the problem is repo-ops
 
@@ -86,6 +103,18 @@ submissions, drafts in `docs/`) — i.e. there is no source diff to land — app
 **`kind:ops` label** to the problem (and to any sub-issues that are themselves ops-only).
 `/backlogd:solve` routes ops-labelled units through `skills/solve/ops.md` (no worktree,
 no PR; the developer takes `gh` actions and posts an action log).
+
+Factor the refiner's `route` from step 3 in as **advisory** input — it is not
+authoritative; you verify it against the problem's actual outcome and own the labelling
+decision:
+
+- `route: kind:ops` — strong signal the problem is ops-only; apply the label after
+  confirming.
+- `route: mixed` — strong signal to **split** the problem (see below); the refiner is
+  telling you some units are ops and some are code.
+- `route: standard` or omitted — default; no label.
+
+Then:
 
 - Create the label on the team via `create_issue_label({ team, name: "kind:ops" })` if
   `list_issue_labels` shows it is missing. It is just a routing flag — no automation

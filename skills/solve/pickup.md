@@ -23,7 +23,8 @@ and **stop**.
 A problem is *shaped* when its description carries a `## Acceptance Criteria` section. If
 the chosen problem is **not** shaped, shape it now — run the `/backlogd:scope` flow
 inline (write spec + AC, decompose if it earns it), pausing for the product owner only
-if it is too ambiguous to write AC (≤3 questions). If it is already shaped, continue.
+if it is too ambiguous to write AC (≤3 questions). (This dispatches the `refiner`
+subagent — see `commands/scope.md` step 3.) If it is already shaped, continue.
 
 > **Dry run:** in `--dryrun` mode, do **not** run scope inline. Decide whether the problem
 > is shaped (read-only), record the triage decision for the plan output, and follow
