@@ -120,7 +120,12 @@ not a PR link, because there isn't one.
 
 ## 4. Move the problem to In Review
 
-Move the problem to the *In Review* state (resolved in `skills/solve/identity.md`), then
-**stop** — the run is complete. `/backlogd:review` (or the PO) verifies the AC and merges
-the PR to land it (on ops-only runs, `/backlogd:review` verifies the AC against the
-action logs on the units and the GitHub surfaces they changed — there is no PR to merge).
+Move the problem to the *In Review* state (resolved in `skills/solve/identity.md`). On a
+**Project-form** run, post a project-thread health update alongside the transition with
+marker `handback` — typically `on track` because the slice is complete and unblocked
+(see **`skills/linear/references/documents-and-updates.md` § "Project health updates"**
+for the body shape and dedupe-by-marker procedure). **Single-issue and sub-issue forms do
+NOT post this update.** Then **stop** — the run is complete. `/backlogd:review` (or the
+PO) verifies the AC and merges the PR to land it (on ops-only runs, `/backlogd:review`
+verifies the AC against the action logs on the units and the GitHub surfaces they
+changed — there is no PR to merge).

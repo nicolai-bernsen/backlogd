@@ -23,6 +23,12 @@ connected, stop and ask the user to enable it (see the README "Setup" section).
 > are idempotent; the console standup output stays exactly as it is today. Resolve workflow
 > states by `type`, never by display name (see `skills/linear/references/linear-mcp.md`). Page
 > narrowly (filter by `label` / `state` / `parentId`, keep `limit` modest).
+>
+> **`/backlogd:status` does not post project health comments.** Project-thread health
+> updates (`**[backlogd]** Health: …` with the `claim` / `blocked` / `handback` /
+> `milestone:<name>` markers) are authored by **`/backlogd:solve`** at its defined
+> transitions — see `skills/linear/references/documents-and-updates.md` §
+> "Project health updates". `status` only *reads* them as part of the standup signal.
 
 ## 1. Resolve identity and scope
 
