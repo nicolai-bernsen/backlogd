@@ -50,30 +50,21 @@ the plan; the world is untouched.
   | "not shaped — would run /backlogd:scope inline (spec + AC, decompose if earned, pause PO if ambiguous)"
 
 (d) Unit walk plan
-<<<<<<< HEAD
-  worktree path / branch off origin/{integration}
-  units (dispatch order, with blocked-by + ready? + resolved subagent_type per unit)
-
-(e) Per-unit dispatch envelope — verbatim, for each unit
-  (same envelope `skills/solve/dispatch.md` step 3 hands the developer, with the {$WT
-  path} and the `## Prior work` block — omit the block if the query printed nothing.
-  Above the envelope, print the resolved `subagent_type` for this unit — see
-  `skills/solve/dispatch.md` step 2 for the resolution rule; in dry run, surface any
-  ambiguity (multiple `agent:*` labels) or missing-specialist as a note **without**
-  exiting — the run is read-only.)
-=======
   route: standard (worktree + PR) | ops-only (no worktree, no PR) | mixed (would stop + ask PO)
   worktree path / branch off origin/{integration}      ← standard only; for ops-only print
                                                           "(no worktree — ops path)";
                                                           for resume-reuse print "(reuse existing)"
-  units (dispatch order, with blocked-by + ready? + kind:ops? + resume class:
-         completed / in-progress-mine / untouched / inconsistent)
+  units (dispatch order, with blocked-by + ready? + kind:ops? + resolved subagent_type per
+         unit + resume class: completed / in-progress-mine / untouched / inconsistent)
 
 (e) Per-unit dispatch envelope — verbatim, for each unit
-  (standard envelope from `skills/solve/dispatch.md` step 2 with `{$WT path}` for code
+  (standard envelope from `skills/solve/dispatch.md` step 3 with `{$WT path}` for code
   units; ops envelope from `skills/solve/ops.md` step 3 — no `$WT` line — for `kind:ops`
-  units; include the `## Prior work` block when the query printed one)
->>>>>>> origin/dev
+  units; include the `## Prior work` block when the query printed one. Above the envelope
+  for code units, print the resolved `subagent_type` for this unit — see
+  `skills/solve/dispatch.md` step 2 for the resolution rule; in dry run, surface any
+  ambiguity (multiple `agent:*` labels) or missing-specialist as a note **without**
+  exiting — the run is read-only.)
 ```
 
 Exit with: `[dry-run] no writes performed — Linear, git, and graph are unchanged.`
