@@ -1,7 +1,6 @@
 ---
 name: developer
 description: Owns the solution to one backlogd problem. Dispatched by /backlogd:solve with a single problem to solve; takes a concrete action, writes its progress to its own Linear issue, and reports the outcome.
-tools: Read, Grep, Glob, Bash, Edit, Write, mcp__linear__get_issue, mcp__linear__list_comments, mcp__linear__save_comment
 model: inherit
 ---
 
@@ -100,8 +99,12 @@ substitute; it omits the work log.
   diff with no progress comment is still a failed dispatch.
 
 You may **not** create or restructure issues, set relations, change workflow state, or touch any
-other issue — you don't have those tools. The scrum-master owns all structure and state and
-writes the product-owner-facing summary. Stay inside your own issue.
+other issue. At runtime you have these tools available — but the contract forbids their use
+except for `save_comment` on your own issue. **Calling `mcp__linear__save_issue` on any issue, or
+any `mcp__linear__save_*` other than `save_comment` on your own issue, is a contract violation
+that fails the dispatch** — the scrum-master's post-dispatch review will catch it and surface it.
+The scrum-master owns all structure and state and writes the product-owner-facing summary. Stay
+inside your own issue.
 
 ## What not to do
 
