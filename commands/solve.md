@@ -53,15 +53,17 @@ get to the step. Sub-skills carry the dry-run carve-outs.
    the path as `$WT`.
 
 5. **Per-unit dispatch** → **`skills/solve/dispatch.md`**. For each ready unit in
-   dependency order: claim → inject prior-work → dispatch the `backlogd:developer` with an
-   inline envelope → capture the result → transition by `Outcome` (`solved` →
-   `completed`; `partial`/`blocked` → leave in progress and surface to the PO, stop the
-   run) → emit graph edges → commit on the problem's branch. One commit per unit.
+   dependency order: claim → inject prior-work + record `dispatch_started` →
+   dispatch the `backlogd:developer` with an inline envelope → capture the result →
+   record `dispatch_completed` (outcome + latency) → transition by `Outcome`
+   (`solved` → `completed`; `partial`/`blocked` → leave in progress and surface to
+   the PO, stop the run) → commit on the problem's branch. One commit per unit.
 
 6. **Handoff at In Review** → **`skills/solve/handoff.md`**. When every unit is
-   `completed`: push, open the PR into the integration branch, post the high-level
-   PO-facing solution brief on the problem issue, move the problem to *In Review*, and
-   stop. Do **not** mark Done — `/backlogd:review` (or the PO) accepts later.
+   `completed`: push, open the PR into the integration branch, record `pr_opened` +
+   `run_completed` on the graph, post the high-level PO-facing solution brief on
+   the problem issue, move the problem to *In Review*, and stop. Do **not** mark
+   Done — `/backlogd:review` (or the PO) accepts later.
 
 ## Report
 
@@ -72,6 +74,13 @@ Tell the user what happened, end to end:
   units    -> {n} solved{, k blocked}
   branch   -> {gitBranchName} → PR into {integration}
   results  -> recorded on each unit
-  graph    -> session→solves/touches recorded (best-effort)
+  graph    -> dispatch_started/completed + pr_opened + run_completed recorded (best-effort)
   problem  -> In Review (solution brief posted)  |  paused: {blocker}
+```
+
+For the rolled-up view across all runs (rework rate, partial rate, dispatch→PR latency,
+blocker frequency by area), run:
+
+```
+python scripts/graph.py report
 ```
