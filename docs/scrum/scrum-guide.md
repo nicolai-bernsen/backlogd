@@ -18,6 +18,10 @@ without leaving the repository. Editorial conventions: headings preserved, lists
 preserved, no rewording. Where the source uses smart quotes or em-dashes, those
 are kept.
 
+For how each Scrum primitive maps onto backlogd's surface, see
+[`mapping.md`](mapping.md). For the repo-level Definition of Done that every
+backlogd Increment must meet, see [`definition-of-done.md`](definition-of-done.md).
+
 ---
 
 ## Purpose of the Scrum Guide
