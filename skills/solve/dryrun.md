@@ -12,7 +12,10 @@ the plan; the world is untouched.
 ## Allowed (reads only)
 
 - **Linear:** `list_*` / `get_*` to resolve identity, find the problem, walk the units;
-  use `includeRelations: true` per unit to show `blocked-by`.
+  use `includeRelations: true` per unit to show `blocked-by`. The Step 0 pre-load (see
+  `commands/solve.md` → "Pre-load the deferred Linear MCP tools") may run its
+  **read-only** half here (`mcp__linear__get_issue`, `mcp__linear__list_comments`); the
+  `save_comment` half **must not** run under dryrun.
 - **Graph:** `python scripts/graph.py prior-work --problem {identifier}` per unit; a
   graph failure falls through with an empty block.
 - **Resume reconcile reads** (`skills/solve/resume.md`): `python scripts/graph.py
@@ -38,6 +41,10 @@ the plan; the world is untouched.
 
 ```
 [dry-run] /backlogd:solve {identifier|<top of queue>}
+
+(0) Pre-load plan (NB-340)
+  pre-load would call: mcp__linear__get_issue, mcp__linear__list_comments, mcp__linear__save_comment
+  load-bearing for the developer's [backlogd developer] comment on each unit
 
 (a) Identity
   team / states (pickup, review, completed by type) / labels ("problem", "kind:ops" if present) / session id
