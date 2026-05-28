@@ -21,6 +21,13 @@ When every unit is `completed`, the problem is solved. Do **not** mark it Done �
 > `**[backlogd developer]**` action-log comments on the units are the auditable artifact
 > in place of a PR diff.
 
+> **Parallel walk?** If `skills/solve/walk.md` dispatched any group of ≥2 units in
+> parallel, the per-unit sub-branches have already been collected into the problem
+> branch (`$WT`) and the per-unit worktrees torn down — the collect step happens at the
+> end of each parallel group, not here. The PR is still **one** PR off the problem
+> branch. If you see any `backlogd-wt-{identifier}-unit-*` worktrees still present at
+> this point, the run did not collect cleanly — stop and surface to the product owner.
+
 Push the branch and open the PR into the integration branch (reuse an existing PR on a
 re-run); put the issue identifier in the title/body so Linear links the PR to the problem:
 
@@ -41,11 +48,20 @@ you):
         --session "$SESSION" --problem {identifier}
 
     python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" run-end \
-        --session "$SESSION" --problem {identifier}
+        --session "$SESSION" --problem {identifier} \
+        --fanout {peak-fanout from walk.md, 1 if the walk never parallelised}
+
+The `--fanout` field is the **peak parallel-group size observed during this run** (from
+`skills/solve/walk.md`'s parallel-walk bookkeeping): `1` for a sequential / single-unit
+run (the byte-identical-to-today case), `≥2` when at least one parallel group ran. The
+`/backlogd:metrics` aggregate reads this to break out parallel-vs-sequential effects on
+`run_wall_time` and `dispatch_to_pr`. Omitting `--fanout` (or passing `1`) yields the
+legacy behaviour — the field is additive on the `run_completed` edge.
 
 > **Ops-only run?** Skip the `pr-opened` call — there is no PR, so the `dispatch_to_pr`
-> latency is undefined for this run. Still call `run-end`; the run completed, and
-> `run_wall_time` (earliest `dispatch_started` → run end) remains meaningful.
+> latency is undefined for this run. Still call `run-end` (with `--fanout 1` — ops-only
+> runs are sequential); the run completed, and `run_wall_time` (earliest
+> `dispatch_started` → run end) remains meaningful.
 
 ## 3. Post a high-level, PO-facing solution brief
 
