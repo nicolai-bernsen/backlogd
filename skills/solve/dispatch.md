@@ -1,6 +1,6 @@
 ---
 name: solve-dispatch
-description: Per-unit dispatch loop for /backlogd:solve — claim the unit, resolve the specialist from its agent:* label (or fall back to generic developer), inject prior work from the graph, record dispatch_started, hand the developer an inline envelope, capture the result, record dispatch_completed with outcome + latency, transition state by outcome, and commit per unit.
+description: Per-unit dispatch envelope for /backlogd:solve — claim the unit, resolve the specialist from its agent:* label (or fall back to generic developer), inject prior work from the graph, record dispatch_started, hand the developer an inline envelope, capture the result, record dispatch_completed with outcome + latency, transition state by outcome, and commit per unit. Callable once per unit either sequentially (single-unit group, default) or concurrently (parallel group — multiple Agent() calls in one response, each with its own per-unit worktree). The envelope is single-unit; the orchestrator in skills/solve/walk.md decides whether to call it once or N-way in parallel.
 ---
 
 # solve — per-unit dispatch
@@ -22,7 +22,19 @@ description: Per-unit dispatch loop for /backlogd:solve — claim the unit, reso
 > developer takes `gh` / repo-ops actions and posts an action log on the unit. The two
 > paths are mutually exclusive per run.
 
-For each ready unit, in dependency order:
+## Single-unit envelope (called once per unit)
+
+This skill is **single-unit**: it describes the work of one dispatch. `skills/solve/walk.md`
+calls it once per ready unit. When the walk has built a **parallel group** of ≥2 units,
+it issues multiple `Agent()` calls **in one response** (Claude Code's native concurrency
+seam) so all dispatches in the group run concurrently — each one consumes this skill
+independently. Per-parallel-unit, the worktree handed to the developer is the unit's own
+`$WT_unit` (the path the walk created at `backlogd-wt-{identifier}-unit-{unit}`); per
+sequential-unit, it is the shared `$WT` (the problem-branch worktree). Substitute the
+correct one into the envelope below.
+
+For each ready unit (in a parallel group: each unit in the group; in a sequential walk:
+each unit in `blocked-by` order):
 
 1. **Claim it** — move the unit to the *In Progress* state (from `skills/solve/identity.md`).
 
@@ -74,7 +86,7 @@ For each ready unit, in dependency order:
    > Solve this problem. Take a concrete action toward resolving it, post your progress to
    > your issue, then report what you did and the outcome.
    >
-   > Work in this worktree — make all your file changes under it: {$WT}
+   > Work in this worktree — make all your file changes under it: {$WT or $WT_unit for this unit}
    >
    > Problem ({identifier}, issue id {id}): {title}
    >
@@ -82,7 +94,18 @@ For each ready unit, in dependency order:
    >
    > {the `## Prior work` block from the query above — include only if it printed one}
 
-4. **Capture** the developer's final structured summary verbatim.
+   For a **parallel group** call, substitute the unit's own `$WT_unit` (the path
+   `skills/solve/walk.md` created at `backlogd-wt-{identifier}-unit-{unit}`) into the
+   worktree line. Each parallel sub-developer inherits the orchestrator's loaded tool
+   grant — `agents/developer.md` carries no `tools:` frontmatter (removed in #345), so
+   the runtime propagates parent context per dispatch. No per-dispatch pre-load is
+   needed.
+
+4. **Capture** the developer's final structured summary verbatim. **In a parallel group,
+   do not abort sibling dispatches when one returns `partial`/`blocked` — let every
+   dispatch in the group finish, then process each per step 7 below.** (See
+   `skills/solve/walk.md` § "Dispatch a parallel group" for the wait-and-collect
+   contract.)
 
 5. **Confirm its record** — the developer posts its own progress/result comment on the
    unit issue (the `**[backlogd developer]**` comment). Verify it landed; do **not**
@@ -111,13 +134,27 @@ For each ready unit, in dependency order:
    - `solved` → move the unit to a `completed` state.
    - `partial` or `blocked` → **leave it in progress** and surface it to the product owner
      as a clear question (a genuine blocker — do not guess past it); leave the issue in its
-     started state and **stop** the run.
+     started state. **In a sequential single-unit group** stop the run immediately. **In a
+     parallel group** still capture/transition this unit, but let the sibling dispatches in
+     the group finish first; once every dispatch in the group has returned and been
+     transitioned (and after the walk's collect step in `skills/solve/walk.md`), stop the
+     run if any unit in the group was `partial`/`blocked`. Never start the next parallel
+     group on a non-`solved` outcome.
 
-8. **Commit the unit** on the problem's branch — one commit per unit, conventional message
-   referencing the issue (the developer ran no git; you own the commit):
+8. **Commit the unit** on the problem's branch (or, in a parallel group, on the unit's
+   sub-branch) — one commit per unit, conventional message referencing the issue (the
+   developer ran no git; you own the commit). Use `$WT` for a sequential single-unit
+   group and `$WT_unit` for a unit in a parallel group:
 
-       git -C "$WT" add -A
-       git -C "$WT" commit -m "{type}(#{identifier}): {what this unit did}"
+       git -C "$WT_or_WT_unit" add -A
+       git -C "$WT_or_WT_unit" commit -m "{type}(#{identifier}): {what this unit did}"
+
+   In a parallel group, the per-unit commit lands on the unit's sub-branch
+   (`{gitBranchName}--unit-{unit-identifier}`); `skills/solve/walk.md`'s collect step
+   fast-forward-merges that sub-branch into the problem branch after every dispatch in
+   the group has returned. Identity-guard checks (`backlogd.expectedEmail` /
+   `hooks/git/pre-commit`) apply automatically — `git config` is per-repo and shared
+   across all linked worktrees of the same repo.
 
 ## Note on file-edge writes (low-signal)
 

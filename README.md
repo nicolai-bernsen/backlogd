@@ -3,9 +3,10 @@
 Turn Claude Code into a problem-driven scrum team.
 
 You file *problems*, not solutions. A scrum-master orchestrator picks them up from
-Linear, dispatches developer agents that figure out the *how*, and surfaces blockers
-back to you when it needs a decision. Linear is the single source of truth for the
-whole loop.
+Linear, dispatches developer agents that figure out the *how* — one at a time when the
+problem is sequential, in parallel when the work earns it — and surfaces blockers back
+to you when it needs a decision. Linear is the single source of truth for the whole
+loop.
 
 ## The idea
 
@@ -16,8 +17,10 @@ solution.
 
 - **You (PO)** file a problem as a Linear issue.
 - **`/backlogd:scope`** shapes that problem into an executable, decomposed issue.
-- **`/backlogd:solve`** executes it — dispatches a developer that owns the *how*, opens a
-  PR, and hands back a solution brief at In Review.
+- **`/backlogd:solve`** executes it — dispatches a developer per unit of work (in
+  parallel when the units are blocked-by-independent), opens **one** PR, and hands back
+  a solution brief at In Review. On ops-only problems (e.g. tweaking GitHub repo
+  settings) it skips the worktree entirely — no PR, just an action log on the issue.
 - **`/backlogd:status`** gives a read-only standup of progress and blockers, changing nothing.
 - **`/backlogd:review`** verifies the acceptance criteria, then accepts to Done or sends it back.
 
@@ -116,10 +119,12 @@ active problems, with nothing changed.
 .claude-plugin/   plugin + marketplace manifests
 agents/           subagent definitions (refiner / developer / tester / reviewer)
 commands/         slash commands — scope + solve + status + review + release (the scrum-master)
-skills/           reusable skill playbooks (see skills/linear — how backlogd uses Linear)
+skills/           reusable skill playbooks (see skills/linear — how backlogd uses Linear;
+                  skills/solve — the executing loop; skills/worktree-isolation — the
+                  per-session worktree pattern that lets the loop dispatch in parallel)
 docs/             living spec — how backlogd works and the conventions for working in it
 docs/scrum/       scrum guide + mapping + DoD (the Scrum operating model)
-hooks/            lifecycle hooks
+hooks/            lifecycle hooks (incl. the git-identity guard — see CONTRIBUTING.md)
 .github/          continuous integration
 ```
 
