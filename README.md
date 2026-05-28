@@ -28,6 +28,11 @@ The methodology underneath — spec-driven development, small vertical slices, t
 first — is a tool the agents reach for, encouraged but not mandated. The contract is
 the problem and the outcome, not the process.
 
+The framework backlogd embodies is **Scrum**: you are the Product Owner, the slash
+commands are the Scrum Master, and the team-skill subagents — `refiner`, `developer`,
+`tester`, `reviewer` — are the Developers. `/backlogd:review` gates every problem against
+the [Definition of Done](docs/scrum/definition-of-done.md) alongside its acceptance criteria.
+
 ## Status
 
 Early, but the core loop works: `/backlogd:scope` shapes a problem into an executable issue,
@@ -109,10 +114,11 @@ active problems, with nothing changed.
 
 ```
 .claude-plugin/   plugin + marketplace manifests
-agents/           subagent definitions (the developer)
+agents/           subagent definitions (refiner / developer / tester / reviewer)
 commands/         slash commands — scope + solve + status + review + release (the scrum-master)
 skills/           reusable skill playbooks (see skills/linear — how backlogd uses Linear)
 docs/             living spec — how backlogd works and the conventions for working in it
+docs/scrum/       scrum guide + mapping + DoD (the Scrum operating model)
 hooks/            lifecycle hooks
 .github/          continuous integration
 ```

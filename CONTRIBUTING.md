@@ -10,6 +10,8 @@ will save us both time.
 - **Want to change code?** Open a draft PR early and explain the reasoning. Small,
   focused changes land faster than large ones.
 - **Keep it green.** CI runs on every push and pull request. Don't merge red.
+- **Play by the same rules as the agent loop.** Human contributions ship to the same
+  [Definition of Done](docs/scrum/definition-of-done.md) that `/backlogd:review` enforces on agent PRs.
 
 ## Working on the plugin
 
