@@ -15,6 +15,12 @@ the plan; the world is untouched.
   use `includeRelations: true` per unit to show `blocked-by`.
 - **Graph:** `python scripts/graph.py prior-work --problem {identifier}` per unit; a
   graph failure falls through with an empty block.
+- **Resume reconcile reads** (`skills/solve/resume.md`): `python scripts/graph.py
+  run-status --problem {unit}` per unit, `git ls-remote --heads origin
+  {gitBranchName}`, `git branch --list {gitBranchName}`, `git worktree list
+  --porcelain`, and (if a worktree at the expected path exists) `git -C "$WT" status
+  --porcelain` / `rev-parse HEAD`. Pure reads — no `git worktree add`, no `checkout`.
+  Render the classification in section (d) of the plan; never act on it.
 
 ## Forbidden
 
@@ -45,8 +51,11 @@ the plan; the world is untouched.
 
 (d) Unit walk plan
   route: standard (worktree + PR) | ops-only (no worktree, no PR) | mixed (would stop + ask PO)
-  worktree path / branch off origin/{integration}      ← standard only; for ops-only print "(no worktree — ops path)"
-  units (dispatch order, with blocked-by + ready? + kind:ops?)
+  worktree path / branch off origin/{integration}      ← standard only; for ops-only print
+                                                          "(no worktree — ops path)";
+                                                          for resume-reuse print "(reuse existing)"
+  units (dispatch order, with blocked-by + ready? + kind:ops? + resume class:
+         completed / in-progress-mine / untouched / inconsistent)
 
 (e) Per-unit dispatch envelope — verbatim, for each unit
   (standard envelope from `skills/solve/dispatch.md` step 2 with `{$WT path}` for code
@@ -66,4 +75,7 @@ Exit with: `[dry-run] no writes performed — Linear, git, and graph are unchang
   `skills/solve/ops.md` per unit.
 - **Mixed units** — print (a)–(c); in (d) note `route: mixed — would stop and ask PO to
   split or pick one path`; skip (e).
+- **Resume `inconsistent`** — print sections (a)–(d), label the unit `inconsistent`, and
+  print the pause message template from `skills/solve/resume.md` § 4 inside (d). Skip (e);
+  a real run would not dispatch. The dry-run still exits cleanly (it acts on nothing).
 - **Linear MCP not connected** — same as the real run: stop and ask the user to enable it.

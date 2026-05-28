@@ -110,6 +110,7 @@ __all__ = [
     "write_edges",
     "read_graph",
     "prior_work",
+    "run_status",
     "metrics",
     "emit",
 ]
@@ -473,6 +474,105 @@ def prior_work(problem_identifier: str, edges=None, max_related: int = 5) -> lis
     return lines
 
 
+# --- run-status query (read-only, for /backlogd:solve --resume) -----------
+
+def run_status(problem_identifier: str, edges=None) -> dict:
+    """Reduce per-unit agent-execution edges for a problem to a resume-ready summary.
+
+    Used by ``/backlogd:solve``'s reconcile step (see ``skills/solve/resume.md``)
+    to decide, for every unit that touches this problem across **all** sessions,
+    whether it's already ``completed``, currently ``in-progress`` (a session
+    recorded ``dispatch_started`` but never a matching ``dispatch_completed``),
+    or has no agent-execution history at all. The orchestrator cross-references
+    this with Linear state and the worktree before re-dispatching.
+
+    Returns a dict::
+
+        {
+          "problem": "NB-322",
+          "units": {
+            "NB-322": {
+              "state": "completed" | "in-progress" | "untouched",
+              "sessions": ["s1", "s2", ...],
+              "last_started": "<ISO ts or None>",
+              "last_completed": "<ISO ts or None>",
+              "outcome": "solved" | "partial" | "blocked" | None,
+            },
+            ...
+          },
+        }
+
+    Decision rules per unit (same target node, all sessions considered):
+
+    - **completed** — any ``dispatch_completed`` edge exists for the unit. The
+      most recent one wins; ``outcome`` is its ``outcome`` field. (Linear may
+      still say ``Done`` even when the graph has only legacy ``solves`` data —
+      that's why the orchestrator also reads Linear state.)
+    - **in-progress** — there is at least one ``dispatch_started`` but no
+      ``dispatch_completed`` for the unit. The session that recorded the start
+      is in ``sessions``; if multiple sessions did, all are listed (the
+      orchestrator surfaces that as an inconsistency to the product owner).
+    - **untouched** — no ``dispatch_started`` and no ``dispatch_completed`` for
+      the unit. (A unit with only legacy ``solves`` edges is also reported as
+      ``untouched`` here so the new resume flow doesn't assume legacy semantics;
+      the orchestrator falls back to Linear state for these.)
+
+    Because the graph here is **scoped to one problem**, the top-level
+    ``problem`` field is the input identifier and the inner ``units`` dict keys
+    by the identifier we know — call sites that walk sub-issues call this once
+    per sub-issue and merge. Sub-issue discovery itself stays in Linear; the
+    graph is per-target.
+
+    Pure read; never raises. An empty store yields a single ``untouched`` entry
+    so the caller can write the resume report uniformly.
+    """
+    edges = read_graph() if edges is None else edges
+    target = problem_node(problem_identifier)
+
+    starts = []   # (ts, session)
+    completes = []  # (ts, session, outcome)
+    for e in edges:
+        if not isinstance(e, dict) or e.get("tgt") != target:
+            continue
+        etype = e.get("type")
+        if etype == "dispatch_started":
+            starts.append((e.get("ts") or "", e.get("session")))
+        elif etype == "dispatch_completed":
+            completes.append(
+                (e.get("ts") or "", e.get("session"), e.get("outcome"))
+            )
+
+    sessions = sorted({s for _ts, s in starts if s}
+                      | {s for _ts, s, _o in completes if s})
+
+    last_started_ts = max((ts for ts, _s in starts if ts), default=None)
+    if completes:
+        ts_sorted = sorted(completes)
+        last_completed_ts, _sess, last_outcome = ts_sorted[-1]
+    else:
+        last_completed_ts, last_outcome = None, None
+
+    if completes:
+        state = "completed"
+    elif starts:
+        state = "in-progress"
+    else:
+        state = "untouched"
+
+    return {
+        "problem": problem_identifier,
+        "units": {
+            problem_identifier: {
+                "state": state,
+                "sessions": sessions,
+                "last_started": last_started_ts,
+                "last_completed": last_completed_ts,
+                "outcome": last_outcome,
+            }
+        },
+    }
+
+
 # --- emit (legacy write) ---------------------------------------------------
 
 def emit(session_id: str, problem_identifier: str, files) -> list:
@@ -711,6 +811,23 @@ def _cmd_prior_work(args) -> int:
     return 0
 
 
+def _cmd_run_status(args) -> int:
+    """Print the per-unit agent-execution state for a problem (resume input).
+
+    JSON-only output by default so the orchestrator can parse it; the human
+    summary text goes to stderr so a curious operator can still read it.
+    """
+    status = run_status(args.problem)
+    print(json.dumps(status, indent=2))
+    unit = status["units"][args.problem]
+    summary = (
+        f"[backlogd-graph] run-status {args.problem}: state={unit['state']}, "
+        f"sessions={unit['sessions'] or '[]'}, outcome={unit['outcome']}"
+    )
+    print(summary, file=sys.stderr)
+    return 0
+
+
 def _cmd_dispatch_start(args) -> int:
     write_edges(args.session, [
         dispatch_started_edge(args.session, args.problem, ts=args.ts),
@@ -895,6 +1012,8 @@ def main(argv=None) -> int:
 
     Reads:
       * ``prior-work``      — print Prior work block for a problem (best-effort).
+      * ``run-status``      — print per-unit agent-execution state as JSON
+        (used by ``/backlogd:solve``'s resume reconcile step).
       * ``report``          — print agent-execution metrics summary.
 
     Agent-execution writes (the new flow):
@@ -947,6 +1066,14 @@ def main(argv=None) -> int:
     pr.add_argument("--json", action="store_true",
                     help="emit the raw metrics dict as JSON instead of markdown")
     pr.set_defaults(func=_cmd_report)
+
+    rs = sub.add_parser(
+        "run-status",
+        help="print per-unit agent-execution state for a problem as JSON "
+             "(input for /backlogd:solve's resume reconcile)")
+    rs.add_argument("--problem", required=True,
+                    help="Linear identifier of the unit to inspect, e.g. NB-322")
+    rs.set_defaults(func=_cmd_run_status)
 
     # --- agent-execution writes -----------------------------------------
     ds = sub.add_parser("dispatch-start",

@@ -38,6 +38,11 @@ envelope, and the graph-emit/no-PR carve-outs.
 
 ## Open a worktree + branch for the problem
 
+> **Resume:** if `skills/solve/resume.md` already reused an existing worktree, `$WT` is
+> set — **skip this whole section** and continue. The reconcile step in step 4 of
+> `commands/solve.md` handles all reuse paths; this section runs only when reconcile
+> classifies *every* unit as `untouched` (the first-ever path).
+>
 > **Dry run:** in `--dryrun` mode, do **not** create the worktree or branch. Resolve the
 > integration branch and the suggested branch name read-only, compute the path you *would*
 > use, and report them in the plan (`skills/solve/dryrun.md`).
@@ -54,6 +59,7 @@ isolated worktree so edits never touch the shared checkout (a parallel session m
 
    Run **every** git command via `git -C "$WT"` from here on. Never `checkout`/switch
    branches in the shared checkout — that yanks a parallel session's HEAD. Reuse an
-   existing branch/worktree on a re-run.
+   existing branch/worktree on a re-run via `skills/solve/resume.md` (which runs before
+   this step).
 
 The developer edits **in `$WT`**; you run every commit, the push, and the PR from `$WT`.
