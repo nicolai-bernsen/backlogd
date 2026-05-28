@@ -61,8 +61,48 @@ re-reading them (`gh repo view --json …`, `gh release list`, `gh label list`, 
 any drafts the developer added to the tree (e.g. `docs/PROMOTION.md` lands on the standard path via
 a code unit, but ops units can also reference such drafts).
 
-Judge each criterion: **met** / **unmet** / **needs PO judgement** (a call only the product owner
-can make — e.g. "is this *good enough*?").
+### Typed AC — read the kind on each item and branch per kind
+
+**Load the `ac` skill (`skills/ac/`)** before walking the AC list. It is the source of
+truth for the AC grammar and the per-kind verification contract. The summary:
+
+Each `## Acceptance Criteria` bullet may carry an optional kind prefix right after the
+checkbox: `[test]`, `[manual]`, or `[review]`. Untagged → `[review]` (backwards
+compatible — every existing problem keeps its current behaviour).
+
+**Parsing rule.** For each `- [ ]` bullet, strip the leading checkbox + space, then apply
+`^\[(test|manual|review)\] ` (case-sensitive, single trailing space) against the rest.
+If it matches, the captured token is the kind and the remainder is the body; otherwise
+kind is `review` and the whole text is the body. Apply the rule once — only the first
+`[…]` qualifies; later bracketed tokens in the body are body text.
+
+**Branch per kind on every bullet:**
+
+- **`[test]`** — extract the **first backticked span** (`` `…` ``) from the body and
+  treat it as a shell command. Run it with **Bash** from the worktree root (read-only —
+  no `git add`, `commit`, or `push`):
+  - exit code `0` → `✅ met` — cite the command and the exit code (or last line of
+    output).
+  - non-zero → `❌ unmet` — cite the command and the last few lines of stderr.
+  - **no backticked command** in the body → `❔ needs PO judgement: no runnable check
+    found` — do not invent one.
+- **`[manual]`** — do **not** try to verify. Add the bullet (its body, verbatim) to a
+  **"Manual checks for the PO"** section in the verdict comment, one bullet per item.
+  Mark it `📝 awaiting PO confirmation` in the per-AC walk. The reviewer **drafts** the
+  batched question; the **orchestrator** (you, running this command) actually asks the
+  PO and waits for the answer before transitioning state.
+- **`[review]`** — judge from the artifacts (current behaviour). `✅ met` / `❌ unmet` /
+  `❔ needs PO judgement` (the last for a genuine product-owner judgement call, not for
+  "I didn't run a test").
+
+**Rollup:**
+
+- **accepted** — every item `✅ met`, every `📝` confirmed by the PO, **and** CI green.
+- **sent back** — any `❌` or CI red.
+- **needs you** — any `❔`, or any `📝` left unconfirmed and no `❌` overrides.
+
+See `skills/ac/SKILL.md` for the full grammar, the rationale for each kind, and worked
+examples.
 
 ## 4. Post the verdict
 
@@ -73,11 +113,20 @@ review]**` badge — Linear renders HTML comments as literal text):
 **[backlogd review]** Verdict: accepted | sent back | needs you
 
 Acceptance criteria
-  ✅ {criterion} — {how it is met}
-  ❌ {criterion} — {what is missing}
-  ❔ {criterion} — {the judgement call for you}
+  ✅ [{kind}] {criterion} — {how it is met, with the cited command + exit code for [test]}
+  ❌ [{kind}] {criterion} — {what is missing, with stderr snippet for a failed [test]}
+  ❔ [{kind}] {criterion} — {the judgement call for you, or "no runnable check found" for a tagless [test]}
+  📝 [manual] {criterion} — awaiting PO confirmation (see batch below)
+
+Manual checks for the PO   ← only if there are [manual] items
+  - {body of each [manual] bullet, verbatim}
+
 {Rework notes, or the question for the PO}
 ```
+
+Include the parsed kind in square brackets at the start of each AC line so the PO can
+see, at a glance, *how* each item was checked. Items that were originally untagged
+appear as `[review]` (the default).
 
 ## 5. Decide and transition
 
@@ -104,6 +153,13 @@ Acceptance criteria
           --notes "{the unmet-criteria notes you just wrote}"
 - **A genuine judgement call** (`needs PO judgement`) → **leave it In Review** (PR open) and
   surface the question to the product owner. Don't guess at a call that's theirs to make.
+- **Unconfirmed `[manual]` items** (`📝 awaiting PO confirmation`) → **leave it In Review**
+  (PR open) and ask the product owner the batched **"Manual checks for the PO"** question
+  from the verdict comment. Each `[manual]` bullet needs a yes/no from the PO before the
+  verdict can close — `accepted` requires every `📝` resolved to a `✅`, otherwise the
+  unconfirmed ones drop the verdict to `sent back` (PO answered no on at least one) or
+  hold it at `needs you` (PO hasn't answered yet). Treat unanswered manual checks as a
+  blocker, not a silent pass.
 
 Confirm the transition + merge (or the deliberate non-merge) succeeded.
 
@@ -111,6 +167,9 @@ Confirm the transition + merge (or the deliberate non-merge) succeeded.
 
 ```
 {identifier} — {title}
-  acceptance   -> {n met}/{n total} criteria
+  acceptance   -> {n met}/{n total} criteria ({t} [test], {m} [manual], {r} [review])
   verdict      -> accepted (PR merged → Done) | sent back (PR open → In Progress) | needs you (← {question})
 ```
+
+The kind breakdown lets the PO see, at a glance, how teeth the AC had — a verdict
+backed by `[test]` checks is a stronger signal than one backed by `[review]` alone.

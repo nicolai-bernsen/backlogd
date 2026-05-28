@@ -134,7 +134,9 @@ The scrum-master is a small set of commands: `scope`, `solve`, and `review` writ
 
 - **Pick** a `problem`-labelled issue (or an explicit id).
 - **Write the spec + `## Acceptance Criteria`** into the description — the canonical "shaped"
-  signal `/backlogd:solve` looks for.
+  signal `/backlogd:solve` looks for. AC items declare *how they are verifiable* via an
+  optional kind prefix (`[test]` / `[manual]` / `[review]`; untagged defaults to
+  `[review]`) — load **`skills/ac/`** before writing AC.
 - **Decompose on discovery** — sub-issues + `blocked-by`, or promote to a Project — only as
   much as the problem earns.
 - **Set priority**, then stop. No solving, no state change.
@@ -159,10 +161,13 @@ The scrum-master is a small set of commands: `scope`, `solve`, and `review` writ
 **`/backlogd:review` (gate)** closes a solved problem's loop:
 
 - **Verify** an *In Review* problem against its `## Acceptance Criteria` — from the developer's
-  result and the artifacts — and post a per-AC verdict.
+  result and the artifacts — and post a per-AC verdict. Per-kind branching: `[test]` items
+  must point at a backticked command that exits 0; `[manual]` items batch into a
+  PO-confirmation question; `[review]` items remain Claude judgement. Load
+  **`skills/ac/`** for the grammar and contract.
 - **Decide**: all met → `completed` (Done); gaps → back to *In Progress* with actionable rework
-  notes (a fresh `solve` re-runs them); a genuine judgement call → leave it *In Review* and ask
-  the product owner. It does not re-dispatch.
+  notes (a fresh `solve` re-runs them); a genuine judgement call (or unanswered manual
+  check) → leave it *In Review* and ask the product owner. It does not re-dispatch.
 
 **Developer (`backlogd:developer`)** owns the *work inside one issue* — and writes **only
 comments on its assigned issue**:

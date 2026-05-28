@@ -58,6 +58,36 @@ problem is already shaped.
   criteria, or a decision only they can make blocks shaping. Ask at most **3** questions, then
   proceed. Do not guess at a genuine product decision.
 
+### AC items declare *how they are verifiable* — typed AC
+
+**Load the `ac` skill (`skills/ac/`)** before writing AC items. It is the source of truth
+for the AC grammar and the per-kind verification contract `/backlogd:review` enforces.
+
+Each `## Acceptance Criteria` item carries an optional kind prefix in square brackets
+right after the checkbox: `[test]`, `[manual]`, or `[review]`. Untagged items default to
+`[review]` (backwards compatible with every existing problem). Write the **strongest**
+kind the item can support — `[test]` when there is an obvious exit-coded check (spell
+the command out in backticks inside the bullet), `[manual]` when only a human can
+confirm, `[review]` when it is genuine Claude judgement against the artifacts.
+
+When in doubt, **leave the bullet untagged** (defaults to `[review]`). Do **not**
+fabricate a `[test]` command that doesn't exist — better to ship an untagged bullet the
+reviewer judges than a fake test path that always fails.
+
+Example:
+
+```markdown
+## Acceptance Criteria
+
+- [ ] [test] AC parser handles untagged bullets — `python -m pytest tests/test_ac.py::test_untagged_defaults_to_review` exits 0.
+- [ ] [manual] PO confirms the README skim still reads naturally.
+- [ ] [review] No new public API surface introduced.
+- [ ] Existing untagged AC continues to work (defaults to `[review]`).
+```
+
+See `skills/ac/SKILL.md` for the full grammar (parsing rule, per-kind semantics, the
+"Manual checks for the PO" batched-question convention) and examples.
+
 Write the spec and AC into the issue **description** with `save_issue` — pass the existing
 issue `id` so you update in place, never create a duplicate.
 
