@@ -65,9 +65,11 @@ backlogd is a Claude Code plugin. Add the marketplace, then install it:
 
 ## Setup
 
-backlogd talks to Linear through the **official Linear MCP server** — it doesn't ship
-its own API client, and there are no API keys to paste anywhere. The orchestrator owns
-all Linear reads and writes; developer agents just solve and report.
+backlogd talks to Linear through the **official Linear MCP server** — the runtime loop
+ships no API client, and there are no API keys to paste anywhere. Auth is OAuth, handled
+by Claude Code; the orchestrator owns all Linear reads and writes, and developer agents
+just solve and report. (One optional, one-time exception — workspace bootstrap — is
+covered [below](#bootstrap-your-workspace-optional); it never touches the runtime loop.)
 
 1. **Enable the Linear MCP.** The server is pre-configured in [`.mcp.json`](.mcp.json),
    so Claude Code offers to enable it when you open the repo. (Equivalent manual command:
@@ -80,6 +82,20 @@ all Linear reads and writes; developer agents just solve and report.
 
 That's the prerequisite surface for the walking skeleton. File a problem, then point the
 orchestrator at your backlog.
+
+### Bootstrap your workspace (optional)
+
+Step 2 is the only thing the loop strictly needs, but a fresh Linear workspace can be
+brought fully into backlogd's canonical shape — the `problem` / `kind:ops` / `blocked`
+labels, the workflow-state categories the forecast reads, and the issue/project templates —
+in one pass with **`/backlogd:init`**. It runs the audit first (try `/backlogd:init --dryrun`
+to preview the plan and change nothing), applies only additive, idempotent fixes by default,
+and never deletes anything without an explicit per-group yes.
+
+This is the *one* place backlogd uses a local Linear Admin API key — read by a setup engine,
+never by the orchestrator or any agent. The runtime loop stays key-free / MCP-only after
+setup. See **[docs/guides/workspace-bootstrap.md](docs/guides/workspace-bootstrap.md)** for
+the key-creation walkthrough and exactly what `init` configures.
 
 > **Identity cache.** On first use, the scrum-master commands resolve your Linear team,
 > its workflow states, and its labels, and snapshot them to `.backlogd/identity.json` with
