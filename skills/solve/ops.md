@@ -104,11 +104,17 @@ For each ready ops unit, in `blocked-by` order:
    > **action log** — the exact `gh` commands you ran and their effect — so the PO can
    > audit what changed without inspecting the repo by hand.
    >
-   > Problem ({identifier}, issue id {id}): {title}
+   > ## Issue context
    >
-   > {description, including its Acceptance Criteria}
+   > **Problem ({identifier}, issue id {id}): {title}**
+   >
+   > {the unit's full description verbatim — including its `## Acceptance Criteria` section}
    >
    > {the `## Prior work` block from the query above — include only if it printed one}
+
+   This is the same **curated-context** envelope as the standard path (see
+   `skills/solve/dispatch.md` → "The curated-context pattern"): the ops developer reads its
+   spec from the inlined `## Issue context` block, not a Linear round-trip.
 
 4. **Capture** the developer's final structured summary verbatim.
 
