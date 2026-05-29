@@ -31,7 +31,30 @@ step they need to finish.
 > drift; the integration branch is **never deleted**; and the release is **tagged** `vX.Y.Z`.
 > **Resolve the branch names and current version at runtime** — never hardcode them.
 
-## 0. Preflight — confirm the release script is current
+## 0. Pre-load deferred tools (NB-340 / NB-346)
+
+**Before any other operation in this command**, eagerly pre-load the Linear MCP
+deferred tools. `/backlogd:release` is **git-only today** — it touches no Linear state
+and dispatches no subagents — so this step is effectively a no-op on the current
+flow. It is kept here for two reasons: (a) consistency across every `/backlogd:*`
+command (the §0 idiom is the contract — see `skills/linear/SKILL.md` → *Deferred
+tools — pre-load before dispatch*), and (b) safety against drift — if a future
+release flow ever posts a release-note comment on a Linear issue, files a release
+problem, or dispatches a release-notes subagent, the pre-load is already in place
+and the command does not silently regress on the NB-340 tool-grant hazard.
+
+Make a **single batched `ToolSearch` call** that names the canonical Linear MCP tool
+list (identical across all `/backlogd:*` commands):
+
+```
+ToolSearch(select: "mcp__linear__get_issue,mcp__linear__save_issue,mcp__linear__save_comment,mcp__linear__list_comments,mcp__linear__list_issue_statuses,mcp__linear__list_issue_labels,mcp__linear__list_issues,mcp__linear__list_teams,mcp__linear__list_milestones,mcp__linear__get_project,mcp__linear__save_milestone")
+```
+
+If `ToolSearch` is not available (a future Claude Code version drops it), this is a
+no-op for `/backlogd:release` on the current flow — skip the fallback rather than
+forcing a `mcp__linear__*` invocation the command doesn't need.
+
+## 0.5 Preflight — confirm the release script is current
 
 > **Stale-cache safeguard.** Claude Code loads `/backlogd:release` from your installed plugin
 > cache, which can lag the repo if `/plugin update` hasn't run since the last release. A script

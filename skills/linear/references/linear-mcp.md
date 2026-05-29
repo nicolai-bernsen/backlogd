@@ -68,6 +68,16 @@ Progress". Before any state change:
    **lowest-position** one for a forward transition.
 3. `list_issue_labels` / `list_users` as needed.
 
+> **Note — pre-load deferred tools first (NB-346).** Every `/backlogd:*` command's §0
+> step batches a `ToolSearch` call across the canonical `mcp__linear__*` tool list
+> *before* this identity-resolution step runs. The pre-load loads the deferred tools
+> into the parent's context so a subagent dispatched with an explicit `tools:` list
+> receives them at runtime — see `../SKILL.md` → *Deferred tools — pre-load before
+> dispatch* for the canonical list and the batched call shape. The identity-resolution
+> calls below (`list_teams`, `list_issue_statuses`, `list_issue_labels`) also serve as
+> the natural-invocation fallback if `ToolSearch` is unavailable: simply calling them
+> here loads each into the parent's context for any later subagent dispatch.
+
 #### Cache identity to `.backlogd/identity.json` (24-hour TTL)
 
 These three `list_*` calls return values that are **stable across hundreds of runs** —

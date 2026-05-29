@@ -20,6 +20,32 @@ the user to enable it (see the README "Setup" section) — do not improvise anot
 > **description is canonical**; model dependencies as **`blocked-by`**. Reach for
 > `references/linear-mcp.md` before every write.
 
+## 0. Pre-load deferred tools (NB-340 / NB-346)
+
+**Before any other Linear or subagent operation in this command**, eagerly pre-load the
+Linear MCP deferred tools so a subsequent `Agent({subagent_type: ...})` dispatched with
+an explicit `tools:` list (e.g. the `backlogd:refiner` in step 3) receives the
+`mcp__linear__*` tools it names. This is defense in depth at the orchestrator layer for
+the NB-340 tool-grant hazard (see `skills/linear/SKILL.md` → *NB-340: tool-grant hazard
+the orchestrator must work around*) — without it, any specialist with an explicit
+`tools:` list that names Linear tools may receive a stripped grant at dispatch time.
+
+Make a **single batched `ToolSearch` call** that names every `mcp__linear__*` tool this
+command (or any subagent it dispatches) may touch:
+
+```
+ToolSearch(select: "mcp__linear__get_issue,mcp__linear__save_issue,mcp__linear__save_comment,mcp__linear__list_comments,mcp__linear__list_issue_statuses,mcp__linear__list_issue_labels,mcp__linear__list_issues,mcp__linear__list_teams,mcp__linear__list_milestones,mcp__linear__get_project,mcp__linear__save_milestone")
+```
+
+This is the canonical pre-load list for all `/backlogd:*` commands — keep it identical
+across them so the idiom is recognisable, and so a future specialist with a restricted
+`tools:` list (e.g. the NB-326 reviewer) gets the same surface regardless of which
+command dispatches it. The pre-load is a no-op when the tools are already loaded.
+
+If `ToolSearch` itself is not available (e.g. a future Claude Code version drops it),
+fall back to the prior idiom: invoke each `mcp__linear__*` tool at least once from the
+orchestrator's context before the dispatch in step 3.
+
 ## 1. Resolve identity
 
 Before any write, resolve the team, its workflow states, and its labels — **but read the
