@@ -119,10 +119,13 @@ own context).
 This is a Claude Code platform behaviour — not a backlogd bug — but `/backlogd:review`
 has to work around it. The mechanism:
 
-- **`/backlogd:review` pre-loads each `mcp__linear__*` tool** the reviewer needs by
-  calling it at least once from the orchestrator's context, before any
-  `Agent({subagent_type: "reviewer", ...})` dispatch. See step 0 of
-  `commands/review.md`.
+- **`/backlogd:review` pre-loads the deferred Linear MCP tools** before any
+  `Agent({subagent_type: "reviewer", ...})` dispatch via a single batched
+  `ToolSearch` call across the canonical Linear MCP tool list (see step 0 of
+  `commands/review.md` and `skills/linear/SKILL.md` → *Deferred tools — pre-load
+  before dispatch* for the canonical list). This is the NB-346 mitigation —
+  defense in depth at the orchestrator layer so the reviewer's restricted-grant
+  `tools:` list receives every Linear tool it names at runtime.
 - **If the reviewer reports it could not post its `**[backlogd reviewer]**`
   comment**, treat that as a tool-grant skew, not a reviewer failure. Re-dispatch
   from a fresh session where the pre-load has happened, or fall back to the

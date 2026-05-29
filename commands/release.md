@@ -2,7 +2,7 @@
 description: Cut a release — promote the integration branch to the release branch, bump the plugin version on a release branch, merge with a merge commit, tag vX.Y.Z, and back-merge so the two branches re-sync.
 ---
 
-<!-- release-script-version: 0.11.1 -->
+<!-- release-script-version: 0.13.0 -->
 
 # /backlogd:release
 
@@ -14,11 +14,16 @@ merge it with a **merge commit** (never squash), **tag** `vX.Y.Z`, then **back-m
 release branch into the integration branch so they never drift. You own **all git** here; no
 developer is dispatched and no Linear issue is required.
 
-This command is **git-only** — it touches no Linear state. (Releases aren't a `problem`; they
-promote work already merged into the integration branch.) Use `git` for branches, commits,
-tags and the back-merge, and `gh` for the PR + merge. If `gh` is unavailable, do the
-version-bump commit and push the release branch, then ask the product owner to open and merge
-the PR and report which step they need to finish.
+This command is **git-first**; after tagging it also posts the release to Linear (per-issue
+"Shipped" comments + an Initiative/Project roll-up) via the MCP — see
+[`skills/linear/references/documents-and-updates.md`](../skills/linear/references/documents-and-updates.md)
+→ "Release Shipped summaries" for the verified call shapes and the idempotency rules.
+(Releases aren't a `problem`; they promote work already merged into the integration branch —
+**no developer is dispatched and no Linear *issue* is required**.) Use `git` for branches,
+commits, tags and the back-merge, `gh` for the PR + merge + GitHub Release, and the Linear
+MCP for the Shipped summaries. If `gh` is unavailable, do the version-bump commit and push
+the release branch, then ask the product owner to open and merge the PR and report which
+step they need to finish.
 
 > **Follow the established flow** (`CONTRIBUTING.md` → "Releasing"): the version bump is
 > **required** (Claude Code's plugin cache hides the update otherwise); the `dev → main` merge is
@@ -26,7 +31,30 @@ the PR and report which step they need to finish.
 > drift; the integration branch is **never deleted**; and the release is **tagged** `vX.Y.Z`.
 > **Resolve the branch names and current version at runtime** — never hardcode them.
 
-## 0. Preflight — confirm the release script is current
+## 0. Pre-load deferred tools (NB-340 / NB-346)
+
+**Before any other operation in this command**, eagerly pre-load the Linear MCP
+deferred tools. `/backlogd:release` is **git-only today** — it touches no Linear state
+and dispatches no subagents — so this step is effectively a no-op on the current
+flow. It is kept here for two reasons: (a) consistency across every `/backlogd:*`
+command (the §0 idiom is the contract — see `skills/linear/SKILL.md` → *Deferred
+tools — pre-load before dispatch*), and (b) safety against drift — if a future
+release flow ever posts a release-note comment on a Linear issue, files a release
+problem, or dispatches a release-notes subagent, the pre-load is already in place
+and the command does not silently regress on the NB-340 tool-grant hazard.
+
+Make a **single batched `ToolSearch` call** that names the canonical Linear MCP tool
+list (identical across all `/backlogd:*` commands):
+
+```
+ToolSearch(select: "mcp__linear__get_issue,mcp__linear__save_issue,mcp__linear__save_comment,mcp__linear__list_comments,mcp__linear__list_issue_statuses,mcp__linear__list_issue_labels,mcp__linear__list_issues,mcp__linear__list_teams,mcp__linear__list_milestones,mcp__linear__get_project,mcp__linear__save_milestone")
+```
+
+If `ToolSearch` is not available (a future Claude Code version drops it), this is a
+no-op for `/backlogd:release` on the current flow — skip the fallback rather than
+forcing a `mcp__linear__*` invocation the command doesn't need.
+
+## 0.5 Preflight — confirm the release script is current
 
 > **Stale-cache safeguard.** Claude Code loads `/backlogd:release` from your installed plugin
 > cache, which can lag the repo if `/plugin update` hasn't run since the last release. A script
@@ -151,14 +179,117 @@ stop and surface the conflict to the product owner — don't force it.
 
 Then remove the release worktree (`git -C <repo> worktree remove <path>/backlogd-wt-release-X.Y.Z`).
 
+## 6.5. Post the release to Linear
+
+This is the **Linear-write** half of the release. The tag is pushed, the branches are
+re-synced — now record *which problems shipped in vX.Y.Z* so Linear (which doesn't see
+git) carries the same audit trail. Call shapes and idempotency markers live in
+[`skills/linear/references/documents-and-updates.md`](../skills/linear/references/documents-and-updates.md)
+→ "Release Shipped summaries" (Unit 0). Don't restate the mechanics here — *use* them.
+
+### a. Compute the included-issue set
+
+Walk the merge commits from the previous tag to the new one and extract Linear identifiers:
+
+    git -C "$WT" log --merges <prev-tag>..vX.Y.Z --pretty=format:"%H %s%n%b"
+
+For each merge commit, scan the subject, body, and the head-branch name (PRs cut by
+`/backlogd:solve` follow `nicolaibernsen/nb-<n>-<slug>`) for Linear identifiers. The
+magic-word pattern is `NB-N` — accept it in any of:
+
+- a branch name segment (`nicolaibernsen/nb-<n>-...`, case-insensitive),
+- a PR title or body (`(#NB-N)`, `#NB-N`, or bare `NB-N`),
+- a commit message line (same patterns).
+
+Deduplicate the resulting set of `NB-N` ids.
+
+**Degrade gracefully.** If the range yields no Linear identifiers (e.g. a release built
+from external contributions only), fall back to issues *completed* in the tag range:
+
+    list_issues({ team: "<team>", filter: { completedAt: { gte: <prev-tag date>, lte: <vX.Y.Z date> }, labels: { name: { eq: "problem" } } } })
+
+(If the `problem`-label filter returns nothing, retry without it — the AC accepts "issues
+completed in range" as the fallback; be explicit in the §7 report about which path was
+taken.)
+
+### b. Generate grouped release notes
+
+Group the included issues by label / kind for the notes body — features, fixes, docs,
+tech-debt (use the issue's labels via `get_issue` or the already-fetched `list_issues`
+payload; default any unlabelled issue to "Other"). Render a Markdown body and write it to
+a temp file the next step can hand to `gh`:
+
+    NOTES_FILE="$(mktemp -t backlogd-release-vX.Y.Z-XXXXXX).md"
+    cat > "$NOTES_FILE" <<'EOF'
+    ## Features
+    - NB-N — <title>
+    …
+
+    ## Fixes
+    - NB-N — <title>
+    …
+    EOF
+
+Keep the file path; the next step needs it.
+
+### c. Create the GitHub Release
+
+Cut the GitHub Release on the just-pushed tag and capture its URL:
+
+    REL_URL="$(gh release create vX.Y.Z --title "vX.Y.Z" --notes-file "$NOTES_FILE")"
+
+`gh release create` prints the release URL on success — capture it as `$REL_URL` for the
+Linear writes below. **If `gh` is unavailable**, surface to the product owner and
+**stop §6.5** here. The git tag is already pushed, so the release exists at the git level;
+without a real GitHub Release URL there's nothing to link to, and the Linear writes below
+must not happen with a placeholder URL — that would corrupt the audit record. Report
+what's left (`gh release create` + the Linear writes) and hand off.
+
+### d. Per-included-issue Shipped comment (idempotent)
+
+For each `NB-N` in the included set, post the one-line marker comment — but only after
+checking it isn't already there:
+
+1. `list_comments({ issueId: "NB-N" })`.
+2. If any returned body contains the substring `Shipped in vX.Y.Z` **for this exact
+   version** → skip (already posted, do not edit).
+3. Otherwise `save_comment({ issueId: "NB-N", body: "**[backlogd]** Shipped in vX.Y.Z — <$REL_URL>" })`.
+
+See `documents-and-updates.md` → "Release Shipped summaries" for the verified call shape.
+Real newlines in the body, never literal `\n`.
+
+### e. Initiative / Project roll-up
+
+For each **Initiative** or **Project** that groups one or more of the included issues
+(resolve via `get_issue` → `project` / via the project's initiative link), post a single
+roll-up comment so the container records the release too. Same idempotency check as the
+per-issue comment — list first, skip if a `Shipped in vX.Y.Z` body already exists, else
+create:
+
+    save_comment({ projectId: "<project id>",     body: "**[backlogd]** Shipped in vX.Y.Z — <n> issues — <$REL_URL>" })
+    save_comment({ initiativeId: "<initiative id>", body: "**[backlogd]** Shipped in vX.Y.Z — <n> issues — <$REL_URL>" })
+
+`save_comment` accepts exactly one parent at a time, so an Initiative and its Project each
+get their own call.
+
+### f. Idempotency note
+
+Re-running `/backlogd:release` for an existing tag **must not duplicate comments**. The
+literal substring `Shipped in vX.Y.Z` (for the exact version being cut) is the dedupe key
+on every target — issue, project, initiative. List first, match the marker, skip on hit.
+Shipped comments are immutable audit records; if the URL was wrong, fix it by hand — do
+not let a re-run silently rewrite it.
+
 ## 7. Report
 
 ```
 Released vX.Y.Z
-  bump      -> {previous} → {new} in .claude-plugin/plugin.json
-  promote   -> {integration} → {release} (merge commit, PR #{pr})
-  tag       -> vX.Y.Z pushed
-  back-merge-> {release} → {integration} (re-synced)
+  bump       -> {previous} → {new} in .claude-plugin/plugin.json
+  promote    -> {integration} → {release} (merge commit, PR #{pr})
+  tag        -> vX.Y.Z pushed
+  back-merge -> {release} → {integration} (re-synced)
+  gh-release -> vX.Y.Z (<url>)
+  linear     -> {n} "Shipped" comments + roll-up
 ```
 
 If any step needs the product owner (review-gated merge with no admin rights, a back-merge

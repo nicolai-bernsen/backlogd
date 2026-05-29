@@ -1,7 +1,8 @@
 # Subagent MCP tool grant — investigation post-mortem (NB-340)
 
 > Status: **closed.** Investigation done; fix shipped as NB-345 (PR #61, commit
-> `656dd59` on `dev`). This note exists so the finding doesn't have to be re-derived
+> `656dd59` on `dev`). Defense-in-depth complementary mitigation shipped as NB-346
+> (see §7 below). This note exists so the finding doesn't have to be re-derived
 > the next time someone wonders why a subagent can't see its own MCP tools.
 
 ## 1. What was observed
@@ -110,3 +111,87 @@ its own issue: the contract was physically out of reach for this dispatch.
 Future fresh sessions (after `/plugin update` + reload) will load the post-fix
 `agents/developer.md` with no `tools:` line, see the full MCP surface, and honour
 the Step 0 / Step 5 / single-comment-edited-in-place contract normally.
+
+## 7. NB-346 — defense in depth at the orchestrator (pre-load)
+
+NB-345's all-tools workaround restores the developer's write surface, but the
+contract is fragile: any future specialist that wants an explicit `tools:` list
+(including the NB-326 reviewer, which deliberately wants a restricted grant) will
+hit the same drop. NB-346 (PR TBD on `dev`) ships the complementary mitigation:
+each `/backlogd:*` command begins with a **§0 "Pre-load deferred tools" step**
+that runs a single batched `ToolSearch` call naming the canonical Linear MCP tool
+list (see `skills/linear/SKILL.md` → *Deferred tools — pre-load before dispatch*).
+
+The pre-load loads the deferred tools into the orchestrator's context **before**
+any subagent dispatch, so the harness's `frontmatter ∩ parent's currently-loaded
+deferred tools` intersection (§3 above) no longer strips Linear tools from a
+restricted-grant subagent's runtime surface. NB-345 (no `tools:` line on
+`agents/developer.md`) and NB-346 (orchestrator pre-load) are complementary, not
+alternatives — both ship.
+
+### Controlled test — design (outcome to be filled in next fresh session)
+
+This is the NB-346 follow-up probe to confirm or refute **hypothesis 1** from §1
+above (deferred-tool intersection) under the new mitigation. Per NB-346's
+acceptance criteria, the test design is captured here; a future fresh session
+runs it and fills in the outcome.
+
+**Setup.** A fresh Claude Code session (`/plugin update` + reload first) with the
+NB-346 PR merged into the loaded plugin snapshot. Stay in a single parent
+context.
+
+**Probe procedure.**
+
+1. **Pre-load step** (orchestrator-side, per the NB-346 mitigation):
+
+   ```
+   ToolSearch(select: "mcp__linear__get_issue,mcp__linear__save_issue,mcp__linear__save_comment,mcp__linear__list_comments,mcp__linear__list_issue_statuses,mcp__linear__list_issue_labels,mcp__linear__list_issues,mcp__linear__list_teams,mcp__linear__list_milestones,mcp__linear__get_project,mcp__linear__save_milestone")
+   ```
+
+2. **Probe-A** — dispatch a one-shot subagent with an **explicit `tools:` list**
+   including `mcp__linear__save_comment`, and ask it to print the exact list of
+   tools it actually sees at runtime. Example agent frontmatter (use a scratch
+   `.claude/agents/probe-restricted.md` for the test; remove after):
+
+   ```yaml
+   ---
+   name: probe-restricted
+   description: One-shot probe — print runtime tool grant.
+   tools: Read, Grep, Glob, Bash, mcp__linear__get_issue, mcp__linear__save_comment
+   model: inherit
+   ---
+   Print the exact list of tools you have available at runtime, one per line,
+   then stop. Do not call any tool.
+   ```
+
+3. **Probe-B** (control) — same procedure but **without** step 1's pre-load
+   (start a fresh session, skip the `ToolSearch`, dispatch Probe-A's frontmatter
+   directly). This replicates the pre-NB-346 baseline.
+
+4. **Probe-C** (control) — a general-purpose subagent with **no `tools:` field**
+   (matches §2's general-purpose probe), with the pre-load done. Should still
+   see the full MCP surface — sanity check that the pre-load itself does not
+   degrade the no-`tools:` path.
+
+**Expected outcomes** (if hypothesis 1 is confirmed by the NB-346 mitigation):
+
+| Probe | Pre-load? | Explicit `tools:` includes `mcp__linear__save_comment`? | Expected tool grant |
+|---|---|---|---|
+| A | yes | yes | `mcp__linear__save_comment` **present** at runtime |
+| B | no | yes | `mcp__linear__save_comment` **absent** (pre-NB-346 baseline) |
+| C | yes | no (inherit) | Full MCP surface present (sanity check) |
+
+**Recording.** Paste each probe's runtime tool-grant printout into a new sub-
+section of this note (or attach the transcript to NB-346). The pre-load ships
+regardless of outcome — it is defense in depth — but the result determines
+whether `disallowedTools:` (NB-353) plus pre-load is sufficient for the
+NB-326 reviewer to ship with a deliberately-restricted grant, or whether
+all-tools is still necessary for any subagent that posts to Linear.
+
+**Outcome:** _to be filled in next fresh session._ Once the probe runs:
+
+- Probe-A grant: _…_
+- Probe-B grant: _…_
+- Probe-C grant: _…_
+- Hypothesis 1 (deferred-tool intersection) under NB-346 pre-load: **confirmed / refuted**.
+- Implication for NB-326 reviewer (restricted-grant viability): _…_

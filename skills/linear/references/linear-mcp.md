@@ -4,12 +4,17 @@ The exact `mcp__linear__*` tools backlogd uses and the rules that keep automated
 writes correct. Read this **before every write**. For what the concepts mean, see
 [`linear-model.md`](linear-model.md); for the policy, see [`../SKILL.md`](../SKILL.md).
 
-> **Surface snapshot: 2026-05-27.** The Linear MCP server (configured in `.mcp.json` at the
+> **Surface snapshot: 2026-05-28.** The Linear MCP server (configured in `.mcp.json` at the
 > repo root) can change upstream. Tool names and parameters below reflect that date.
 > **Re-verify** before relying on a parameter you haven't used recently: list the server's
 > tools (they surface as `mcp__linear__*`) and check the live parameter schema, and consult
 > Linear's own MCP documentation at the server URL in `.mcp.json`. Treat this file as a
 > guide, not a contract.
+>
+> For the write recipes covering Project Documents, project-thread health updates, and
+> release "Shipped" summaries, see
+> [`documents-and-updates.md`](documents-and-updates.md) — the orchestrator-owned helpers
+> built on the surface below.
 
 ## Tool surface (the subset backlogd uses)
 
@@ -19,6 +24,7 @@ writes correct. Read this **before every write**. For what the concepts mean, se
 | **Comments** | `list_comments`, `save_comment` | `list_comments`: `issueId`. `save_comment`: `body`, exactly one of `issueId`/`projectId`/`milestoneId`/…, `id` (to edit), `parentId` (to reply). |
 | **Projects** | `list_projects`, `get_project`, `save_project` | `list_projects`: `team`, `query`, `includeMilestones`. `save_project`: project fields incl. state/health (re-verify exact keys before writing — see "Project Updates & health"). |
 | **Milestones** | `list_milestones`, `get_milestone`, `save_milestone` | `list_milestones`: `project` (required). `save_milestone`: `name`, `project`, target date. |
+| **Documents** | `list_documents`, `get_document`, `save_document` | `list_documents`: `projectId`. `save_document` (create): `project`, `title`, `content`, `icon`. `save_document` (update): `id`, `content`. **Asymmetry: write parent is `project`, list filter is `projectId`** — same concept, two parameter names. See [`documents-and-updates.md`](documents-and-updates.md). |
 | **Labels** | `list_issue_labels`, `create_issue_label` | `list_issue_labels`: `team`, `name`. |
 | **Teams / users** | `list_teams`, `get_team`, `list_users`, `get_user` | `list_teams`: `query`. |
 | **Cycles** | `list_cycles` | `teamId` (required). **Not used in the core loop** (no cycles). |
@@ -61,6 +67,16 @@ Progress". Before any state change:
    more than one state (e.g. `started` = "In Progress" + "In Review"), pick the
    **lowest-position** one for a forward transition.
 3. `list_issue_labels` / `list_users` as needed.
+
+> **Note — pre-load deferred tools first (NB-346).** Every `/backlogd:*` command's §0
+> step batches a `ToolSearch` call across the canonical `mcp__linear__*` tool list
+> *before* this identity-resolution step runs. The pre-load loads the deferred tools
+> into the parent's context so a subagent dispatched with an explicit `tools:` list
+> receives them at runtime — see `../SKILL.md` → *Deferred tools — pre-load before
+> dispatch* for the canonical list and the batched call shape. The identity-resolution
+> calls below (`list_teams`, `list_issue_statuses`, `list_issue_labels`) also serve as
+> the natural-invocation fallback if `ToolSearch` is unavailable: simply calling them
+> here loads each into the parent's context for any later subagent dispatch.
 
 #### Cache identity to `.backlogd/identity.json` (24-hour TTL)
 
@@ -139,13 +155,15 @@ to reconstruct state.
 
 ### 4. Project Updates & health
 
-In the Project form, the richest "report back" surface is a **Project Update carrying a
-health value** (On track / At risk / Off track). Re-verify how the current MCP exposes
-this before writing: it may be a field on `save_project`, or a dedicated update tool. **If
-no project-update write is exposed**, fall back to a project-level comment
-(`save_comment({ projectId, body })`) for the narrative and set status/health via
-`save_project` where available. Don't assume — check the live schema (see the snapshot
-note above).
+**Verified 2026-05-28: there is no native Project-Update write in the MCP.** `save_project`
+has no `health` field and there is no `save_project_update` tool — the Project Updates
+panel in the Linear UI is not currently exposed for writes. The path that works is a
+project-thread comment via `save_comment({ projectId, body })` using the
+`**[backlogd]** Health:` body shape (with a stable trailing transition marker for
+idempotent dedupe). See
+[`documents-and-updates.md`](documents-and-updates.md) for the exact body shape, health
+derivation rules, and the milestone-completion variant. Re-verify on the snapshot date
+before relying on this finding — if Linear ships a write surface, prefer it.
 
 ### 5. Git sync — let git events move state
 

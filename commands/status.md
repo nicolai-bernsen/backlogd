@@ -23,6 +23,39 @@ connected, stop and ask the user to enable it (see the README "Setup" section).
 > are idempotent; the console standup output stays exactly as it is today. Resolve workflow
 > states by `type`, never by display name (see `skills/linear/references/linear-mcp.md`). Page
 > narrowly (filter by `label` / `state` / `parentId`, keep `limit` modest).
+>
+> **`/backlogd:status` does not post project health comments.** Project-thread health
+> updates (`**[backlogd]** Health: …` with the `claim` / `blocked` / `handback` /
+> `milestone:<name>` markers) are authored by **`/backlogd:solve`** at its defined
+> transitions — see `skills/linear/references/documents-and-updates.md` §
+> "Project health updates". `status` only *reads* them as part of the standup signal.
+
+## 0. Pre-load deferred tools (NB-340 / NB-346)
+
+**Before any other Linear operation in this command**, eagerly pre-load the Linear MCP
+deferred tools. `/backlogd:status` itself dispatches no subagents, so the immediate
+risk surface is smaller than `/backlogd:solve` or `/backlogd:review` — but the pre-load
+is kept for two reasons: (a) the command performs two narrow writes (the `blocked`-label
+sync in step 3 and the Project forecast refresh in step 4) and pre-loading those tools
+in one batched call is cheaper than relying on the harness to deferred-load each one
+on first use, and (b) keeping the §0 idiom identical across all five `/backlogd:*`
+commands is the contract — see `skills/linear/SKILL.md` → *Deferred tools — pre-load
+before dispatch*.
+
+Make a **single batched `ToolSearch` call** that names the canonical Linear MCP tool
+list:
+
+```
+ToolSearch(select: "mcp__linear__get_issue,mcp__linear__save_issue,mcp__linear__save_comment,mcp__linear__list_comments,mcp__linear__list_issue_statuses,mcp__linear__list_issue_labels,mcp__linear__list_issues,mcp__linear__list_teams,mcp__linear__list_milestones,mcp__linear__get_project,mcp__linear__save_milestone")
+```
+
+A read-only subset would suffice for the pure read paths (just `get_issue` + the
+`list_*` family + `get_project`), but the two narrow writes this command makes
+(`save_issue(labels)` in step 3, `save_project(description)` in step 4) need the
+matching `save_*` tools too — and the canonical list keeps every `/backlogd:*` command
+on the same idiom. If `ToolSearch` is not available, fall back to invoking each
+`mcp__linear__*` tool naturally from the orchestrator's context (most of them are
+called in step 1 by the identity-resolution fallback).
 
 ## 1. Resolve identity and scope
 

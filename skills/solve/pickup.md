@@ -20,8 +20,20 @@ and **stop**.
 
 ## Triage if it is not yet shaped
 
-A problem is *shaped* when its description carries a `## Acceptance Criteria` section. If
-the chosen problem is **not** shaped, shape it now — run the `/backlogd:scope` flow
+A problem is *shaped* when the canonical spec carries a `## Acceptance Criteria`
+section. Where the canonical spec lives depends on the problem's **form** (set at
+`/backlogd:scope` time):
+
+- **Single-Issue / sub-issue form** — the canonical spec is the **issue description**.
+  A `## Acceptance Criteria` heading in the description is the shaped signal.
+- **Project-form** — the canonical spec is the Project's **`Spec` Document**. The
+  shaped signal is `list_documents({ projectId }) → match title === "Spec"` returning
+  a hit; the AC source is `get_document(<spec doc id>)`'s body. The container issue's
+  description is just a summary + link to that Document and is **not** the AC source.
+  See [`skills/linear/references/documents-and-updates.md`](../linear/references/documents-and-updates.md)
+  for the upsert procedure (note the `project` / `projectId` parameter asymmetry).
+
+If the chosen problem is **not** shaped, shape it now — run the `/backlogd:scope` flow
 inline (write spec + AC, decompose if it earns it), pausing for the product owner only
 if it is too ambiguous to write AC (≤3 questions). (This dispatches the `refiner`
 subagent — see `commands/scope.md` step 3.) If it is already shaped, continue.
