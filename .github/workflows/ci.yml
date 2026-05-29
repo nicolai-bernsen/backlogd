@@ -43,3 +43,33 @@ jobs:
           done
           if [ "$missing" -ne 0 ]; then exit 1; fi
           echo "All required hygiene files present"
+
+      - name: Validate templates
+        run: |
+          python3 - <<'PY'
+          import pathlib, sys
+
+          required = {
+              "templates/spec.md": ["## Acceptance Criteria"],
+              "templates/solution-brief.md": ["## What changed", "## How it was verified"],
+          }
+
+          failures = []
+          for path, headings in required.items():
+              p = pathlib.Path(path)
+              if not p.is_file():
+                  failures.append(f"missing file: {path}")
+                  continue
+              body = p.read_text(encoding="utf-8")
+              for heading in headings:
+                  if heading not in body:
+                      failures.append(f"{path}: missing heading {heading!r}")
+
+          if failures:
+              print("Template validation failed:")
+              for f in failures:
+                  print(f"  - {f}")
+              sys.exit(1)
+
+          print("templates/spec.md and templates/solution-brief.md OK — required headings present")
+          PY

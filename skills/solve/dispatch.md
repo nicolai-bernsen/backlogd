@@ -37,6 +37,13 @@ For each ready unit (in a parallel group: each unit in the group; in a sequentia
 each unit in `blocked-by` order):
 
 1. **Claim it** — move the unit to the *In Progress* state (from `skills/solve/identity.md`).
+   On a **Project-form** run, post a project-thread health update immediately after the
+   claim with marker `claim` — the body shape, dedupe-by-marker procedure, and health
+   derivation rules live in
+   **`skills/linear/references/documents-and-updates.md` § "Project health updates"**.
+   Health is `on track` at first claim unless an existing blocker already pushes it to `at
+   risk` / `off track` per the derivation rules. **Single-issue and sub-issue forms do
+   NOT post this update** — Project-form only.
 
 2. **Resolve the specialist for this unit.** Read the unit issue's `labels` and look for
    exactly one `agent:<suffix>` label (the `agent:*` family is backlogd-owned — see
@@ -140,6 +147,13 @@ each unit in `blocked-by` order):
      transitioned (and after the walk's collect step in `skills/solve/walk.md`), stop the
      run if any unit in the group was `partial`/`blocked`. Never start the next parallel
      group on a non-`solved` outcome.
+
+     On a **Project-form** run, when an outcome is `partial` or `blocked`, post a
+     project-thread health update with marker `blocked` per
+     **`skills/linear/references/documents-and-updates.md` § "Project health updates"** —
+     health is `at risk` for a single blocker / first stall, `off track` when multiple
+     blockers are open or rework is repeating (the derivation rules in that reference are
+     the source of truth). **Single-issue and sub-issue forms do NOT post this update.**
 
 8. **Commit the unit** on the problem's branch (or, in a parallel group, on the unit's
    sub-branch) — one commit per unit, conventional message referencing the issue (the

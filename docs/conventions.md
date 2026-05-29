@@ -7,6 +7,9 @@ are solved.
 
 - **Linear is the static spec.** A unit of work is defined by its Linear issue: the
   description (intent) and the `## Acceptance Criteria` section (the binding "done" contract).
+  For **promoted Project-form** problems, the spec + `## Acceptance Criteria` live in the
+  Project's **"Spec" Document** instead — the description carries a summary + a pointer.
+  Single-Issue and sub-issue forms keep the description-canonical model unchanged.
 - **`/docs` is the living spec.** Consult it before developing; update it when behaviour
   changes. See the [living-spec contract](living-spec-contract.md).
 
