@@ -71,8 +71,8 @@ get to the step. Sub-skills carry the dry-run carve-outs.
    If you skip this step and the developer reports it cannot post its
    `**[backlogd developer]**` comment, that is the NB-340 tool-grant skew — re-run with
    the pre-load done. Do not silently accept a tool-grant failure as a developer issue;
-   the contract (see `agents/developer.md` "Your Linear surface — required") says the
-   work-log comment is mandatory and a missing one is a failed dispatch.
+   the contract (see `agents/developer.md` `<Output_Format>` / `<Failure_Modes_To_Avoid>`)
+   says the work-log comment is mandatory and a missing one is a failed dispatch.
 
    > **Dry run:** `ToolSearch` is **read-only** — it is safe to run under `--dryrun`
    > and is recommended even there so the dispatch-plan render itself proceeds
@@ -125,8 +125,12 @@ get to the step. Sub-skills carry the dry-run carve-outs.
    **`skills/solve/ops.md`** *(ops-only path — `gh`/repo-ops actions, no worktree, no
    commit, no PR; the developer posts an action log on the unit)*. For each ready unit:
    **skip if reconcile classified it `completed`**; otherwise claim → inject prior-work
-   + record `dispatch_started` → dispatch the `backlogd:developer` with an inline
-   envelope → capture the result → **run the quality gate (`skills/solve/gate.md` —
+   + record `dispatch_started` → dispatch the `backlogd:developer` with a **curated-context
+   inline envelope** (the unit's title + full description + `## Acceptance Criteria`
+   inlined verbatim under a `## Issue context` block, reusing the orchestrator's existing
+   `get_issue` result — see `skills/solve/dispatch.md`, so the developer reads its spec
+   from the envelope, not a Linear round-trip) → capture the result → **run the quality
+   gate (`skills/solve/gate.md` —
    tester + reviewer pre-commit-gate; 2-round cap; standard path only)** → record
    `dispatch_completed` (outcome + latency) → transition by `Outcome` (`solved` →
    `completed`; `partial`/`blocked` → leave in progress and surface to the PO, stop the

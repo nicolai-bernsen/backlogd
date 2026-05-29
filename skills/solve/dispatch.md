@@ -1,9 +1,40 @@
 ---
 name: solve-dispatch
-description: Per-unit dispatch envelope for /backlogd:solve — claim the unit, resolve the specialist from its agent:* label (or fall back to generic developer), inject prior work from the graph, record dispatch_started, hand the developer an inline envelope, capture the result, record dispatch_completed with outcome + latency, transition state by outcome, and commit per unit. Callable once per unit either sequentially (single-unit group, default) or concurrently (parallel group — multiple Agent() calls in one response, each with its own per-unit worktree). The envelope is single-unit; the orchestrator in skills/solve/walk.md decides whether to call it once or N-way in parallel.
+description: Per-unit dispatch envelope for /backlogd:solve — claim the unit, resolve the specialist from its agent:* label (or fall back to generic developer), inject prior work from the graph, record dispatch_started, hand the developer a curated-context inline envelope (the issue's title + full description + AC inlined verbatim under a labeled ## Issue context block so the developer never re-reads Linear), capture the result, record dispatch_completed with outcome + latency, transition state by outcome, and commit per unit. Callable once per unit either sequentially (single-unit group, default) or concurrently (parallel group — multiple Agent() calls in one response, each with its own per-unit worktree). The envelope is single-unit; the orchestrator in skills/solve/walk.md decides whether to call it once or N-way in parallel.
 ---
 
 # solve — per-unit dispatch
+
+## The curated-context pattern
+
+backlogd dispatches developers with **curated context**: the orchestrator already read
+the unit's issue (to pick it, shape it, and decide it was ready), so it **inlines that
+issue's title + full description + `## Acceptance Criteria` verbatim into the dispatch
+envelope** under a clearly-labeled `## Issue context` block. The developer reads its spec
+**from the envelope**, not from a Linear round-trip — only its *writes* (the
+`**[backlogd developer]**` progress comment) still need the Linear MCP.
+
+This is the same shape obra/superpowers' `subagent-driven-development` skill names
+explicitly — *"extract all tasks with full text up front; paste task body into subagent
+prompt; never make the subagent re-read the plan file"* — and that
+EveryInc/compound-engineering uses with its `<context>` envelope tag.
+
+Why backlogd does this:
+
+- **No per-dispatch Linear round-trip.** The orchestrator's existing `get_issue` result
+  (from pickup/identity — reuse the NB-318 identity cache where available) is reused; the
+  developer does not spend a `get_issue` call re-loading a spec the orchestrator already
+  has in hand.
+- **Decouples the dispatch from MCP-grant fragility (NB-340).** If the developer's Linear
+  grant is skewed at dispatch time, it can still read its full spec from the envelope and
+  do the work; only the progress-comment write depends on the grant.
+- **Per-unit by construction.** This skill is single-unit (see below): `skills/solve/walk.md`
+  calls it once per ready unit, so in a multi-unit / sub-issue walk **each child's own
+  body is inlined into its own envelope** — never the parent's, never a shared blob.
+
+The developer contract mirrors this: `agents/developer.md` reads its spec from the
+envelope by default and treats `mcp__linear__get_issue` as **optional — a fresh-state
+refresh only** (e.g. if it suspects the issue changed mid-flight).
 
 > **Dry run:** in `--dryrun` mode, do **not** execute this section. Instead, walk the
 > units read-only, render the dispatch envelope verbatim per unit, and follow
@@ -86,20 +117,34 @@ each unit in `blocked-by` order):
            --session "$SESSION" --problem {identifier} --labels {label1} {label2} ...
 
    Then call the **resolved subagent** (`$AGENT` from step 2 — `developer` or
-   `developer-<suffix>`) with the Agent tool, handing it the unit as an **inline** context
-   envelope, including the unit's **issue id** so it can post its own progress there. It
-   owns the *how*; you own all structure and state:
+   `developer-<suffix>`) with the Agent tool, handing it the unit as a **curated-context
+   inline** envelope. **Inline this unit's own issue context verbatim** — its title, its
+   **full** description, and its `## Acceptance Criteria` exactly as they read in Linear —
+   under a clearly-labeled `## Issue context` block, and include the unit's **issue id** so
+   the developer can post its own progress there. Reuse the `get_issue` result you already
+   have from pickup/identity (the NB-318 identity cache) rather than re-fetching. The
+   developer reads its spec from this envelope; it owns the *how*, you own all structure and
+   state:
 
    > Solve this problem. Take a concrete action toward resolving it, post your progress to
-   > your issue, then report what you did and the outcome.
+   > your issue (the `**[backlogd developer]**` comment, edited in place), then report what
+   > you did and the outcome.
    >
    > Work in this worktree — make all your file changes under it: {$WT or $WT_unit for this unit}
    >
-   > Problem ({identifier}, issue id {id}): {title}
+   > ## Issue context
    >
-   > {description, including its Acceptance Criteria}
+   > **Problem ({identifier}, issue id {id}): {title}**
+   >
+   > {the unit's full description verbatim — including its `## Acceptance Criteria` section}
    >
    > {the `## Prior work` block from the query above — include only if it printed one}
+
+   The `## Issue context` block is the developer's spec — inline it **verbatim** (do not
+   summarise or trim the description or AC). In a **multi-unit / sub-issue walk** this
+   substitution is per-unit by construction: each unit's *own* `{id}` / `{title}` /
+   description is inlined into *its* envelope (never the parent's), because this skill is
+   called once per ready unit (see `skills/solve/walk.md`).
 
    For a **parallel group** call, substitute the unit's own `$WT_unit` (the path
    `skills/solve/walk.md` created at `backlogd-wt-{identifier}-unit-{unit}`) into the
@@ -107,6 +152,37 @@ each unit in `blocked-by` order):
    grant — `agents/developer.md` carries no `tools:` frontmatter (removed in #345), so
    the runtime propagates parent context per dispatch. No per-dispatch pre-load is
    needed.
+
+   <details>
+   <summary><strong>Worked envelope example</strong> (single unit NB-512, sequential — on <code>$WT</code>)</summary>
+
+   > Solve this problem. Take a concrete action toward resolving it, post your progress to
+   > your issue (the `**[backlogd developer]**` comment, edited in place), then report what
+   > you did and the outcome.
+   >
+   > Work in this worktree — make all your file changes under it: C:/Users/.../backlogd-wt-NB-512
+   >
+   > ## Issue context
+   >
+   > **Problem (NB-512, issue id NB-512): Dedupe the status forecast block**
+   >
+   > Today `/backlogd:status` appends a fresh 7-day forecast to the Project description on
+   > every run, so the description grows without bound.
+   >
+   > ## Acceptance Criteria
+   >
+   > - [ ] The forecast block is replaced in place (matched by a stable marker), not appended.
+   > - [ ] Running `/backlogd:status` twice leaves exactly one forecast block.
+   >
+   > ## Prior work
+   >
+   > - NB-341 (PO daily overview) last touched `skills/status/forecast.md`.
+
+   For a **parallel** unit, the only difference is the worktree line points at the unit's
+   own `$WT_unit` (e.g. `.../backlogd-wt-NB-512-unit-NB-514`) and the `## Issue context`
+   carries **that child's** id/title/description — its sibling gets a separate envelope with
+   *its* body.
+   </details>
 
 4. **Capture** the developer's final structured summary verbatim. **In a parallel group,
    do not abort sibling dispatches when one returns `partial`/`blocked` — let every

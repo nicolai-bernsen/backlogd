@@ -1,0 +1,26 @@
+[
+  {
+    "id": "NB-346",
+    "title": "MCP deferred-tool pre-load idiom",
+    "marker_file": "commands/solve.md",
+    "marker_snippet": "ToolSearch(select: \"mcp__linear__get_issue",
+    "shipped_in": "PR #72",
+    "shipped_at": "2026-05-29"
+  },
+  {
+    "id": "NB-301",
+    "title": "Parallel-session worktree isolation",
+    "marker_file": "skills/solve/walk.md",
+    "marker_snippet": "yanks a parallel session's HEAD",
+    "shipped_in": "dev",
+    "shipped_at": "2026-05-28"
+  },
+  {
+    "id": "NB-311",
+    "title": "Release back-merge via PR",
+    "marker_file": "commands/release.md",
+    "marker_snippet": "## 6. Back-merge the release branch into the integration branch",
+    "shipped_in": "v0.8.1",
+    "shipped_at": "2026-05-27"
+  }
+]
