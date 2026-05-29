@@ -71,8 +71,8 @@ get to the step. Sub-skills carry the dry-run carve-outs.
    If you skip this step and the developer reports it cannot post its
    `**[backlogd developer]**` comment, that is the NB-340 tool-grant skew — re-run with
    the pre-load done. Do not silently accept a tool-grant failure as a developer issue;
-   the contract (see `agents/developer.md` "Your Linear surface — required") says the
-   work-log comment is mandatory and a missing one is a failed dispatch.
+   the contract (see `agents/developer.md` `<Output_Format>` / `<Failure_Modes_To_Avoid>`)
+   says the work-log comment is mandatory and a missing one is a failed dispatch.
 
    > **Dry run:** `ToolSearch` is **read-only** — it is safe to run under `--dryrun`
    > and is recommended even there so the dispatch-plan render itself proceeds

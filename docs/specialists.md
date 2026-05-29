@@ -23,6 +23,60 @@ model: inherit
 The plain `developer` (no suffix) is the **fallback** — it stays as it is. You don't need
 to redefine it; backlogd ships it.
 
+## Section template
+
+A specialist's **body** follows the same six XML-tagged sections as the generic
+`developer` (`agents/developer.md`), in this order. Keeping the layout identical is what
+lets a specialist *clone* the developer and swap only what its flavour of work needs —
+each section has a fixed job, and a one-line `<!-- purpose -->` comment opens each so you
+know what belongs where:
+
+| # | Section | Purpose |
+|---|---|---|
+| 1 | `<Role>` | What the specialist **is** and **is NOT** responsible for — including the negative-scope clause (no PRs, no Linear state, no dispatching, no scoping). |
+| 2 | `<Constraints>` | Hard boundaries: which worktree to act in, no git, touch only relevant files, the Linear-surface "own issue only" rule, the read-only graph boundary, the DoD floor. |
+| 3 | `<Investigation_Protocol>` | The ordered steps — step 1 is *open the work log* (the NB-338 Step 0 contract), then read context, consult prior work, understand, act, close the log. |
+| 4 | `<Output_Format>` | The exact shape of the two outputs: the single `**[backlogd developer]**` comment edited in place, and the final `Outcome / What I did / Result / Blockers` report. |
+| 5 | `<Failure_Modes_To_Avoid>` | The named ways the dispatch fails even when the code looks right (missing/duplicated work-log comment, touching another issue, fabricating a result). |
+| 6 | `<Final_Checklist>` | Mechanical yes/no checks run before reporting (harness-enforced checks land here once NB-351 ships; specialists may append domain checks). |
+
+### What a specialist may narrow vs must keep identical
+
+- **May narrow / adapt** — `<Role>`, `<Constraints>`, the **step content** of
+  `<Investigation_Protocol>`, `<Failure_Modes_To_Avoid>`, and the **domain checks** in
+  `<Final_Checklist>`. A docs specialist narrows `<Role>` to "README polish, narrative
+  prose" and adds a `<Constraints>` line like "don't touch code under `src/`"; a release
+  specialist narrows `<Investigation_Protocol>` to its release steps. The work-log step
+  (step 1) stays — every specialist opens a work log.
+- **Must keep identical** — the **`<Output_Format>` envelope** (the badge, the
+  single-comment-edited-in-place rule, and the `Outcome / What I did / Result / Blockers`
+  report shape), and — once NB-351 ships — the **harness checks** in `<Final_Checklist>`.
+  These are what the orchestrator parses across *all* specialists; diverging breaks the
+  audit trail and the dispatch loop.
+
+### Worked example — swapping `<Role>`
+
+A hypothetical `developer-release` keeps sections 2–6 structurally the same and swaps the
+identity and negative scope in `<Role>`:
+
+```
+<Role>
+<!-- What you ARE and what you are NOT responsible for. -->
+
+You are a **release developer** on a backlogd team. You own cutting **one** release —
+version bump, changelog, tag prep — end to end, in the worktree your dispatch names.
+
+You are **NOT** responsible for: opening or merging the release PR, transitioning Linear
+state, dispatching other specialists, scoping the release, or self-reviewing your diff.
+The scrum-master does all of that after you report.
+</Role>
+```
+
+Everything below `<Role>` — `<Constraints>`, `<Investigation_Protocol>`,
+`<Output_Format>`, `<Failure_Modes_To_Avoid>`, `<Final_Checklist>` — is cloned from
+`agents/developer.md`, narrowing only the step content and domain checks for release work
+while keeping the `<Output_Format>` envelope byte-for-byte.
+
 ## Discovery — two sources
 
 When `/backlogd:scope` shapes a problem, it globs both:
