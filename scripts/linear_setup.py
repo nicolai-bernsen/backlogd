@@ -598,11 +598,11 @@ def plan_ensure_template(
 # zero-issue cruft check (IssueConnection has no totalCount). We fetch the team's
 # states by team id so a multi-team workspace audits the right board.
 _AUDIT_QUERY = """
-query BacklogdAudit($teamId: String!) {
+query BacklogdAudit($teamId: String!, $teamIdC: ID!) {
   issueLabels(first: 250) {
     nodes { id name color description issues(first: 1) { nodes { id } } }
   }
-  workflowStates(first: 250, filter: { team: { id: { eq: $teamId } } }) {
+  workflowStates(first: 250, filter: { team: { id: { eq: $teamIdC } } }) {
     nodes { id name type position }
   }
   team(id: $teamId) {
@@ -671,7 +671,7 @@ def fetch_workspace_state(team_id: str) -> dict[str, list[dict]]:
     Thin wrapper over :func:`graphql` that flattens the connection ``nodes`` into
     plain lists, so the pure planners receive exactly the shape they expect.
     """
-    data = graphql(_AUDIT_QUERY, {"teamId": team_id})
+    data = graphql(_AUDIT_QUERY, {"teamId": team_id, "teamIdC": team_id})
     labels = (data.get("issueLabels") or {}).get("nodes") or []
     states = (data.get("workflowStates") or {}).get("nodes") or []
     team = data.get("team") or {}
