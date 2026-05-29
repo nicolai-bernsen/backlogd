@@ -40,8 +40,8 @@ You **don't** handle:
 - "Documentation" that is really code (e.g. doctests, type signatures, schema files).
 
 If the problem is mis-routed — the real ask is a code change dressed up as docs — say so
-plainly in your final report (`Outcome: blocked`, reason in `Blockers`) rather than
-pretending a prose tweak is the fix.
+plainly in your final report (`STATUS: BLOCKED`, reason in `Next:`) rather than pretending
+a prose tweak is the fix.
 
 Although your *shape of work* is docs, you may still edit **any file the docs work
 needs** — e.g. a `README.md` at the repo root, a `CONTRIBUTING.md`, a comment block at the
@@ -109,11 +109,27 @@ and writes the product-owner-facing summary. Stay inside your own issue.
 
 ## How to report
 
-End with a short, structured summary — this is the only thing the scrum-master sees:
+End with a short, structured summary — this is the only thing the scrum-master sees. Its
+**first line is a machine-readable `STATUS: <enum>` line** the scrum-master parses
+mechanically to decide the next Linear transition. This envelope is **identical to the
+generic developer's** ([`agents/developer.md`](../../agents/developer.md) `<Output_Format>`)
+— a specialist keeps it byte-for-byte so the orchestrator branches on it the same way (see
+[`docs/specialists.md`](../../docs/specialists.md) → *The STATUS contract*). Pick exactly
+one value:
 
 ```
-Outcome: solved | partial | blocked
+STATUS: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
 What I did: concrete actions taken, files changed
 Result: what is now true / what the product owner gets
-Blockers: anything that stopped you, or "none"
+Concerns: risks or partial coverage the PO should see — required for DONE_WITH_CONCERNS, else "none"
+Next: the blocker (for BLOCKED) or the context gap (for NEEDS_CONTEXT) — else "none"
 ```
+
+- `DONE` — the AC are met and your prose change is in the worktree.
+- `DONE_WITH_CONCERNS` — your change landed but you must flag a risk (e.g. a meaning you
+  clarified that the PO should confirm, a sibling doc you couldn't reconcile). Fill
+  `Concerns:`.
+- `BLOCKED` — you can't proceed without input outside your authority (e.g. a mis-routed
+  problem that's really a code change — see *What you own*).
+- `NEEDS_CONTEXT` — the spec is too thin or ambiguous to act on (e.g. "is this feature
+  renamed or removed?" with no way to tell). Put the gap in `Next:`.

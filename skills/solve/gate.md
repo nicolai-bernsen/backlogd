@@ -100,10 +100,10 @@ explicit counter:
   `gate_round`** before handing back to dispatch.md.
 - On the **3rd would-be re-dispatch** (i.e. when incrementing would push `gate_round`
   past 2), return **`blocked`** (not `needs-changes`) with the accumulated notes from
-  all rounds. dispatch.md's existing `partial`/`blocked` handling (step 7) takes it
-  from there: leave the unit in progress, surface to the product owner via the
-  orchestrator's pause path (see `commands/solve.md` step 6 + dispatch.md step 7), and
-  stop the run.
+  all rounds. dispatch.md's step 7 treats a gate `blocked` exactly like a developer
+  `STATUS: BLOCKED` (it routes through `skills/solve/capture.md`'s `BLOCKED` branch):
+  leave the unit in progress, surface to the product owner via the orchestrator's pause
+  path (see `commands/solve.md` step 6 + dispatch.md step 7), and stop the run.
 
 The counter is per-unit and lives in the scrum-master's working context across the
 loop; nothing is persisted.
@@ -118,5 +118,5 @@ Return one of:
   (resolved-specialist dispatch) with those notes prepended, then re-enters this skill.
   `gate_round` has been incremented.
 - **`blocked`** — the 2-round cap is exhausted; return accumulated notes. dispatch.md
-  routes through its `partial`/`blocked` path, the orchestrator pauses, and the run
-  stops.
+  step 7 treats this like a developer `STATUS: BLOCKED` (the `BLOCKED` branch in
+  `skills/solve/capture.md`), the orchestrator pauses, and the run stops.

@@ -1,6 +1,6 @@
 ---
 name: solve-dispatch
-description: Per-unit dispatch envelope for /backlogd:solve — claim the unit, resolve the specialist from its agent:* label (or fall back to generic developer), inject prior work from the graph, record dispatch_started, hand the developer a curated-context inline envelope (the issue's title + full description + AC inlined verbatim under a labeled ## Issue context block so the developer never re-reads Linear), capture the result, record dispatch_completed with outcome + latency, transition state by outcome, and commit per unit. Callable once per unit either sequentially (single-unit group, default) or concurrently (parallel group — multiple Agent() calls in one response, each with its own per-unit worktree). The envelope is single-unit; the orchestrator in skills/solve/walk.md decides whether to call it once or N-way in parallel.
+description: Per-unit dispatch envelope for /backlogd:solve — claim the unit, resolve the specialist from its agent:* label (or fall back to generic developer), inject prior work from the graph, record dispatch_started, hand the developer a curated-context inline envelope (the issue's title + full description + AC inlined verbatim under a labeled ## Issue context block so the developer never re-reads Linear), capture the result, record dispatch_completed with outcome + latency, transition state by reading the developer's machine-readable STATUS line (DONE / DONE_WITH_CONCERNS / BLOCKED / NEEDS_CONTEXT — see skills/solve/capture.md), and commit per unit. Callable once per unit either sequentially (single-unit group, default) or concurrently (parallel group — multiple Agent() calls in one response, each with its own per-unit worktree). The envelope is single-unit; the orchestrator in skills/solve/walk.md decides whether to call it once or N-way in parallel.
 ---
 
 # solve — per-unit dispatch
@@ -184,11 +184,11 @@ each unit in `blocked-by` order):
    *its* body.
    </details>
 
-4. **Capture** the developer's final structured summary verbatim. **In a parallel group,
-   do not abort sibling dispatches when one returns `partial`/`blocked` — let every
-   dispatch in the group finish, then process each per step 7 below.** (See
-   `skills/solve/walk.md` § "Dispatch a parallel group" for the wait-and-collect
-   contract.)
+4. **Capture** the developer's final structured summary verbatim — including its first-line
+   `STATUS:` value. **In a parallel group, do not abort sibling dispatches when one returns
+   a non-terminal `STATUS` (`BLOCKED`/`NEEDS_CONTEXT`) — let every dispatch in the group
+   finish, then process each per step 7 below.** (See `skills/solve/walk.md` § "Dispatch a
+   parallel group" for the wait-and-collect contract.)
 
 5. **Confirm its record** — the developer posts its own progress/result comment on the
    unit issue (the `**[backlogd developer]**` comment). Verify it landed; do **not**
@@ -200,36 +200,55 @@ each unit in `blocked-by` order):
    specialist just edited. If the gate returns **`needs-changes`**, re-enter **step 3**
    above (re-dispatch the resolved specialist with the gate's rework notes prepended to
    the envelope), then re-enter this gate stage. Bounded by a 2-round hard cap inside
-   `gate.md` — on the 3rd would-be re-dispatch the gate returns `blocked` and the
-   `partial`/`blocked` handling in step 7 takes it from there. If the gate returns
-   **`ok`**, continue to step 6; carry any `untestable:` items the gate captured forward
-   so `skills/solve/handoff.md` can surface them in the PO solution brief.
+   `gate.md` — on the 3rd would-be re-dispatch the gate returns `blocked`, which step 7
+   handles on its **`BLOCKED`** branch (leave the unit in progress, surface to the PO, stop
+   the run). If the gate returns **`ok`**, continue to step 6; carry any `untestable:`
+   items the gate captured forward so `skills/solve/handoff.md` can surface them in the PO
+   solution brief.
 
 6. **Record dispatch completion on the graph** — write the per-unit outcome with the
    latency the CLI derives automatically from the `dispatch_started` edge above
-   (best-effort — never block the loop):
+   (best-effort — never block the loop). The graph keeps a coarse `{solved|partial|blocked}`
+   vocabulary, so **fold the developer's four-value `STATUS` onto it** per
+   `skills/solve/capture.md` (`DONE`/`DONE_WITH_CONCERNS` → `solved`; `BLOCKED`/
+   `NEEDS_CONTEXT` → `blocked`):
 
        python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" dispatch-end \
            --session "$SESSION" --problem {identifier} \
-           --outcome {solved|partial|blocked}
+           --outcome {solved|blocked}
 
-7. **Transition the unit** by the developer's reported `Outcome`:
-   - `solved` → move the unit to a `completed` state.
-   - `partial` or `blocked` → **leave it in progress** and surface it to the product owner
-     as a clear question (a genuine blocker — do not guess past it); leave the issue in its
-     started state. **In a sequential single-unit group** stop the run immediately. **In a
-     parallel group** still capture/transition this unit, but let the sibling dispatches in
-     the group finish first; once every dispatch in the group has returned and been
-     transitioned (and after the walk's collect step in `skills/solve/walk.md`), stop the
-     run if any unit in the group was `partial`/`blocked`. Never start the next parallel
-     group on a non-`solved` outcome.
+7. **Transition the unit by its `STATUS`** → **`skills/solve/capture.md`**. Load it; it
+   owns the deterministic branch. Read the **first line** of the developer's captured
+   report (the `STATUS:` line), match it against the four-value enum **mechanically** (no
+   prose-heuristic parsing of the body), and follow `capture.md`'s branch table:
+   - `DONE` / `DONE_WITH_CONCERNS` → move the unit to a `completed` state (the increment is
+     mergeable-pending-review). For `DONE_WITH_CONCERNS`, **carry the developer's
+     `Concerns:` forward** so `skills/solve/handoff.md` surfaces it in the PO solution brief
+     under *Needs your eyes* (same forward-carry channel as the gate's `untestable:` items).
+   - `BLOCKED` → **leave it in progress** and surface the developer's `Next:` blocker to the
+     PO as a clear question (a genuine blocker — do not guess past it).
+   - `NEEDS_CONTEXT` → **leave it in progress** and post the developer's `Next:` context gap
+     as a **Linear comment** on the unit for the PO to fill (the orchestrator's
+     `**[backlogd]**` comment, distinct from the developer's work-log comment); **do not
+     re-dispatch** the specialist — the spec must change first.
+   - A malformed/missing STATUS first line → treat as `BLOCKED` for safety and surface the
+     malformed contract to the PO (see `capture.md` → *Malformed STATUS*).
 
-     On a **Project-form** run, when an outcome is `partial` or `blocked`, post a
-     project-thread health update with marker `blocked` per
-     **`skills/linear/references/documents-and-updates.md` § "Project health updates"** —
-     health is `at risk` for a single blocker / first stall, `off track` when multiple
-     blockers are open or rework is repeating (the derivation rules in that reference are
-     the source of truth). **Single-issue and sub-issue forms do NOT post this update.**
+   **Stop conditions are unchanged in shape, only keyed off STATUS now.** On `DONE` /
+   `DONE_WITH_CONCERNS` continue the loop. On `BLOCKED` / `NEEDS_CONTEXT`: **in a
+   sequential single-unit group** stop the run immediately; **in a parallel group** still
+   capture/transition this unit, but let the sibling dispatches in the group finish first —
+   once every dispatch in the group has returned and been transitioned (and after the
+   walk's collect step in `skills/solve/walk.md`), stop the run if any unit in the group
+   returned `BLOCKED` / `NEEDS_CONTEXT`. Never start the next parallel group on a
+   non-terminal STATUS (`BLOCKED` / `NEEDS_CONTEXT`).
+
+   On a **Project-form** run, when a unit returns `BLOCKED` or `NEEDS_CONTEXT`, post a
+   project-thread health update with marker `blocked` per
+   **`skills/linear/references/documents-and-updates.md` § "Project health updates"** —
+   health is `at risk` for a single blocker / first stall, `off track` when multiple
+   blockers are open or rework is repeating (the derivation rules in that reference are
+   the source of truth). **Single-issue and sub-issue forms do NOT post this update.**
 
 8. **Commit the unit** on the problem's branch (or, in a parallel group, on the unit's
    sub-branch) — one commit per unit, conventional message referencing the issue (the

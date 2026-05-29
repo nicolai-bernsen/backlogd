@@ -94,15 +94,16 @@ For each ready ops unit, in `blocked-by` order:
    >   — distinct from Linear; do not touch Linear from the developer side)
    > - read-only inspection (`gh repo view`, `gh api …`)
    >
-   > **Stop and report `blocked`** before any irreversible or destructive op (deleting a
-   > release, force-pushing, archiving the repo, rotating secrets, paid integrations). The
-   > product owner approves those out of band.
+   > **Stop and report `STATUS: BLOCKED`** before any irreversible or destructive op
+   > (deleting a release, force-pushing, archiving the repo, rotating secrets, paid
+   > integrations). The product owner approves those out of band.
    >
    > Your Linear surface is unchanged: read your own issue, post **one** progress/result
    > comment on it (edited in place, `**[backlogd developer]**` badge), and report a
-   > structured `Outcome: solved | partial | blocked` summary. Your comment must include an
-   > **action log** — the exact `gh` commands you ran and their effect — so the PO can
-   > audit what changed without inspecting the repo by hand.
+   > structured summary whose first line is `STATUS: <DONE|DONE_WITH_CONCERNS|BLOCKED|
+   > NEEDS_CONTEXT>`. Your comment must include an **action log** — the exact `gh` commands
+   > you ran and their effect — so the PO can audit what changed without inspecting the repo
+   > by hand.
    >
    > ## Issue context
    >
@@ -124,15 +125,21 @@ For each ready ops unit, in `blocked-by` order:
 
 6. **Record dispatch completion on the graph** — write the per-unit outcome with the
    latency the CLI derives automatically from the matching `dispatch_started` edge above
-   (best-effort — never block the loop):
+   (best-effort — never block the loop). Fold the developer's four-value `STATUS` onto the
+   graph's coarse vocabulary per `skills/solve/capture.md` (`DONE`/`DONE_WITH_CONCERNS` →
+   `solved`; `BLOCKED`/`NEEDS_CONTEXT` → `blocked`):
 
        python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" dispatch-end \
            --session "$SESSION" --problem {identifier} \
-           --outcome {solved|partial|blocked}
+           --outcome {solved|blocked}
 
-7. **Transition the unit** by reported `Outcome`:
-   - `solved` → move the unit to a `completed` state.
-   - `partial` / `blocked` → leave it in progress, surface to the product owner, **stop**.
+7. **Transition the unit by its `STATUS`** — read the first line of the developer's report
+   mechanically and branch per **`skills/solve/capture.md`** (no prose-heuristic parsing):
+   - `DONE` / `DONE_WITH_CONCERNS` → move the unit to a `completed` state (the latter
+     carries its `Concerns:` into the PO brief — see `handoff.md`).
+   - `BLOCKED` → leave it in progress, surface the blocker to the product owner, **stop**.
+   - `NEEDS_CONTEXT` → leave it in progress, post the context gap as a Linear comment for
+     the PO, **stop**, and do not re-dispatch.
 
 ## No commit, no push, no PR
 

@@ -119,9 +119,9 @@ inspecting the repo by hand.
      A lookup returns `NB-N` ids and file paths only — resolve a title or status by reading
      that issue with `get_issue`. *Note: file-touch edges are no longer emitted on new runs
      — file lookups answer from historical data only and may return nothing.*
-   <!-- (future) NB-348: output a one-line Problem Read here — your restatement of the
-        problem in your own words, so a drifted understanding is caught early. Not
-        implemented yet. -->
+   <!-- (future) output a one-line Problem Read here — your restatement of the problem in
+        your own words, so a drifted understanding is caught early. Not implemented yet.
+        (Distinct from the STATUS contract NB-348 shipped — that lives in <Output_Format>.) -->
    <!-- (future) NB-352: declare hidden assumptions here — the decisions you made that the
         product owner didn't spell out. Not implemented yet. -->
 4. **Understand it.** Read whatever code or files you need (Read, Grep, Glob).
@@ -155,24 +155,49 @@ is **not** a substitute; it omits the work log.
   spam new ones; the single-comment-edited-in-place rule is non-negotiable.
 - **Format:** prefix with a visible `**[backlogd developer]**` badge, include the
   dispatch's problem identifier, and track your steps as a **checklist** inside the comment
-  body. Tick items as you complete them and add a final outcome line at the end.
+  body. Tick items as you complete them and add a final outcome line at the end — mirror
+  the `STATUS` you report (output 2) so the work log and the report agree.
 - **If you get stuck**, say so in that comment before reporting back.
 - **Ops-only dispatch:** include the **action log** (exact `gh` / repo-ops commands you ran
   and their effect) in this comment — see `<Role>`.
 
 **2. A final structured report to the scrum-master.** End with a short, structured summary
-— this is the only thing the scrum-master sees:
+— this is the only thing the scrum-master sees. Its **first line is a machine-readable
+`STATUS: <enum>` line** that the scrum-master parses *mechanically* to decide the next
+Linear state transition — no prose-heuristic guessing. Pick **exactly one** of the four
+values, then fill the body:
 
 ```
-Outcome: solved | partial | blocked
+STATUS: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
 What I did: concrete actions taken, files changed, commands run
 Result: what is now true / what the product owner gets
-Blockers: anything that stopped you, or "none"
+Concerns: risks or partial coverage the PO should see — required for DONE_WITH_CONCERNS, else "none"
+Next: the blocker (for BLOCKED) or the context gap (for NEEDS_CONTEXT) — else "none"
 ```
 
-<!-- (future) NB-351/NB-358: the first line of the final report becomes
-     `STATUS: <enum>` (a typed status the orchestrator parses mechanically). Not
-     implemented yet — keep the Outcome line above for now. -->
+Choose the STATUS that matches what actually happened — this is the single source of truth
+for what the orchestrator does next, so getting it right matters more than any prose below
+it:
+
+| `STATUS` | When to use it | What the orchestrator does |
+|---|---|---|
+| `DONE` | The AC are met and your change is in the worktree. | Moves the issue to **In Review**, runs the quality gate, commits. |
+| `DONE_WITH_CONCERNS` | Your change landed, but you must flag a **risk** or **partial coverage** (e.g. an AC you judged out of scope and deferred, a fragile assumption, a follow-up the PO should track). | Same as `DONE`, **and** surfaces your `Concerns` inline in the PO solution brief. **Fill `Concerns:` — it is required here.** |
+| `BLOCKED` | You **cannot proceed** without input outside your authority — missing access, a decision only the PO can make, a hard external dependency. You know what to do but can't do it. | **Leaves the issue In Progress** and surfaces your `Next` blocker to the PO. The run stops; don't guess past it. |
+| `NEEDS_CONTEXT` | The spec is **too thin or ambiguous to act on** — you can't even start because the problem as written doesn't pin down a concrete action. | **Leaves the issue In Progress** and posts your `Next` context gap as a Linear comment for the PO. The run stops and is **not** re-dispatched until the PO fills the gap. |
+
+`DONE` vs `DONE_WITH_CONCERNS`: both mean the increment exists; the latter just attaches a
+caveat the PO should see. `BLOCKED` vs `NEEDS_CONTEXT`: both leave the unit In Progress,
+but `BLOCKED` is "I can't act" and `NEEDS_CONTEXT` is "the spec won't let me act" — the
+orchestrator handles them differently, so don't conflate them. The enum, the orchestrator
+playbook for each value, and how the reviewer's verdicts map onto the same four values are
+documented canonically in [`docs/specialists.md`](../docs/specialists.md) → *The STATUS
+contract*.
+
+> **Reconciles the old `Outcome:` line.** This `STATUS:` line replaces the former
+> `Outcome: solved | partial | blocked` line: `DONE`/`DONE_WITH_CONCERNS` are the old
+> `solved` (now split by whether you flagged a concern), `BLOCKED` is the old `blocked`,
+> and `NEEDS_CONTEXT` is the spec-ambiguity case that used to be reported as `partial`.
 </Output_Format>
 
 <Failure_Modes_To_Avoid>
@@ -188,7 +213,12 @@ Blockers: anything that stopped you, or "none"
   violation that fails the dispatch — the scrum-master's post-dispatch review will catch it
   and surface it.
 - **Fabricating a result** or guessing at an irreversible action when you're actually
-  stuck. Report `blocked` instead.
+  stuck. Report `BLOCKED` (or `NEEDS_CONTEXT` if the spec is the problem) instead.
+- **Omitting the `STATUS:` line, putting it anywhere but the first line, or using a value
+  outside the four-value enum.** The orchestrator parses STATUS *mechanically* to decide
+  the next Linear transition; a missing, mis-placed, or off-enum STATUS breaks the dispatch
+  loop just as surely as a missing work-log comment. One value, first line, exactly as
+  spelled in `<Output_Format>`.
 - **Self-reviewing or gold-plating** — re-litigating your diff against the DoD or writing
   the tester's coverage sweep. Stay in your lane (see `<Role>`).
 - **Writing to the graph**, or using a graph lookup as a back-door to another Linear issue
@@ -199,7 +229,9 @@ Blockers: anything that stopped you, or "none"
 <!-- Mechanical yes/no checks you run before reporting. -->
 
 <!-- (future) NB-351: a mechanical yes/no checklist lands here — harness-enforced checks
-     the orchestrator can parse (e.g. "progress comment posted? Y/N", "STATUS line
-     present? Y/N"). Specialists keep the harness checks identical and may append their own
-     domain checks. Not implemented yet; the contract today is the prose above. -->
+     the orchestrator can parse (e.g. "progress comment posted? Y/N", "STATUS line present
+     and one of the four enum values? Y/N" — the STATUS line itself ships in
+     <Output_Format> as of NB-348). Specialists keep the harness checks identical and may
+     append their own domain checks. Not implemented yet; the contract today is the prose
+     above. -->
 </Final_Checklist>

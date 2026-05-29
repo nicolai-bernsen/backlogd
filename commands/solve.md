@@ -132,15 +132,18 @@ get to the step. Sub-skills carry the dry-run carve-outs.
    from the envelope, not a Linear round-trip) → capture the result → **run the quality
    gate (`skills/solve/gate.md` —
    tester + reviewer pre-commit-gate; 2-round cap; standard path only)** → record
-   `dispatch_completed` (outcome + latency) → transition by `Outcome` (`solved` →
-   `completed`; `partial`/`blocked` → leave in progress and surface to the PO, stop the
-   run) → commit on the unit's branch (the problem branch for a sequential single-unit
-   group; the per-unit sub-branch for a parallel group — `skills/solve/walk.md` collects
-   the sub-branches into the problem branch after the group returns) *(skipped on the
-   ops path — no diff)*. **A parallel group dispatches every unit in one response
-   (multiple `Agent()` calls — Claude Code's native concurrency seam); the orchestrator
-   waits for all of them and does not abort siblings on a `partial`/`blocked`.** One
-   commit per unit on the standard path.
+   `dispatch_completed` (outcome + latency) → **transition by the developer's
+   machine-readable `STATUS` line** — read it *mechanically*, no prose-heuristic parsing,
+   and branch per **`skills/solve/capture.md`** (`DONE`/`DONE_WITH_CONCERNS` → `completed`,
+   the latter carrying its `Concerns:` into the PO brief; `BLOCKED` → leave in progress,
+   surface the blocker to the PO, stop; `NEEDS_CONTEXT` → leave in progress, post the
+   context gap as a Linear comment, stop, **don't re-dispatch**) → commit on the unit's
+   branch (the problem branch for a sequential single-unit group; the per-unit sub-branch
+   for a parallel group — `skills/solve/walk.md` collects the sub-branches into the problem
+   branch after the group returns) *(skipped on the ops path — no diff)*. **A parallel
+   group dispatches every unit in one response (multiple `Agent()` calls — Claude Code's
+   native concurrency seam); the orchestrator waits for all of them and does not abort
+   siblings on a `BLOCKED`/`NEEDS_CONTEXT`.** One commit per unit on the standard path.
 
 7. **Handoff at In Review** → **`skills/solve/handoff.md`**. When every unit is
    `completed`: push and open the PR into the integration branch *(skipped on the ops
