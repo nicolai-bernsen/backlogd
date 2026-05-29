@@ -125,8 +125,12 @@ get to the step. Sub-skills carry the dry-run carve-outs.
    **`skills/solve/ops.md`** *(ops-only path — `gh`/repo-ops actions, no worktree, no
    commit, no PR; the developer posts an action log on the unit)*. For each ready unit:
    **skip if reconcile classified it `completed`**; otherwise claim → inject prior-work
-   + record `dispatch_started` → dispatch the `backlogd:developer` with an inline
-   envelope → capture the result → **run the quality gate (`skills/solve/gate.md` —
+   + record `dispatch_started` → dispatch the `backlogd:developer` with a **curated-context
+   inline envelope** (the unit's title + full description + `## Acceptance Criteria`
+   inlined verbatim under a `## Issue context` block, reusing the orchestrator's existing
+   `get_issue` result — see `skills/solve/dispatch.md`, so the developer reads its spec
+   from the envelope, not a Linear round-trip) → capture the result → **run the quality
+   gate (`skills/solve/gate.md` —
    tester + reviewer pre-commit-gate; 2-round cap; standard path only)** → record
    `dispatch_completed` (outcome + latency) → transition by `Outcome` (`solved` →
    `completed`; `partial`/`blocked` → leave in progress and surface to the PO, stop the
