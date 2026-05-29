@@ -23,6 +23,7 @@ PLUS a regression check: §0 preflight logic is structurally unchanged
 Run from the repo root:  python scripts/test_release_linear_summary.py
 """
 
+import json
 import pathlib
 import re
 import unittest
@@ -30,6 +31,7 @@ import unittest
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 RELEASE_PATH = REPO_ROOT / "commands" / "release.md"
+PLUGIN_JSON = REPO_ROOT / ".claude-plugin" / "plugin.json"
 
 
 def _read(p: pathlib.Path) -> str:
@@ -275,17 +277,21 @@ class AC5_ReleaseScriptVersionBumped(unittest.TestCase):
             "AC5: file must carry an `<!-- release-script-version: X.Y.Z -->` tag",
         )
 
-    def test_AC5_script_version_is_exactly_0_13_0(self):
-        """The developer's diff bumped the tag from 0.11.1 → 0.13.0, matching the
-        next intended release version per the unit instructions."""
+    def test_AC5_script_version_matches_plugin_json(self):
+        """release-script-version must equal the plugin.json version (a single
+        match) — the invariant that keeps the §0 preflight from false-bailing.
+        Version-agnostic by design so it does not re-break on each release bump
+        (it broke once at v0.14.0 when frozen to 0.13.0 — see NB-389)."""
         body = _read(RELEASE_PATH)
         matches = re.findall(
             r"<!--\s*release-script-version:\s*(\d+\.\d+\.\d+)\s*-->", body
         )
+        plugin_version = json.loads(_read(PLUGIN_JSON))["version"]
         self.assertEqual(
             matches,
-            ["0.13.0"],
-            f"AC5: release-script-version must be exactly `0.13.0` (single match); got {matches}",
+            [plugin_version],
+            f"AC5: release-script-version must be exactly the plugin.json version "
+            f"`{plugin_version}` (single match); got {matches}",
         )
 
     def test_AC5_script_version_is_bumped_from_previous(self):
