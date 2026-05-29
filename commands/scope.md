@@ -98,6 +98,30 @@ rule from `skills/linear/`; do not predict size up front:
 - **`promote-to-project`** — create the Project, then create an Issue per unit under it
   using the refiner's milestone groupings, and wire `blocked-by` for ordering.
   (Engagement-level grouping is the **Initiative** — see `skills/linear/`.)
+
+  **Then write the Project's `Spec` Document** (Project-form only — single-Issue and
+  sub-issue forms keep the description-canonical model unchanged; do **not** create a
+  Spec Document for them). The Document is the canonical spec + AC; the Project's
+  container issue description is reduced to a summary + link back to it. Follow the
+  upsert procedure in
+  [`skills/linear/references/documents-and-updates.md`](../skills/linear/references/documents-and-updates.md)
+  (list by `projectId` → match `title === "Spec"` → `save_document({ id, content })`
+  to update, otherwise `save_document({ project, title: "Spec", content, icon: ":memo:" })`
+  to create — note the `project` / `projectId` asymmetry there). The body is built
+  from `templates/spec.md` with the refiner's spec text + the `## Acceptance Criteria`
+  block + the `**Specialist:**` line filled in.
+
+  After the Document is written, **reduce the Project's container issue description**
+  (via `save_issue`) to a short summary plus a pointer to the Spec Document — for
+  example:
+
+  ```markdown
+  See the [Spec Document]({document url or slug}) for the canonical spec and
+  acceptance criteria. {One-line summary of what the Project delivers.}
+  ```
+
+  Re-running `/backlogd:scope` on the same Project updates the **same** Spec Document
+  in place (no duplicates) — the upsert procedure looks it up by title before writing.
 - **When in doubt, stay an Issue.** Promotion on evidence is cheap; a premature Project
   that never closes is not. If the refiner's proposal feels too aggressive for the
   problem at hand, prefer the smaller shape.

@@ -65,6 +65,17 @@ legacy behaviour — the field is additive on the `run_completed` edge.
 
 ## 3. Post a high-level, PO-facing solution brief
 
+Where the brief lives depends on the problem's **form** (set at `/backlogd:scope` time
+— see `commands/scope.md` §4):
+
+- **Single-Issue / sub-issue form** — post the brief as a **comment** on the problem
+  issue (unchanged behaviour).
+- **Project-form** — write the brief as a `Solution brief` **Document** attached to
+  the Project, seeded from `templates/solution-brief.md`. **Single-Issue keeps the
+  brief-as-comment with the `**[backlogd]**` badge unchanged.**
+
+### Single-Issue / sub-issue form — brief as a comment
+
 Post one comment on the problem issue, edited in place, with the `**[backlogd]**` badge.
 Write it for a product owner who owns the solution but is not reviewing code:
 
@@ -81,15 +92,40 @@ Artifacts: {files/areas changed, links, or what the PO now has}
 (On a single-issue problem it sits alongside the developer's `**[backlogd developer]**`
 work-log comment — a PO summary plus the work log, not a duplicate.)
 
-**Ops-only runs:** the brief is the same shape, but `Artifacts` points at the **action
-logs on each unit** (the `**[backlogd developer]**` comments listing the `gh` calls), the
-GitHub surface(s) those calls changed (Topics, Discussions, Releases, labels, repo
-metadata), and any external content drafted in the tree (e.g. `docs/PROMOTION.md`) — not
-a PR link, because there isn't one.
+### Project-form — brief as a Document
+
+Write **one** `Solution brief` Document attached to the Project, edited in place by
+`id` on a re-run (no duplicates — there is one `Solution brief` Document per Project).
+Seed the body from `templates/solution-brief.md` — at minimum it carries `## What
+changed` and `## How it was verified` headings (and optionally `## Follow-ups`).
+
+Follow the upsert procedure in
+[`skills/linear/references/documents-and-updates.md`](../linear/references/documents-and-updates.md)
+(`list_documents({ projectId }) → match title === "Solution brief" → save_document({
+id, content })` to update; otherwise `save_document({ project, title: "Solution
+brief", content, icon: ":white_check_mark:" })` to create — note the `project` /
+`projectId` parameter asymmetry there). The Document sits alongside the per-unit
+`**[backlogd developer]**` work-log comments on each sub-issue — a PO summary plus
+the work logs, not a duplicate of either.
+
+`/backlogd:review` reads this Document at verdict time (see `commands/review.md` §3)
+and may append accept/sent-back notes to it on a verdict.
+
+**Ops-only runs:** the brief is the same shape, but `What changed` / `How it was
+verified` (or `Artifacts` on the single-Issue comment form) points at the **action
+logs on each unit** (the `**[backlogd developer]**` comments listing the `gh` calls),
+the GitHub surface(s) those calls changed (Topics, Discussions, Releases, labels, repo
+metadata), and any external content drafted in the tree (e.g. `docs/PROMOTION.md`) —
+not a PR link, because there isn't one.
 
 ## 4. Move the problem to In Review
 
-Move the problem to the *In Review* state (resolved in `skills/solve/identity.md`), then
-**stop** — the run is complete. `/backlogd:review` (or the PO) verifies the AC and merges
-the PR to land it (on ops-only runs, `/backlogd:review` verifies the AC against the
-action logs on the units and the GitHub surfaces they changed — there is no PR to merge).
+Move the problem to the *In Review* state (resolved in `skills/solve/identity.md`). On a
+**Project-form** run, post a project-thread health update alongside the transition with
+marker `handback` — typically `on track` because the slice is complete and unblocked
+(see **`skills/linear/references/documents-and-updates.md` § "Project health updates"**
+for the body shape and dedupe-by-marker procedure). **Single-issue and sub-issue forms do
+NOT post this update.** Then **stop** — the run is complete. `/backlogd:review` (or the
+PO) verifies the AC and merges the PR to land it (on ops-only runs, `/backlogd:review`
+verifies the AC against the action logs on the units and the GitHub surfaces they
+changed — there is no PR to merge).

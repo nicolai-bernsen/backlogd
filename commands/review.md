@@ -41,6 +41,12 @@ is loaded and propagates:
   load-bearing one. If your run doesn't naturally call it before dispatch, force it by
   posting/editing a placeholder comment on the orchestrator's own scratch (or by
   using it for the identity-resolution narration if you do any).
+- **For Project-form problems only** — `mcp__linear__list_documents` and
+  `mcp__linear__get_document`, so the orchestrator can read the Project's `Spec`
+  and `Solution brief` Documents in step 3 and paste their bodies into the reviewer's
+  envelope verbatim (the reviewer's restricted tool grant has no `get_document`).
+  Document reads stay on the orchestrator side of the boundary — no propagation
+  needed.
 
 If you skip this step and the reviewer reports it cannot post its
 `**[backlogd reviewer]**` comment, that is the NB-340 tool-grant skew — re-run with
@@ -78,11 +84,32 @@ verdict. Gather the evidence first so the reviewer has a complete envelope (it g
 a fresh context and cannot see anything you haven't put in the envelope):
 
 - the **problem id** (so the reviewer can read the issue + post its progress comment there),
-- the problem's **title** and **`## Acceptance Criteria`** list (from the description),
+- the problem's **title** and **`## Acceptance Criteria`** list — **AC source depends
+  on the problem's form**:
+  - **Single-Issue / sub-issue form** — read AC from the issue **description**
+    (unchanged from before).
+  - **Project-form** — the canonical spec + AC lives in the Project's **`Spec`
+    Document**, *not* the container description. Resolve it via
+    `list_documents({ projectId }) → match title === "Spec"` → `get_document(<id>)`
+    and use that body's `## Acceptance Criteria` block. The container description is
+    a summary + link and is **not** the AC source. See
+    [`skills/linear/references/documents-and-updates.md`](../skills/linear/references/documents-and-updates.md)
+    for the lookup (note the `project` / `projectId` parameter asymmetry).
+
+  Because the reviewer's restricted tool grant has **no `get_document`** by default,
+  the orchestrator supplies the AC text **verbatim in the envelope** (the
+  `{description, including its Acceptance Criteria}` line in the dispatch template
+  below) — fresh-context discipline: anything not in the envelope is invisible to the
+  reviewer. Paste the Spec Document body in place of the description for Project-form,
+  or paste the description as-is for single-Issue / sub-issue form.
 - every per-unit **`**[backlogd developer]**`** progress comment on the problem (and
   every **`**[backlogd tester]**`** comment that landed alongside it) — single-issue:
   one of each; decomposed / Project: one set per sub-issue,
-- the **solution brief** comment on the problem,
+- the **solution brief** — **single-Issue: the `**[backlogd]** Solution brief` comment
+  on the problem**; **Project-form: the `Solution brief` Document attached to the
+  Project** (resolve via `list_documents({ projectId }) → match title === "Solution
+  brief"` → `get_document(<id>)`, and paste its body in the envelope below — the
+  reviewer cannot read Documents on its own),
 - the problem's **open PR url** (from the issue's linked attachments / branch name) and
   the **CI signal** rollup (`gh pr checks {pr-url}` → green / red / pending),
 - the **worktree path** for the problem's branch (if it still exists on this host) — so

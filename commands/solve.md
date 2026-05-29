@@ -53,6 +53,15 @@ get to the step. Sub-skills carry the dry-run carve-outs.
      run's opening "claiming this" line if you do one). The point is: invoke
      `save_comment` from the orchestrator's context at least once before any
      `Agent({subagent_type: "developer" | "developer-<suffix>", ...})` call.
+   - **For Project-form problems only** — `mcp__linear__list_documents`,
+     `mcp__linear__get_document`, and `mcp__linear__save_document`. The orchestrator
+     reads the Project's `Spec` Document as the AC source for pickup/dispatch (see
+     `skills/solve/pickup.md`) and writes a `Solution brief` Document at handoff (see
+     `skills/solve/handoff.md` §3). Both follow the upsert procedure in
+     [`skills/linear/references/documents-and-updates.md`](../skills/linear/references/documents-and-updates.md).
+     The developer's tool grant is **unchanged** — Document reads/writes stay on the
+     orchestrator side of the boundary, so these tools only need to be loaded for the
+     orchestrator's own context, not propagated to the developer.
 
    If you skip this step and the developer reports it cannot post its
    `**[backlogd developer]**` comment, that is the NB-340 tool-grant skew — re-run with
