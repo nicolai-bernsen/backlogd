@@ -48,6 +48,7 @@ ToolSearch(select: "mcp__linear__get_issue,mcp__linear__save_issue,mcp__linear__
 If `ToolSearch` is not available (a future Claude Code version drops it), this is a
 no-op for `/backlogd:release` on the current flow — skip the fallback rather than
 forcing a `mcp__linear__*` invocation the command doesn't need.
+
 ## 0.5 Preflight — confirm the release script is current
 
 > **Stale-cache safeguard.** Claude Code loads `/backlogd:release` from your installed plugin
