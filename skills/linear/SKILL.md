@@ -69,9 +69,20 @@ mitigations**:
    future specialist with an explicit `tools:` list (e.g. the NB-326 reviewer that
    deliberately wants a restricted grant) receives the tools it names.
 
+   **Verified working (NB-368, 2026-05-29)** — not asserted: after the §0 pre-load, a
+   dispatched `backlogd:reviewer` (explicit `tools:` list, no `ToolSearch` of its own)
+   received `mcp__linear__save_comment` as a *directly-callable* tool and posted its
+   comment end-to-end. See `docs/notes/subagent-mcp-tool-grant.md` §8.
+
 The two are complementary, not alternatives. NB-345 keeps today's developer working
 even if a session forgets the §0 pre-load; NB-346 means a future restricted-grant
 specialist works without dropping back to the NB-345 workaround.
+
+`agents/developer.md`'s missing `tools:` line (NB-345) is a **deliberate exception**,
+not an inconsistency: the developer needs a broad grant (`Edit`/`Write`/`Bash`/git
+*and* Linear) for end-to-end code writes, whereas the restricted specialists
+(`reviewer`/`tester`/`refiner`) keep their explicit lists — boundary preserved —
+because §0 makes that path work (verified, NB-368).
 
 If a subagent still reports it could not post its `**[backlogd developer]**` (or
 `**[backlogd reviewer]**`) comment, treat that as a tool-grant skew, not a subagent
@@ -89,7 +100,10 @@ Every `/backlogd:*` command begins with a **§0 "Pre-load deferred tools" step**
 makes a single batched `ToolSearch` call naming the canonical Linear MCP tool list.
 This is the NB-346 orchestrator-layer mitigation for the NB-340 tool-grant hazard
 above — defense in depth so a subagent dispatched with an explicit `tools:` list that
-names Linear tools receives them at runtime, not a stripped intersection.
+names Linear tools receives them at runtime, not a stripped intersection. **This is
+verified, not asserted** (NB-368, 2026-05-29): behind §0 the named tools are
+materialised as *directly-callable* for the explicit-list child — see
+`docs/notes/subagent-mcp-tool-grant.md` §8.
 
 **Canonical pre-load list** (write-capable verbs use the full set; read-only verbs
 may use the read-only subset but for idiom consistency every command uses the full
