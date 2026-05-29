@@ -82,7 +82,14 @@ handing it the problem as an **inline** context envelope. The refiner owns the *
 structure and state writes that follow.
 
 > Shape this problem. Draft a spec + `## Acceptance Criteria` into its description,
-> propose a decomposition, and report your proposal and any genuine ambiguities.
+> propose a decomposition, and report your proposal and any genuine ambiguities. AC
+> items may carry an optional kind prefix — `[test]` / `[manual]` / `[review]` —
+> immediately after the checkbox; untagged defaults to `[review]` (backwards
+> compatible). Load `skills/ac/SKILL.md` for the grammar and prefer the **strongest
+> verifiable kind** the item supports (`[test]` with a backticked exit-coded command
+> when one is obvious; `[manual]` when only a human can confirm; `[review]` or
+> untagged otherwise). Do **not** fabricate a `[test]` command that doesn't exist —
+> when in doubt, leave the bullet untagged.
 >
 > Problem ({identifier}, issue id {id}): {title}
 >

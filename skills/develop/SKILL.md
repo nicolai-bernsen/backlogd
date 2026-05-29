@@ -34,7 +34,11 @@ process only when it earns its keep.
    or catch a real risk, not for their own sake.
 4. **Verify against the acceptance criteria.** Before you report `solved`, check **every**
    `## Acceptance Criteria` item against what you built, and run whatever proves it (tests,
-   the build, a manual check). If an item isn't met, it isn't done.
+   the build, a manual check). If an item isn't met, it isn't done. **Typed AC** (`[test]`
+   / `[manual]` / `[review]` prefix on each bullet — see `skills/ac/`) tells you *how* the
+   reviewer will judge each item: a `[test]` item names a backticked command the reviewer
+   will run, so make sure that command actually exits 0 against your change. Untagged
+   bullets default to `[review]`.
 5. **Leave the living spec true.** If your change alters how the system behaves in a way the
    `/docs` should reflect, note it in your progress comment so the living spec can be brought
    up to date (you record via comments only — see Boundaries).
