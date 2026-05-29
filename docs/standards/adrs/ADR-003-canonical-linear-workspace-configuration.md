@@ -1,4 +1,14 @@
-# ADR-002 — Canonical Linear workspace configuration
+---
+id: ADR-003
+title: Canonical Linear workspace configuration
+status: Accepted
+date: 2026-05-29
+problem: NB-382
+supersedes: ~
+superseded-by: ~
+---
+
+# ADR-003 — Canonical Linear workspace configuration
 
 - **Status:** Accepted _(2026-05-29)_ · **Problem:** NB-382
 - **Decision (TL;DR):** ship a **small opinionated seed** — issue labels `problem` · `kind:ops` · `blocked` (+ `agent:*` owned but runtime-created, never seeded); **no project labels** (nothing in the loop reads one); **two templates** — a `problem` **issue** template and a `backlogd problem` **project** template (Investigate → Implement → Verify) — **plus one `Spec` document template**. `kind:*` (beyond `kind:ops`) and `area:*` are **dogfood/per-repo only**, never adopter-facing.
