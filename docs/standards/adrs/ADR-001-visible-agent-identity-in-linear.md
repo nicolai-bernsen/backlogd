@@ -1,13 +1,13 @@
 # ADR-001 — Visible agent identity in Linear
 
-- **Status:** Proposed _(PO flips to `Accepted` to greenlight)_ · **Date:** 2026-05-29 · **Problem:** NB-370
+- **Status:** Accepted _(2026-05-29)_ · **Problem:** NB-370
 - **Decision (TL;DR):** default **Tier 0** (today's comment badges) · authorise a **gated Tier-1 experiment** (MCP `delegate`, no server) · **reject Tier 2** (full Agent Interaction Protocol — breaks the key-free/serverless principle).
 
 > First ADR — establishes `docs/standards/adrs/`. Shape: **Status · Context · Considered Options · Decision · Consequences**. ADRs are immutable once Accepted: supersede, don't rewrite.
 
 ## Status
 
-Proposed. Research spike (NB-370) — ships no runtime behaviour. Binding only once the PO sets `Accepted` and files the [follow-ups](#consequences).
+Accepted (2026-05-29). Research spike (NB-370) — ships no runtime behaviour itself; the recommendation below is now binding. Follow-ups in [Consequences](#consequences) to be filed as problems.
 
 ## Context
 
@@ -49,7 +49,7 @@ Columns = the AC's per-tier requirement: **(a)** which PO asks (A1–A4) it sati
 - **Keep Tier 0** as baseline — perfect principle fit, A1–A4 covered informationally, zero cost.
 - **Tier 1** is the only first-class signal reachable without obviously costing the principle (the `delegate` write is pure user-OAuth MCP, Q1–Q3). Its one residual risk — token-free install — is **untested**, so it is a **gated experiment**, switched on only after follow-up #1 confirms it.
 
-**Status: Proposed.**
+**Status: Accepted.**
 
 ## Consequences
 
