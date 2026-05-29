@@ -387,7 +387,7 @@ class ProjectFormOnlyRegression(unittest.TestCase):
         # The blocked hook (step 7) carries the Project-form gate.
         self.assertRegex(
             body,
-            r"On a \*\*Project-form\*\* run, when an outcome is `partial` or `blocked`",
+            r"On a \*\*Project-form\*\* run, when a unit returns `BLOCKED` or `NEEDS_CONTEXT`",
             "Regression: dispatch.md blocked hook must be guarded as Project-form-only",
         )
         # All three exclusion forms named explicitly somewhere in the file.

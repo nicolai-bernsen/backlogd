@@ -7,8 +7,10 @@ description: Query backlogd's local agent-execution + memory graph (.backlogd/gr
 
 backlogd keeps a small **knowledge graph** of its own work. Its **primary signal** is the
 *agent-execution* dimension — what only the scrum loop knows: when a unit was dispatched,
-what the developer returned (`solved` / `partial` / `blocked`), how long it took, when the
-PR opened, how long the whole run took, and how often a problem was sent back for rework.
+the recorded outcome (`solved` / `partial` / `blocked` — the coarse graph bucket the
+orchestrator folds the developer's richer `STATUS` onto; see `skills/solve/capture.md`),
+how long it took, when the PR opened, how long the whole run took, and how often a problem
+was sent back for rework.
 That's the data the maintainer asks framework-effectiveness questions of: *"where do we
 rework, where do we block, how fast does the loop close?"*
 
