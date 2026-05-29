@@ -117,7 +117,7 @@ the Step 0 / Step 5 / single-comment-edited-in-place contract normally.
 NB-345's all-tools workaround restores the developer's write surface, but the
 contract is fragile: any future specialist that wants an explicit `tools:` list
 (including the NB-326 reviewer, which deliberately wants a restricted grant) will
-hit the same drop. NB-346 (PR TBD on `dev`) ships the complementary mitigation:
+hit the same drop. NB-346 (PR #72, merged to `dev`) ships the complementary mitigation:
 each `/backlogd:*` command begins with a **§0 "Pre-load deferred tools" step**
 that runs a single batched `ToolSearch` call naming the canonical Linear MCP tool
 list (see `skills/linear/SKILL.md` → *Deferred tools — pre-load before dispatch*).
@@ -129,12 +129,13 @@ restricted-grant subagent's runtime surface. NB-345 (no `tools:` line on
 `agents/developer.md`) and NB-346 (orchestrator pre-load) are complementary, not
 alternatives — both ship.
 
-### Controlled test — design (outcome to be filled in next fresh session)
+### Controlled test — design + outcome
 
 This is the NB-346 follow-up probe to confirm or refute **hypothesis 1** from §1
 above (deferred-tool intersection) under the new mitigation. Per NB-346's
-acceptance criteria, the test design is captured here; a future fresh session
-runs it and fills in the outcome.
+acceptance criteria, the test design is captured here; the first live outcome —
+from the 2026-05-29 `/backlogd:review NB-346` run — is recorded below, with the
+dedicated Probe-A/B/C controls left for a clean-room run.
 
 **Setup.** A fresh Claude Code session (`/plugin update` + reload first) with the
 NB-346 PR merged into the loaded plugin snapshot. Stay in a single parent
@@ -188,10 +189,33 @@ whether `disallowedTools:` (NB-353) plus pre-load is sufficient for the
 NB-326 reviewer to ship with a deliberately-restricted grant, or whether
 all-tools is still necessary for any subagent that posts to Linear.
 
-**Outcome:** _to be filled in next fresh session._ Once the probe runs:
+**Outcome** (first live result — `/backlogd:review NB-346`, 2026-05-29):
 
-- Probe-A grant: _…_
-- Probe-B grant: _…_
-- Probe-C grant: _…_
-- Hypothesis 1 (deferred-tool intersection) under NB-346 pre-load: **confirmed / refuted**.
-- Implication for NB-326 reviewer (restricted-grant viability): _…_
+Recorded not from the scratch `probe-restricted.md` agent but from a **live
+equivalent of Probe-A**: a real `/backlogd:review` run performed the §0
+`ToolSearch` pre-load above, then dispatched the `backlogd:reviewer` subagent —
+which carries an explicit, deliberately-restricted `tools:` list including
+`mcp__linear__save_comment` (the same shape as Probe-A's frontmatter). The
+reviewer **successfully posted and edited its `**[backlogd reviewer]**` comment**
+on NB-346, so `mcp__linear__save_comment` was present at its runtime.
+
+- Probe-A grant (live equivalent): `mcp__linear__save_comment` **present** — the
+  restricted-grant `backlogd:reviewer` posted its comment after the orchestrator
+  pre-load. ✅
+- Probe-B grant (no-pre-load control): **not run this session.** The pre-NB-346
+  baseline absence is already evidenced by §3 / NB-340 / NB-338 — a developer with
+  an explicit `tools:` list received no `mcp__linear__*` at runtime.
+- Probe-C grant (no-`tools:` inherit control): **not run** as a dedicated probe;
+  §2's general-purpose probe already showed the no-`tools:` path sees the full
+  MCP surface.
+- Hypothesis 1 (deferred-tool intersection) under NB-346 pre-load: **confirmed** —
+  a restricted-grant subagent receives its `mcp__linear__*` tools at runtime once
+  the parent pre-loads them via `ToolSearch`.
+- Implication for NB-326 reviewer (restricted-grant viability): **viable** — the
+  reviewer shipped with a restricted grant and works; this very review exercised
+  it end-to-end (pre-load → dispatch → comment posted).
+
+_Recorded by the 2026-05-29 `/backlogd:review NB-346` session (follow-up to
+PR #72). Caveat: this is the reviewer's real grant exercising the mechanism, not
+the literal scratch `probe-restricted.md`; same code path, but the isolated
+Probe-A/B/C controls remain open for a clean-room confirmation._
