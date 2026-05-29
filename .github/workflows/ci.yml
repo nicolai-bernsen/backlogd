@@ -73,3 +73,6 @@ jobs:
 
           print("templates/spec.md and templates/solution-brief.md OK — required headings present")
           PY
+
+      - name: Run test suites
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
