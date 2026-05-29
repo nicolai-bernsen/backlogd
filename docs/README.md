@@ -15,6 +15,9 @@ directory holds the **living** spec (how the system is built, and why).
 - **[The /docs living-spec contract](living-spec-contract.md)** — how `/docs` is used as the
   source of truth and living spec. Written generically: it applies to any repository worked
   on by an automated developer.
+- **[Architecture Decision Records](standards/adrs/)** — durable, immutable architectural
+  decisions (Status · Context · Considered Options · Decision · Consequences). Starts with
+  [ADR-001 — visible agent identity in Linear](standards/adrs/ADR-001-visible-agent-identity-in-linear.md).
 
 ## Guides
 

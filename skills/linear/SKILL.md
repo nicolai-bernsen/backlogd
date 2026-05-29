@@ -324,5 +324,10 @@ Drive every judgement off the state **`type`** (category), never the display nam
   a separate "Linear via a CLI" skill elsewhere, that is unrelated dev tooling — do not
   import its conventions here, and keep this skill clean (no framework references).
 - **Pure MCP client.** backlogd talks to Linear only through `mcp__linear__*`. The Linear
-  *Agents platform* (agent `delegate`, agent sessions, webhooks) is **out of scope** for
-  v1 — ignore the `delegate` parameter.
+  *Agents platform's* **agent sessions and webhooks** (the full Agent Interaction
+  Protocol — `actor=app` token + a webhook server) stay **out of scope**: they breach the
+  key-free / serverless principle. The MCP **`delegate` field** is **no longer blanket-
+  banned** — it may be used per [ADR-001](../../docs/standards/adrs/ADR-001-visible-agent-identity-in-linear.md)'s
+  gated Tier-1 experiment (delegate to one installed agent app user, no server), once that
+  ADR is Accepted and its install-check follow-up passes. Until then, default to leaving
+  `delegate` unset.
