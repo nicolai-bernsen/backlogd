@@ -2,8 +2,9 @@
 
 > Status: **closed.** Investigation done; fix shipped as NB-345 (PR #61, commit
 > `656dd59` on `dev`). Defense-in-depth complementary mitigation shipped as NB-346
-> (see §7 below). This note exists so the finding doesn't have to be re-derived
-> the next time someone wonders why a subagent can't see its own MCP tools.
+> (see §7), with a clean-room confirmation in §8 (NB-368). This note exists so the
+> finding doesn't have to be re-derived the next time someone wonders why a subagent
+> can't see its own MCP tools.
 
 ## 1. What was observed
 
@@ -219,3 +220,85 @@ _Recorded by the 2026-05-29 `/backlogd:review NB-346` session (follow-up to
 PR #72). Caveat: this is the reviewer's real grant exercising the mechanism, not
 the literal scratch `probe-restricted.md`; same code path, but the isolated
 Probe-A/B/C controls remain open for a clean-room confirmation._
+
+**→ Closed by §8 (NB-368):** a second, independent session reproduced Probe-A and
+ran the Probe-C control cleanly; only the dedicated no-pre-load Probe-B remains open
+(see §8).
+
+## 8. NB-368 — clean-room confirmation (second session, dedicated controls)
+
+§7's first result came from a `/backlogd:review NB-346` run that exercised the
+reviewer's real grant but left the dedicated Probe-A/B/C controls open. NB-368 ran
+them as an explicit two-dispatch experiment in a **separate** session (2026-05-29,
+Opus 4.8) — reproducing the result independently and landing the control §7 lacked.
+
+**Procedure (the real production path).** The parent fired the canonical §0
+`ToolSearch(select: "mcp__linear__…")` pre-load — verbatim the call documented in
+`skills/linear/SKILL.md` — confirmed it loaded the 11 Linear schemas, then dispatched
+two probes from the same parent context:
+
+- **Probe A** — `backlogd:reviewer` (the live agent: explicit `tools:` list including
+  `mcp__linear__save_comment`, and **no `ToolSearch`** of its own).
+- **Control** — `general-purpose` (no `tools:` field). This is §7's "Probe-C".
+
+**Runtime tool grants observed** (the evidence NB-368 AC asks for):
+
+| Dispatch | `tools:` frontmatter | Runtime grant reported | `mcp__linear__*` form |
+|---|---|---|---|
+| Probe A (`backlogd:reviewer`) | explicit list incl. `save_comment`; no `ToolSearch` | `Read, Grep, Glob, Bash, mcp__linear__get_issue, mcp__linear__list_comments, mcp__linear__save_comment` | **directly callable** (no `ToolSearch` needed) |
+| Control (`general-purpose`) | none (`*`) | base tools **+ `ToolSearch`**; `mcp__linear__*` present but **deferred** | reached only by calling `ToolSearch` first |
+
+**End-to-end write proof.** Probe A did not merely *see* `save_comment` — it **called**
+it, posting comment `565ff5a8-85ce-45db-9eb0-629786b38631` to NB-368 (verified
+persisted via `list_comments`; author = the OAuth identity). A restricted-grant
+specialist completed a real Linear write after the §0 pre-load.
+
+**New mechanistic finding (refines §3).** The two grants differ in *form*, not just
+presence: the explicit-list child received its **named** Linear tools **materialised
+as directly-callable** (it has no `ToolSearch`, yet wrote successfully), while the
+no-`tools:` child received them **deferred**, reachable only via `ToolSearch`. So the
+harness honours an explicit `tools:` list's named `mcp__*` entries by loading them
+directly — *provided their schemas are already resolved in the session*. §0's
+`ToolSearch` is exactly what resolves those schemas. This reconciles §3 (NB-340,
+stripped) with §7/§8 (loaded): NB-340's parent had the MCP server *connected* but had
+**not** actively `ToolSearch`-resolved the schemas, so there was nothing to
+materialise into the explicit-list child — the precise seam NB-368 was filed to test.
+The `frontmatter ∩ parent's currently-loaded deferred tools` model in
+`skills/linear/SKILL.md` is therefore the empirically-correct one; §3's "statically-
+known set" phrasing was the pre-pre-load understanding.
+
+**Verdict: pre-load CONFIRMED (sufficient on the production path).** Every
+`/backlogd:*` command runs §0 before any dispatch, and after §0 an explicit-list
+specialist demonstrably receives **and uses** its named `mcp__linear__*` tools. The
+three trust-layer specialists (`reviewer`, `tester` → `save_comment`; `refiner` →
+`save_issue`) are **not** silently stripped in production.
+
+**Honest scope — what is _not_ isolated.** This proves §0 *sufficient*. It does not by
+itself prove §0 *necessary*: a same-session "explicit list, no pre-load" control (the
+original Probe-B) is not constructible — once `ToolSearch` resolves a schema in the
+parent it stays resolved, and no available registered agent names a deferred tool
+*outside* the §0 set to test against. Necessity is supported by the cross-session
+contrast (NB-340/NB-338, pre-§0, stripped) but that carries a possible harness-version
+confound. Because the production path **always** runs §0, necessity-vs-sufficiency is
+moot for safety — the specialists work on every real invocation. A true clean-room
+Probe-B (fresh session, explicit-list agent, §0 deliberately skipped) is the one
+remaining footnote, not a blocker.
+
+**Resolution (NB-368's "if confirmed" branch).**
+
+- **Keep** the explicit `tools:` lists on `agents/reviewer.md`, `agents/tester.md`,
+  `agents/refiner.md` — the harness-enforced boundary is preserved (the best outcome
+  the issue named) and is proven to work behind §0.
+- **Keep** the §0 pre-load in all `/backlogd:*` commands — it is what makes the
+  explicit-list path work; removing it would risk reintroducing the NB-340 strip.
+- `agents/developer.md` keeps **no `tools:` line** as a **deliberate exception**, not
+  an inconsistency: it needs a broad grant (`Edit`/`Write`/`Bash`/git *and* Linear) for
+  end-to-end code writes, so the contract-in-prose boundary (NB-345) fits it better
+  than a restrictive list. The two patterns coexist by design.
+- **No double-fix:** nothing from a "losing approach" is in the tree — §0 and the
+  explicit lists both stay; `developer.md`'s no-list is pre-existing and now documented
+  as intentional.
+
+_Recorded by the 2026-05-29 NB-368 session (Opus 4.8). Evidence: NB-368 comment
+`565ff5a8`; both runtime grants tabulated above; §0 present in all five installed
+`0.13.0` commands (`scope`/`solve`/`status`/`review`/`release`)._
