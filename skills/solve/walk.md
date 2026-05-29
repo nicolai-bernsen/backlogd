@@ -178,6 +178,18 @@ write — the walk only needs to remember the **peak fanout** observed across al
 in this run (e.g. `peak_fanout = 3` if the largest parallel group had three units) and
 hand it to handoff.
 
+### Post a milestone-completion health update (Project-form only)
+
+After a group has been dispatched and collected, check whether the just-completed units
+closed out a **Project Milestone** — i.e. every unit assigned to that milestone is now
+`completed`. If so, post a milestone-scoped health update with marker
+`milestone:<milestone-name>` via `save_comment({ milestoneId, body })` — resolve the
+milestone UUID with `list_milestones({ project })` first if you don't already have it
+cached. The body shape, dedupe-by-marker procedure, and health derivation rules live in
+**`skills/linear/references/documents-and-updates.md` § "Project health updates" →
+"Milestone-completion variant"**. **Single-issue, sub-issue, and ops-only runs do NOT
+post this update** — Project-form only.
+
 ### Iterate until every unit has run
 
 After a group has been dispatched and (cleanly) collected, advance the walk: re-evaluate

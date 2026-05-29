@@ -58,6 +58,16 @@ get to the step. Sub-skills carry the dry-run carve-outs.
    context before the first dispatch in step 6 (e.g. `get_issue` + `list_comments` in
    step 3, `save_comment` via a scratch nudge if no comment write has happened yet).
 
+   **For Project-form problems only**, also pre-load `mcp__linear__list_documents`,
+   `mcp__linear__get_document`, and `mcp__linear__save_document`: the orchestrator reads
+   the Project's `Spec` Document as the AC source for pickup/dispatch (see
+   `skills/solve/pickup.md`) and writes a `Solution brief` Document at handoff (see
+   `skills/solve/handoff.md` §3), both following the upsert procedure in
+   [`skills/linear/references/documents-and-updates.md`](../skills/linear/references/documents-and-updates.md).
+   These reads/writes stay on the **orchestrator** side of the boundary — the developer's
+   tool grant is unchanged, so they are loaded only for the orchestrator's context, not
+   propagated to the developer.
+
    If you skip this step and the developer reports it cannot post its
    `**[backlogd developer]**` comment, that is the NB-340 tool-grant skew — re-run with
    the pre-load done. Do not silently accept a tool-grant failure as a developer issue;
