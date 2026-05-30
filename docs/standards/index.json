@@ -97,6 +97,32 @@
           "specialist-contract"
         ]
       }
+    },
+    {
+      "id": "ADR-005",
+      "title": "Tokenless bridge drives the local claude CLI; SDK is the swap-only fallback",
+      "status": "Proposed",
+      "assertion": "An always-on backlogd runtime is a tokenless bridge (plain TS/Python, zero Claude inference) that drives the official local `claude` CLI under subscription OAuth and writes transparency via the Linear MCP — never the Agent SDK / `claude -p`; the executor is a one-line config swap to an API-key backend so a ToS shift survives without a rewrite; the human stays trigger/cadence-setter (bounded batches, no 24/7 swarm) and this remains a GO-to-explore design that ships no runtime code and does not proceed to a build until NB-376/ADR-004 is honoured and the keyless constraint of ADR-002 holds.",
+      "applies-to": {
+        "domains": [
+          "runtime",
+          "auth",
+          "dependencies",
+          "linear",
+          "agent-identity",
+          "scrum"
+        ],
+        "file-patterns": [
+          "**"
+        ],
+        "decision-types": [
+          "runtime-loop",
+          "hosting",
+          "dependency",
+          "secret-custody",
+          "executor"
+        ]
+      }
     }
   ]
 }
