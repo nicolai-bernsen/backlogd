@@ -48,7 +48,7 @@ For the problem you've just picked up (`{identifier}` / `gitBranchName` from
 For every unit (in dependency order), reduce the four signals to **one** of:
 
 | State | Linear | Graph | Worktree / branch | Action |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | **`completed`** | `completed` | `completed` (`outcome:solved`) | branch exists; commit for the unit on it (best-effort grep — see below) | **Skip** the unit. `skills/solve/dispatch.md` does **not** re-dispatch. |
 | **`in-progress-mine`** | `started` (In Progress) | `in-progress` (a `dispatch_started` from this repo's previous session, no matching `dispatch_completed`) | worktree at the expected path **or** absent; branch exists | **Resume**: leave Linear state, do not re-claim, dispatch fresh for this unit. |
 | **`untouched`** | `backlog` / `unstarted` | `untouched` | branch may or may not exist | **Normal first dispatch** — fall through to `skills/solve/walk.md` for worktree creation and on into `dispatch.md`. |
@@ -119,21 +119,19 @@ When you pause for inconsistency, post one clear question to the product owner
 (stdout; the orchestrator does not write a Linear comment for this — leaving
 state untouched also means leaving Linear alone). Template:
 
-```
-Resume reconcile paused on {identifier}.
+    Resume reconcile paused on {identifier}.
 
-Conflict: {short description — e.g. "NB-329 is In Progress in Linear but the
-graph shows no dispatch_started from this repo. A parallel session may have
-claimed it."}
+    Conflict: {short description — e.g. "NB-329 is In Progress in Linear but the
+    graph shows no dispatch_started from this repo. A parallel session may have
+    claimed it."}
 
-Signals:
-  Linear: {state names per unit}
-  Graph:  {run-status JSON summary per unit}
-  Git:    {branch exists? worktree exists at <path>? HEAD on which branch?}
+    Signals:
+      Linear: {state names per unit}
+      Graph:  {run-status JSON summary per unit}
+      Git:    {branch exists? worktree exists at <path>? HEAD on which branch?}
 
-What I need from you: {a binary question — e.g. "Should I take over NB-329, or
-is another session still working it?"}
-```
+    What I need from you: {a binary question — e.g. "Should I take over NB-329, or
+    is another session still working it?"}
 
 Then stop. The product owner unblocks by either cleaning up the conflict (and
 re-running `/backlogd:solve`) or telling you which side of the conflict to

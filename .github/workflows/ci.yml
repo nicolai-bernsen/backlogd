@@ -12,6 +12,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # --- Manifest well-formedness (python fallback) ---------------------
+      # These two python JSON checks are kept as the BLOCKING fallback for
+      # `claude plugin validate` (below). They assert plugin.json/marketplace.json
+      # parse and carry the minimum required fields. Retained per AC even though
+      # the verified `claude plugin validate .` gate now also blocks.
       - name: Validate plugin manifest
         run: |
           python3 - <<'PY'
@@ -79,3 +84,45 @@ jobs:
 
       - name: Witness — shipped-fix markers still in tree
         run: python3 scripts/witness.py
+
+      # --- pre-commit (BLOCKING) ------------------------------------------
+      # Runs the repo .pre-commit-config.yaml: markdownlint-cli2, file-hygiene
+      # hooks, check-json/check-yaml, and the scoped (.py-only) ruff hook.
+      # pre-commit/action does not install Python itself, so setup-python first.
+      - name: Set up Python for pre-commit
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+      - name: Run pre-commit hooks
+        uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd  # v3.0.1
+
+      # --- claude plugin validate (BLOCKING) ------------------------------
+      # Pinned Claude Code CLI, then `claude plugin validate .`. Verified during
+      # NB-288 to exit non-zero on a malformed/invalid manifest in a headless
+      # (unauthenticated, empty-HOME) context — validate is a pure offline schema
+      # check needing no auth — so it is a blocking gate. The two python JSON
+      # checks above remain as the documented fallback. NOTE: --strict is NOT
+      # used: the baseline marketplace.json emits a benign "no description"
+      # warning that --strict would turn into a false failure.
+      - name: Install Claude Code CLI (pinned)
+        run: npm install -g @anthropic-ai/claude-code@2.1.149
+      - name: Validate plugin manifest (claude plugin validate)
+        run: claude plugin validate .
+
+      # --- actionlint (BLOCKING) ------------------------------------------
+      # Lints every workflow under .github/workflows. Verified during NB-288 to
+      # exit non-zero on a malformed ${{ }} expression / undefined context.
+      - name: Lint workflows (actionlint)
+        uses: rhysd/actionlint@914e7df21a07ef503a81201c76d2b11c789d3fca  # v1.7.12
+
+      # --- lychee internal/relative links only (BLOCKING) -----------------
+      # --offline checks file existence for local/relative links and makes ZERO
+      # network calls, so NO external links are checked here (external-link
+      # scanning is a separate advisory scheduled workflow, out of scope for T3).
+      # Verified during NB-288 to exit non-zero on a dead relative link.
+      # fail: true (default) fails the job on a broken link; failIfEmpty guards
+      # against the glob silently matching nothing.
+      - name: Check internal links (lychee, offline)
+        uses: lycheeverse/lychee-action@8646ba30535128ac92d33dfc9133794bfdd9b411  # v2.8.0
+        with:
+          args: "--offline --no-progress './**/*.md'"
+          fail: true
+          failIfEmpty: true

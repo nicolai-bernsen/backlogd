@@ -35,7 +35,7 @@ backlogd's Scrum interpretation, and [`scrum-guide.md`](scrum-guide.md) →
 - [ ] The PR's branch has **exactly one commit per unit issue** solved on it
       (`git log --oneline base..head` matches the unit count).
 - [ ] Each commit message follows Conventional Commits and includes the unit's
-      identifier — its subject matches `^(feat|fix|docs|chore|refactor|test|ci|build|perf|style)\(#\d+\): `
+      identifier — its subject matches `^(feat|fix|docs|chore|refactor|test|ci|build|perf|style)\(#\d+\): ` <!-- markdownlint-disable-line MD038 -->
       (per [CONTRIBUTING.md](../../CONTRIBUTING.md) → *Commits*).
 - [ ] The PR title and body carry the problem's identifier (`#NB-N` or `NB-N`) so
       Linear auto-links the PR to the problem.

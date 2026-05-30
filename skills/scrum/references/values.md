@@ -27,7 +27,7 @@ The Scrum Guide says (verbatim):
 ## In backlogd voice
 
 | Value | backlogd interpretation |
-|---|---|
+| --- | --- |
 | **Commitment** | When a developer is dispatched on a unit, it finishes that unit or reports a blocker — it never silently drops. The scrum-master commands do not orphan an *In Progress* issue. The PO's filed problem will receive a result. |
 | **Focus** | The problem's `## Acceptance Criteria` is the binding contract. Developers do not chase scope drift past it — out-of-scope discoveries become *new* problems filed back to the PO, not stealth edits. One problem per loop, one unit per developer dispatch. |
 | **Openness** | Blockers go in the issue, not in the agent's head. The developer writes a single progress comment edited in place; the scrum-master surfaces blockers to the PO as questions. Linear is the single source of truth for "what's happening" — nothing lives only in chat. |
@@ -37,7 +37,7 @@ The Scrum Guide says (verbatim):
 ## When a value applies
 
 | Moment in the loop | Value at risk | What it looks like in practice |
-|---|---|---|
+| --- | --- | --- |
 | Developer hits an unexpected ambiguity | **Courage** + **Openness** | Write the blocker in the progress comment; report it back; do not invent a "reasonable" answer to a question only the PO can resolve. |
 | Developer sees adjacent code that "could be improved" | **Focus** | If it is not in the AC, leave it. File a new problem if it is worth doing. |
 | `solve` notices the problem is bigger than one unit | **Commitment** | Promote to a Project (per `skills/linear/SKILL.md`) rather than letting an issue languish. Each unit still gets finished or reports a blocker. |

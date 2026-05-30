@@ -6,14 +6,14 @@ publishes.
 
 ## Target communities
 
-| Community                       | Channel                       | What to submit                                       |
-| ------------------------------- | ----------------------------- | ---------------------------------------------------- |
-| `awesome-claude-code`           | PR to the repo                | Add backlogd under *Tools / Workflow*                |
-| `awesome-claude-code-plugins`   | PR to the repo                | Add backlogd as a Linear-backed scrum plugin         |
-| Claude Code plugin directory    | Pending official directory    | Submit listing once available                        |
-| r/ClaudeAI                      | Reddit                        | Launch post — see Draft A                            |
-| Hacker News                     | Show HN                       | Launch post — see Draft B                            |
-| X / Twitter                     | Personal account              | Launch thread — see Draft C                          |
+| Community | Channel | What to submit |
+| --- | --- | --- |
+| `awesome-claude-code` | PR to the repo | Add backlogd under *Tools / Workflow* |
+| `awesome-claude-code-plugins` | PR to the repo | Add backlogd as a Linear-backed scrum plugin |
+| Claude Code plugin directory | Pending official directory | Submit listing once available |
+| r/ClaudeAI | Reddit | Launch post — see Draft A |
+| Hacker News | Show HN | Launch post — see Draft B |
+| X / Twitter | Personal account | Launch thread — see Draft C |
 
 ## Sequencing
 
@@ -57,7 +57,7 @@ publishes.
 >
 > No API keys: Linear access is via the official Linear MCP (OAuth).
 >
-> Repo: https://github.com/nicolai-bernsen/backlogd
+> Repo: <https://github.com/nicolai-bernsen/backlogd>
 >
 > Curious what people think — especially anyone using Linear with Claude Code
 > already.
@@ -92,7 +92,7 @@ publishes.
 > - Worktree isolation per problem so parallel sessions can't yank each
 >   other's HEAD.
 >
-> Repo: https://github.com/nicolai-bernsen/backlogd
+> Repo: <https://github.com/nicolai-bernsen/backlogd>
 >
 > Built as a clean-room public companion to a private SDD framework I use
 > day-to-day. Feedback welcome.
@@ -121,7 +121,7 @@ publishes.
 > solved → released through its own loop. Including the time it had to fix
 > its own broken §6.
 >
-> 5/ Public, clean-room: https://github.com/nicolai-bernsen/backlogd
+> 5/ Public, clean-room: <https://github.com/nicolai-bernsen/backlogd>
 >
 > Drop a ⭐ if it looks useful — curious what people build with it.
 

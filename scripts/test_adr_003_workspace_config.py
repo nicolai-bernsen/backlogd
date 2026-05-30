@@ -78,11 +78,14 @@ class AC1_AdrExistsAtNextFreeNumberWithRequiredShape(unittest.TestCase):
             list(range(1, numbers[-1] + 1)),
             f"AC1: ADR numbers must be contiguous from 001 with no gap/collision; got {numbers}",
         )
-        # This file is the highest (the next free number when it was authored).
-        self.assertEqual(
-            numbers[-1],
+        # ADR-003 (this file) is present and contiguously numbered. It was the
+        # next free number when authored; later ADRs legitimately extend the set
+        # (NB-376 added ADR-004), so we assert presence + contiguity (checked
+        # above), not that 003 is still the highest.
+        self.assertIn(
             3,
-            "AC1: ADR-003 must be the next free number (after ADR-001 and ADR-002-keyless-mcp)",
+            numbers,
+            "AC1: ADR-003 must be present and contiguously numbered (after ADR-001 and ADR-002-keyless-mcp)",
         )
 
     def test_AC1_carries_all_five_required_headings(self):

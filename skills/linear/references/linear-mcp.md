@@ -19,7 +19,7 @@ writes correct. Read this **before every write**. For what the concepts mean, se
 ## Tool surface (the subset backlogd uses)
 
 | Area | Tools | Key parameters |
-|---|---|---|
+| --- | --- | --- |
 | **Issues** | `list_issues`, `get_issue`, `save_issue`, `list_issue_statuses`, `get_issue_status` | `list_issues`: `label`, `state`, `team`, `project`, `parentId`, `priority`, `query`, `orderBy`, `limit`, `cursor`. `get_issue`: `id`, `includeRelations`. `save_issue`: see below. `list_issue_statuses`: `team` (required) → `[{id, type, name}]`. |
 | **Comments** | `list_comments`, `save_comment` | `list_comments`: `issueId`. `save_comment`: `body`, exactly one of `issueId`/`projectId`/`milestoneId`/…, `id` (to edit), `parentId` (to reply). |
 | **Projects** | `list_projects`, `get_project`, `save_project` | `list_projects`: `team`, `query`, `includeMilestones`. `save_project`: project fields incl. state/health (re-verify exact keys before writing — see "Project Updates & health"). |
@@ -48,7 +48,7 @@ part of the loop. Treat them as reserved; don't reuse the prefixes for unrelated
 workspace labels.
 
 | Family | Owner | Meaning |
-|---|---|---|
+| --- | --- | --- |
 | `problem` | PO files / backlogd reads | The opt-in pickup signal — backlogd only picks up issues carrying this label. |
 | `agent:<suffix>` | `/backlogd:scope` writes / `/backlogd:solve` reads | The picked specialist developer for an issue (`agent:docs` → `developer-docs`). PO can flip the label to override. Created on first use (Linear's MCP auto-creates labels passed in `save_issue.labels`). See `docs/specialists.md`. |
 

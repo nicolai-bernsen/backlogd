@@ -32,10 +32,10 @@ each section has a fixed job, and a one-line `<!-- purpose -->` comment opens ea
 know what belongs where:
 
 | # | Section | Purpose |
-|---|---|---|
+| --- | --- | --- |
 | 1 | `<Role>` | What the specialist **is** and **is NOT** responsible for — including the negative-scope clause (no PRs, no Linear state, no dispatching, no scoping). |
 | 2 | `<Constraints>` | Hard boundaries: which worktree to act in, no git, touch only relevant files, the Linear-surface "own issue only" rule, the read-only graph boundary, the DoD floor. |
-| 3 | `<Investigation_Protocol>` | The ordered steps — step 1 is *open the work log* (the NB-338 Step 0 contract), then read context, consult prior work, understand, act, close the log. |
+| 3 | `<Investigation_Protocol>` | The ordered steps — step 1 is *open the work log* (the NB-338 Step 0 contract), then read context, consult prior work, understand, act, close the log. (The one-line *Problem Read* head step is authored once in the generic developer and inherited — a specialist does not re-author it.) |
 | 4 | `<Output_Format>` | The exact shape of the two outputs: the single `**[backlogd developer]**` comment edited in place, and the final report whose **first machine-readable line is `STATUS: <enum>`** (see [The STATUS contract](#the-status-contract)), followed by the structured body. |
 | 5 | `<Failure_Modes_To_Avoid>` | The named ways the dispatch fails even when the code looks right (missing/duplicated work-log comment, touching another issue, fabricating a result). |
 | 6 | `<Final_Checklist>` | Mechanical yes/no checks run before reporting — orchestrator-defined **harness checks** (identical across specialists) plus specialist-owned **domain checks** (see [Harness vs domain checks](#harness-vs-domain-checks)). |
@@ -85,7 +85,7 @@ or `NEEDS_CONTEXT` instead (see [The STATUS contract](#the-status-contract) for 
 A hypothetical `developer-release` keeps sections 2–6 structurally the same and swaps the
 identity and negative scope in `<Role>`:
 
-```
+```text
 <Role>
 <!-- What you ARE and what you are NOT responsible for. -->
 
@@ -117,7 +117,7 @@ truth for "what happens next"; the body below it is for humans.
 The enum has exactly **four** values:
 
 | `STATUS` | Meaning | Linear transition | Orchestrator action |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `DONE` | AC met, work landed in the worktree | → **In Review** | Accept the unit, run the quality gate, commit; on the last unit post the solution brief |
 | `DONE_WITH_CONCERNS` | Work landed but the specialist flags a risk or partial coverage | → **In Review** | Same as `DONE`, **and** surface the concerns inline in the PO solution brief (under *Needs your eyes*) |
 | `BLOCKED` | Cannot proceed without input outside the specialist's authority | **stay In Progress** | Surface the blocker to the PO as a question; stop the run (don't guess past it) |
@@ -146,7 +146,7 @@ than rewrite the review machinery, the reviewer's verdicts **map onto the shared
 enum** so the orchestrator reasons about both specialists in one vocabulary:
 
 | Reviewer verdict (`verdict` mode) | Reviewer gate (`pre-commit-gate` mode) | Shared `STATUS` |
-|---|---|---|
+| --- | --- | --- |
 | `accepted` | `ok` | `DONE` |
 | `accepted` with manual checks / caveats for the PO | `ok` carrying `untestable:` items | `DONE_WITH_CONCERNS` |
 | `sent back` | `needs-changes` | `BLOCKED` *(the developer goes back; the unit can't pass as-is)* |

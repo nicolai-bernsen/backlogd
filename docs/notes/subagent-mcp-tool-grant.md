@@ -92,7 +92,7 @@ threat model ever changes.
 NB-340's six acceptance criteria, and where each was satisfied:
 
 | AC | Status | Where |
-|---|---|---|
+| --- | --- | --- |
 | 1. Reproduce/refute the finding in a fresh session via a controlled test | Satisfied | NB-345 session probe (general-purpose vs. backlogd:developer) |
 | 2. Confirm or rule out hypothesis 1 | Satisfied (confirmed, refined) | Same probe |
 | 3. Capture the verified behaviour in a `docs/notes/...` markdown | Satisfied | **This file** |
@@ -146,7 +146,7 @@ context.
 
 1. **Pre-load step** (orchestrator-side, per the NB-346 mitigation):
 
-   ```
+   ```text
    ToolSearch(select: "mcp__linear__get_issue,mcp__linear__save_issue,mcp__linear__save_comment,mcp__linear__list_comments,mcp__linear__list_issue_statuses,mcp__linear__list_issue_labels,mcp__linear__list_issues,mcp__linear__list_teams,mcp__linear__list_milestones,mcp__linear__get_project,mcp__linear__save_milestone")
    ```
 
@@ -178,7 +178,7 @@ context.
 **Expected outcomes** (if hypothesis 1 is confirmed by the NB-346 mitigation):
 
 | Probe | Pre-load? | Explicit `tools:` includes `mcp__linear__save_comment`? | Expected tool grant |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | A | yes | yes | `mcp__linear__save_comment` **present** at runtime |
 | B | no | yes | `mcp__linear__save_comment` **absent** (pre-NB-346 baseline) |
 | C | yes | no (inherit) | Full MCP surface present (sanity check) |
@@ -216,10 +216,10 @@ on NB-346, so `mcp__linear__save_comment` was present at its runtime.
   reviewer shipped with a restricted grant and works; this very review exercised
   it end-to-end (pre-load → dispatch → comment posted).
 
-_Recorded by the 2026-05-29 `/backlogd:review NB-346` session (follow-up to
+*Recorded by the 2026-05-29 `/backlogd:review NB-346` session (follow-up to
 PR #72). Caveat: this is the reviewer's real grant exercising the mechanism, not
 the literal scratch `probe-restricted.md`; same code path, but the isolated
-Probe-A/B/C controls remain open for a clean-room confirmation._
+Probe-A/B/C controls remain open for a clean-room confirmation.*
 
 **→ Closed by §8 (NB-368):** a second, independent session reproduced Probe-A and
 ran the Probe-C control cleanly; only the dedicated no-pre-load Probe-B remains open
@@ -244,7 +244,7 @@ two probes from the same parent context:
 **Runtime tool grants observed** (the evidence NB-368 AC asks for):
 
 | Dispatch | `tools:` frontmatter | Runtime grant reported | `mcp__linear__*` form |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Probe A (`backlogd:reviewer`) | explicit list incl. `save_comment`; no `ToolSearch` | `Read, Grep, Glob, Bash, mcp__linear__get_issue, mcp__linear__list_comments, mcp__linear__save_comment` | **directly callable** (no `ToolSearch` needed) |
 | Control (`general-purpose`) | none (`*`) | base tools **+ `ToolSearch`**; `mcp__linear__*` present but **deferred** | reached only by calling `ToolSearch` first |
 
@@ -273,7 +273,7 @@ specialist demonstrably receives **and uses** its named `mcp__linear__*` tools. 
 three trust-layer specialists (`reviewer`, `tester` → `save_comment`; `refiner` →
 `save_issue`) are **not** silently stripped in production.
 
-**Honest scope — what is _not_ isolated.** This proves §0 *sufficient*. It does not by
+**Honest scope — what is *not* isolated.** This proves §0 *sufficient*. It does not by
 itself prove §0 *necessary*: a same-session "explicit list, no pre-load" control (the
 original Probe-B) is not constructible — once `ToolSearch` resolves a schema in the
 parent it stays resolved, and no available registered agent names a deferred tool
@@ -299,6 +299,6 @@ remaining footnote, not a blocker.
   explicit lists both stay; `developer.md`'s no-list is pre-existing and now documented
   as intentional.
 
-_Recorded by the 2026-05-29 NB-368 session (Opus 4.8). Evidence: NB-368 comment
+*Recorded by the 2026-05-29 NB-368 session (Opus 4.8). Evidence: NB-368 comment
 `565ff5a8`; both runtime grants tabulated above; §0 present in all five installed
-`0.13.0` commands (`scope`/`solve`/`status`/`review`/`release`)._
+`0.13.0` commands (`scope`/`solve`/`status`/`review`/`release`).*

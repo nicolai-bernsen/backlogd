@@ -66,7 +66,7 @@ Given a target issue (the issue you are already reading in the calling command):
    current `labels` array:
 
    | Desired | `blocked` in `labels`? | Action |
-   |---|---|---|
+   | --- | --- | --- |
    | blocked | yes | no-op |
    | blocked | no | `save_issue({ id, labels: [...labels, "blocked"] })` |
    | not blocked | yes | `save_issue({ id, labels: labels.filter(l => l !== "blocked") })` |

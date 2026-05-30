@@ -109,7 +109,7 @@ materialised as *directly-callable* for the explicit-list child — see
 may use the read-only subset but for idiom consistency every command uses the full
 list):
 
-```
+```text
 mcp__linear__get_issue
 mcp__linear__save_issue
 mcp__linear__save_comment
@@ -125,7 +125,7 @@ mcp__linear__save_milestone
 
 **The call** (identical across every `/backlogd:*` command's §0):
 
-```
+```text
 ToolSearch(select: "mcp__linear__get_issue,mcp__linear__save_issue,mcp__linear__save_comment,mcp__linear__list_comments,mcp__linear__list_issue_statuses,mcp__linear__list_issue_labels,mcp__linear__list_issues,mcp__linear__list_teams,mcp__linear__list_milestones,mcp__linear__get_project,mcp__linear__save_milestone")
 ```
 
@@ -152,7 +152,7 @@ force via a scratch-comment nudge before its first developer dispatch.
   match on the state *category* (`type`), see `references/linear-mcp.md`:
 
   | Display name | Category (`type`) |
-  |---|---|
+  | --- | --- |
   | Backlog | `backlog` |
   | Todo | `unstarted` |
   | In Progress | `started` |
