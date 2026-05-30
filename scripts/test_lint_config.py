@@ -11,7 +11,9 @@ acceptance bullet maps 1:1 to a test below:
 * both files exist and are well-formed,
 * the JSONC ``config`` object deep-equals the spec dict exactly,
 * the pre-commit config carries the five hygiene hooks, the markdownlint-cli2
-  hook, and a ruff hook scoped to ``\\.py$``,
+  hook, and a ruff hook scoped to ``\\.py$`` that is **non-gating** — pinned to
+  ``stages: [manual]`` so ``pre-commit run --all-files`` (what CI runs) skips it
+  and ruff is not an always-on gate (NB-285 AC #7),
 * every ``rev`` is pinned (no floating refs like a branch name or ``HEAD``).
 
 Why stdlib only: this is the repo's test convention (CI runs
@@ -185,6 +187,44 @@ class PrecommitConfigTest(unittest.TestCase):
             r"files:\s*\\?\.py\$",
             r"ruff hook must be scoped with files: \.py$",
         )
+
+    def test_ruff_hook_is_non_gating_manual_stage(self):
+        """NB-285 AC #7: ruff is wired but NOT an always-on gate.
+
+        The ruff hook must carry ``stages: [manual]`` so ``pre-commit run
+        --all-files`` (what CI runs) skips it — keeping ruff off the default
+        gate while leaving it runnable on demand
+        (``pre-commit run --hook-stage manual ruff-check``). We assert the
+        ``manual`` stage sits on the ruff hook specifically (parser-backed
+        where PyYAML exists) and, parser-independently, that the config
+        declares a ``manual`` stage at all."""
+        # Parser-independent: the config must declare a manual stage somewhere.
+        # This holds even on a CI Python without PyYAML.
+        self.assertRegex(
+            self.text,
+            r"stages:\s*\[\s*manual\s*\]",
+            "ruff hook must declare stages: [manual] (non-gating, NB-285 AC #7)",
+        )
+        if not HAVE_YAML:
+            self.skipTest("PyYAML not installed; manual-stage scoped check skipped")
+        import yaml  # noqa: WPS433 — optional, guarded above
+
+        doc = yaml.safe_load(self.text)
+        ruff_hooks = [
+            hook
+            for repo in doc["repos"]
+            if "ruff-pre-commit" in (repo.get("repo") or "")
+            for hook in repo.get("hooks", [])
+            if hook.get("id") in {"ruff", "ruff-check"}
+        ]
+        self.assertTrue(ruff_hooks, "expected a ruff hook in the ruff-pre-commit repo")
+        for hook in ruff_hooks:
+            self.assertEqual(
+                hook.get("stages"),
+                ["manual"],
+                "the ruff hook must be pinned to stages: [manual] so it does "
+                "not gate (run on demand with --hook-stage manual)",
+            )
 
     def test_every_rev_is_pinned_textual(self):
         """Parser-independent: every ``rev:`` value is a pinned ref, not a

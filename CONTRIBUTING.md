@@ -91,6 +91,12 @@ A red result on any of the above blocks the merge into `dev`.
 the live internet. It has no pull-request trigger, so a flaky or transient external link
 can never fail a PR — instead it opens (or refreshes) a tracking issue when a link rots.
 
+A `ruff` (Python lint) hook is also **wired but non-gating**: it carries
+`stages: [manual]`, so `pre-commit run --all-files` (and therefore CI) skips it and it is
+*not* one of the checks that gate `dev`. Run it on demand with
+`pre-commit run --hook-stage manual ruff-check`. Turning ruff into an enforced gate is
+deferred to a future change.
+
 ## Branching & releases
 
 backlogd uses a **`feature → dev → main`** flow:
