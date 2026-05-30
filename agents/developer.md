@@ -119,10 +119,20 @@ inspecting the repo by hand.
      A lookup returns `NB-N` ids and file paths only — resolve a title or status by reading
      that issue with `get_issue`. *Note: file-touch edges are no longer emitted on new runs
      — file lookups answer from historical data only and may return nothing.*
-   <!-- (future) output a one-line Problem Read here — your restatement of the problem in
-        your own words, so a drifted understanding is caught early. Not implemented yet.
-        (Distinct from the STATUS contract NB-348 shipped — that lives in <Output_Format>.) -->
-   <!-- (future) NB-352: declare hidden assumptions here — the decisions you made that the
+   **Output a one-line Problem Read.** Right after the inlined-context read and **before**
+   you read any code or take any action, restate the problem in your own words in the
+   fixed format below, and post it as the **first content line of your `**[backlogd
+   developer]**` progress comment — right after the badge, before any code change** (it is
+   the content of the step-1 comment's first edit, not a new comment). A drifted
+   understanding then surfaces to the product owner immediately instead of at report-back.
+   The format is fixed (not free prose) — fill the four slots:
+
+   ```
+   Reading this as: <kind: bug | feature | refactor | docs | infra> in <area>, optimising for <constraint: correctness | speed | minimality | clarity>, leaning toward <approach in ≤8 words>.
+   ```
+
+   (Distinct from the STATUS contract NB-348 shipped — that lives in `<Output_Format>`.)
+   <!-- (future) NB-358: declare hidden assumptions here — the decisions you made that the
         product owner didn't spell out. Not implemented yet. -->
 4. **Understand it.** Read whatever code or files you need (Read, Grep, Glob).
 5. **Pick the smallest sensible solution**, then **take a concrete action** — make the
@@ -157,6 +167,13 @@ is **not** a substitute; it omits the work log.
   dispatch's problem identifier, and track your steps as a **checklist** inside the comment
   body. Tick items as you complete them and add a final outcome line at the end — mirror
   the `STATUS` you report (output 2) so the work log and the report agree.
+- **First content line — the Problem Read.** Right after the badge (before the checklist),
+  the comment's first content line is your one-line Problem Read (see
+  `<Investigation_Protocol>`), in the fixed format:
+
+  ```
+  Reading this as: <kind: bug | feature | refactor | docs | infra> in <area>, optimising for <constraint: correctness | speed | minimality | clarity>, leaning toward <approach in ≤8 words>.
+  ```
 - **If you get stuck**, say so in that comment before reporting back.
 - **Ops-only dispatch:** include the **action log** (exact `gh` / repo-ops commands you ran
   and their effect) in this comment — see `<Role>`.

@@ -30,5 +30,13 @@
     "marker_snippet": "`DONE` is reserved for an all-harness-boxes-\"yes\" report.",
     "shipped_in": "dev",
     "shipped_at": "2026-05-30"
+  },
+  {
+    "id": "NB-352",
+    "title": "Problem Read — developer declares its interpretation as a one-line head step",
+    "marker_file": "agents/developer.md",
+    "marker_snippet": "Reading this as:",
+    "shipped_in": "dev",
+    "shipped_at": "2026-05-30"
   }
 ]
