@@ -52,6 +52,7 @@ never writes it. (Writing is the scrum-master's job — see `skills/solve/dispat
 ## When to use it
 
 **Scrum-master (`/backlogd:solve`)** — *during the loop*:
+
 - *Before dispatching* a developer, run **problem-history** / **find-similar** on the
   problem so you can fold a short "prior work" note into the developer's brief.
 - The orchestrator hooks (`dispatch_started` / `dispatch_completed` / `pr_opened` /
@@ -59,11 +60,13 @@ never writes it. (Writing is the scrum-master's job — see `skills/solve/dispat
   feed `graph.py report`.
 
 **Developer (`backlogd:developer`)** — *while solving, within the solve-only boundary*:
+
 - About to edit a file? Run **module-history** to see which problems last touched it and why.
 - Tackling something that feels familiar? Run **find-similar** to surface the closest past
   problems by shared touch-set, then read their Linear issues for context.
 
 **Maintainer / product owner** — *measuring the framework*:
+
 - `python scripts/graph.py report` prints a markdown table: rework rate, partial rate,
   p50/p90 dispatch→PR latency, blocker frequency by `area:*` label.
 

@@ -90,7 +90,7 @@ This keeps `main` clean and versioned for everyone installing from the marketpla
 
 Conventional Commits style, present tense:
 
-```
+```text
 feat: add scrum-master dispatch loop
 fix: handle empty Linear backlog
 docs: clarify install steps

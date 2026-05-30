@@ -17,20 +17,20 @@ the top.
 
 **Filter**
 
-```
+```text
 Label is problem
 Status is in: Todo, In Progress, In Review
 ```
 
 **Group by**
 
-```
+```text
 Status
 ```
 
 **Sort**
 
-```
+```text
 Label "blocked" first, then Priority
 ```
 
@@ -53,7 +53,7 @@ slipped through review without you noticing.
 
 **Filter**
 
-```
+```text
 Label is problem
 Status is Done
 Completed at is past week
@@ -61,7 +61,7 @@ Completed at is past week
 
 **Sort**
 
-```
+```text
 Completed at, descending
 ```
 
@@ -75,7 +75,7 @@ description.
 
 It looks like this:
 
-```
+```text
 ## 📊 Forecast
 
 - **Velocity (7d):** 4.1 problems/day
@@ -102,7 +102,7 @@ _Last refreshed: 2026-05-28T07:30:00Z_
 
 When velocity is 0 (nothing closed in the last 7 days), the ETA line reads:
 
-```
+```text
 **Rough ETA to drain:** insufficient data — close at least one problem this week to get a forecast
 ```
 

@@ -24,7 +24,7 @@ scope today.
 ## Mapping
 
 | Scrum event | backlogd command | What the command does |
-|---|---|---|
+| --- | --- | --- |
 | **The Sprint** (container, fixed length ≤ 1 month) | **Continuous flow — no fixed-length sprint.** | backlogd runs **one problem per loop**: pickup → solve → review → release. The "Sprint" container is the *single problem's loop* from `solve`-claim to `review`-accept. No calendar timebox. See [`../SKILL.md`](../SKILL.md) → *The Sprint — backlogd's continuous-flow interpretation*. |
 | **Sprint Planning** — initiates the Sprint; produces the Sprint Backlog (why / what / how) | **`/backlogd:scope`** | Picks a `problem`-labelled issue, writes the spec + `## Acceptance Criteria` into the description, decomposes on discovery (sub-issues + `blocked-by`, or promotes to a Project), sets priority. Produces the Sprint-Backlog-equivalent for that one problem. No solving; no state change to *In Progress*. |
 | **Daily Scrum** — 15-minute Developer event to inspect progress toward the Sprint Goal and adapt the plan | **`/backlogd:status`** | Surveys active `problem` issues, reads decomposition / states / `blocked-by`, reports progress + blockers to the PO. **Read-only — writes nothing.** Same inspection function as the Daily Scrum; plan adaptation lives in `solve`, not here. |
@@ -36,7 +36,7 @@ scope today.
 > not a ceremony around it. It claims units (move to *In Progress*), dispatches the
 > developer subagent per unit in `blocked-by` order, and hands back to *In Review*
 > with a PO-facing brief.
-
+>
 > **`/backlogd:release` is not a Scrum event either.** It is the engineering counter-
 > part to the Increment's "usable" property: it promotes the integration branch to a
 > tagged release. In Scrum, releases happen *within* the Sprint — an Increment may
@@ -46,7 +46,7 @@ scope today.
 ## When to use which command
 
 | Moment | Use |
-|---|---|
+| --- | --- |
 | A new `problem` was just filed; is it shaped? | `/backlogd:scope` — write the AC, decompose, set priority. |
 | The top of the backlog is shaped and ready to execute | `/backlogd:solve` — claim, dispatch developers, hand back to *In Review*. |
 | The PO asks "where are we?" — no writes expected | `/backlogd:status` — survey and report. |

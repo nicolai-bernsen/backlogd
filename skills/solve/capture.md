@@ -24,7 +24,7 @@ for humans, not for the dispatch loop.
 Take the **first line** of the captured final report. Strip the leading `STATUS:` and
 trim. You must end up with **exactly one** of:
 
-```
+```text
 DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
 ```
 
@@ -35,7 +35,7 @@ prose-heuristic parsing of the body.
 ## The branch table
 
 | `STATUS` | Linear transition | Graph outcome (`dispatch-end --outcome`) | Orchestrator action |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `DONE` | → the unit's **`completed`** (In Review) state | `solved` | Accept the unit. Continue the loop: quality gate (`gate.md`) → commit → next unit. On the last unit, handoff posts the solution brief and moves the **problem** to In Review. |
 | `DONE_WITH_CONCERNS` | → the unit's **`completed`** (In Review) state | `solved` | Same as `DONE` — the increment is mergeable-pending-review — **and carry the developer's `Concerns:` text forward** so `skills/solve/handoff.md` surfaces it in the PO solution brief under *Needs your eyes*. (This rides the same forward-carry channel the gate uses for `untestable:` items.) |
 | `BLOCKED` | **stay** in the unit's started (In Progress) state | `blocked` | Surface the developer's `Next:` blocker to the PO as a clear question — a genuine blocker, do not guess past it. **Stop the run** (sequential) or finish the parallel group then stop (see walk.md). |

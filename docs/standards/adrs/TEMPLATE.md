@@ -8,7 +8,7 @@ supersedes: ~        # ADR-NNN this one replaces, or ~ (none)
 superseded-by: ~     # filled in when a later ADR replaces this one
 ---
 
-# ADR-NNN — <short imperative title>
+**ADR-NNN — <short imperative title>**
 
 - **Status:** Proposed _(YYYY-MM-DD)_ · **Problem:** NB-N
 - **Decision (TL;DR):** one sentence — the call, front-loaded, readable in isolation.
@@ -21,12 +21,15 @@ superseded-by: ~     # filled in when a later ADR replaces this one
 ## Front-matter keys
 
 Every ADR opens with a `---`-fenced YAML block so an index can enumerate ADRs without
-parsing prose ([NB-380](https://linear.app/nicolai-bernsen/issue/NB-380) consumes it).
+parsing prose ([NB-380](https://linear.app/nicolai-bernsen/issue/NB-380) consumes it). The
+front-matter `title` is the canonical document title — the body opens with the same title as
+a **bold lead-in** (not an `#` heading, which would duplicate the front-matter title), then
+the first `##` section.
 
 | Key | Required | Meaning |
-|---|---|---|
-| `id` | yes | `ADR-NNN`, matching the filename and `#` heading. |
-| `title` | yes | Short imperative title, matching the `#` heading. |
+| --- | --- | --- |
+| `id` | yes | `ADR-NNN`, matching the filename and the bold title line. |
+| `title` | yes | Short imperative title, matching the bold title line. |
 | `status` | yes | Lifecycle value — see below. Keep in sync with the `## Status` section. |
 | `date` | yes | Date of the current status (accepted / superseded), `YYYY-MM-DD`. |
 | `problem` | rec. | The `NB-<n>` problem this ADR came from. |
@@ -42,14 +45,14 @@ context, and keep it in sync with the `status:` front-matter key.
 it can be reopened and superseded when technology or circumstances change — record the
 decision, not dogma.
 
-```
+```text
 Proposed  ──►  Accepted  ──►  Superseded by ADR-NNN
                    │
                    └────────►  Deprecated
 ```
 
 | Status | Meaning |
-|---|---|
+| --- | --- |
 | `Proposed` | Under discussion; not yet binding. |
 | `Accepted` | Binding now. Do not edit the decision in place — supersede it instead. |
 | `Superseded by ADR-NNN` | Replaced by a newer ADR; kept for history. Set `superseded-by`. |
@@ -71,7 +74,7 @@ The realistic options, compared on the axes that actually decide it. A table is 
 front-load the trade-off, then one short bullet per option for nuance the table can't hold.
 
 | Option | Pro | Con | Fits the constraint? |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | **A** … | … | … | … |
 | **B** … | … | … | … |
 

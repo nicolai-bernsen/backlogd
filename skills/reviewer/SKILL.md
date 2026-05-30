@@ -88,10 +88,12 @@ by a command, the reviewer:
 
 > Example verdict line:
 >
->     ✅ `agents/reviewer.md` exists with restricted tool grant — verified with
->     `Grep -n 'tools:' agents/reviewer.md` showing `Read, Grep, Glob, Bash,
->     mcp__linear__get_issue, mcp__linear__list_comments, mcp__linear__save_comment`
->     and no `Edit, Write`.
+> ```text
+> ✅ `agents/reviewer.md` exists with restricted tool grant — verified with
+> `Grep -n 'tools:' agents/reviewer.md` showing `Read, Grep, Glob, Bash,
+> mcp__linear__get_issue, mcp__linear__list_comments, mcp__linear__save_comment`
+> and no `Edit, Write`.
+> ```
 
 This is the **regression guard**. A deliberately-incomplete solution the developer
 reported `solved` cannot pass — the reviewer's verdict has to point at a real command
@@ -138,7 +140,7 @@ dispatch is the symmetric pre-load point.
 
 ## How the reviewer fits into the loop
 
-```
+```text
 /backlogd:solve → developer (one per unit) → solution brief → In Review
                                                                   ↓
 /backlogd:review → reviewer (fresh, restricted) → verdict draft

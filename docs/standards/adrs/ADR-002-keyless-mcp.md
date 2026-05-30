@@ -8,7 +8,7 @@ supersedes: ~
 superseded-by: ~
 ---
 
-# ADR-002 — Keyless, OAuth-as-the-user, no server
+**ADR-002 — Keyless, OAuth-as-the-user, no server**
 
 - **Status:** Accepted _(2026-05-29)_ · **Problem:** NB-377
 - **Decision (TL;DR):** backlogd reaches Linear/GitHub **only** through official
@@ -16,7 +16,7 @@ superseded-by: ~
   no backlogd-run server**. The runtime loop holds no credential of its own.
 
 > First reflex-rule promoted to an explicit, reconsiderable standard. It was enforced
-> everywhere (README, conventions, ADR-001's Tier-2 rejection) before it was ever *written*
+> everywhere (README, conventions, ADR-001's Tier-2 rejection) before it was ever _written_
 > as a decision that could be reopened. This ADR fixes that.
 
 ## Context
@@ -29,7 +29,7 @@ auth) — never an embedded API client, never a pasted token, never a process ba
 The principle is stated in [`README.md`](../../../README.md) (Setup) and
 [`docs/conventions.md`](../../conventions.md), and it is the stated reason ADR-001 rejected
 Tier-2 agent identity (a held `actor=app` token + webhook server). But it had never been
-captured as its own decision — so it could be *invoked* but not *revisited*. Open questions
+captured as its own decision — so it could be _invoked_ but not _revisited_. Open questions
 about a CI/headless mode (NB-360, NB-379) make that gap material: the first time someone asks
 "can backlogd run without a browser?", they need a decision to reopen, not a reflex to argue
 with.
@@ -40,13 +40,13 @@ Axes = the three legs the principle protects: **secret custody**, **who the acto
 **operational surface** (does backlogd run infrastructure?).
 
 | Option | Secret custody | Actor | Ops surface | Clean-room / IP-clean |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | **A — Keyless / OAuth-as-user / no server** (today) | none held | the human user | none | ✅ nothing to leak |
 | **B — Stored API keys** (per-user PAT in env/config) | backlogd holds a token | a bot, or ambiguous | none | ⚠️ secret in the tree/CI; custody burden |
 | **C — Hosted service** (`actor=app` token + webhook server) | backlogd holds an app token | a backlogd app user | a running server | ❌ a different product to operate + secure |
 
 - **A** — the runtime loop ships no API client and there is nothing to paste. Auth is the
-  user's own OAuth session; backlogd never sees or stores a credential. This *is* the
+  user's own OAuth session; backlogd never sees or stores a credential. This _is_ the
   current behaviour.
 - **B** — buys headless/CI runs (no browser-OAuth step) but reintroduces secret custody into
   a public repo and muddies "who acted". Rejected for the runtime loop.

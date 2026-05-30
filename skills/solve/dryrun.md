@@ -41,7 +41,7 @@ the plan; the world is untouched.
 
 ## Output contract — print in this exact order
 
-```
+```text
 [dry-run] /backlogd:solve {identifier|<top of queue>}
 
 (0) Pre-load plan (NB-340)

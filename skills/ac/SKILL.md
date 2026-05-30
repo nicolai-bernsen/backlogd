@@ -40,7 +40,7 @@ Rules:
 - **At most one tag per item.** A second `[…]` in the body is body text.
 - **Untagged → `[review]`.** Backwards compatible with every existing problem.
 - **Parsing rule (unambiguous):** if the item text matches the regex
-  `^\[(test|manual|review)\] ` (case-sensitive, single trailing space), strip that
+  `^\[(test|manual|review)\] ` (case-sensitive, single trailing space), strip that <!-- markdownlint-disable-line MD038 -->
   prefix and the rest is the *body*; otherwise the whole text is the body with
   kind=`review`. The reviewer applies the rule once; bodies that incidentally start
   with `[something]` (any token other than the three kinds) keep their brackets.
@@ -198,7 +198,7 @@ When in doubt, leave the bullet untagged — that is always safe.
 
 Reviewer's walk on the above (sketch):
 
-```
+```text
 Acceptance criteria
   ✅ [test] `bash hooks/install-git-hooks.sh …` — ran, exit 0, output matched.
   ❌ [test] `python -m pytest tests/scope/` — ran, exit 1 (3 failures).

@@ -35,7 +35,7 @@ The setup engine reads the key from the `LINEAR_API_KEY` environment variable fi
 falls back to a credentials file at `~/.backlogd/credentials.env`. The file is a simple
 `KEY=VALUE` list; add one line:
 
-```
+```text
 LINEAR_API_KEY=lin_api_xxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
@@ -56,7 +56,7 @@ Claude Code instead — the engine prefers the environment variable when it's se
 
 Preview first, apply second.
 
-```
+```text
 /backlogd:init --dryrun
 ```
 
@@ -66,7 +66,7 @@ do to your workspace.
 
 When the plan looks right, run it for real:
 
-```
+```text
 /backlogd:init
 ```
 
