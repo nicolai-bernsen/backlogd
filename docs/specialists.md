@@ -111,6 +111,43 @@ while keeping the `<Output_Format>` envelope byte-for-byte — including the `ST
 first line ([The STATUS contract](#the-status-contract)), which every specialist emits
 unchanged so the orchestrator can branch on it the same way regardless of flavour.
 
+## Linear-comment output style
+
+Every specialist posts its `**[backlogd <suffix>]**` progress comment as **Markdown the
+product owner reads inside Linear**, whose renderer has gotchas (bare code fences,
+em-dashes, complex tables, and deep list nesting all render badly). The canonical
+formatting rule-set is a Claude Code Output Style file —
+[`output-styles/linear-comment.md`](../output-styles/linear-comment.md) — and the generic
+developer's `<Output_Format>` points at it (the "Render it for Linear" bullet). The
+constraint set, in brief:
+
+| Constraint | Rule |
+| --- | --- |
+| Code fences | language-tag every fence (`bash`, `python`, `json`, `text`); never a bare fence |
+| Dashes | no em-dashes or en-dashes; use commas, colons, or parentheses |
+| Tables | simple pipe tables only (header, separator, rows); no merged or nested cells; prefer a concise table over a long bullet list |
+| List depth | nest no deeper than two levels |
+| Emoji | no decorative or sectioning emoji; the bold `**[backlogd …]**` badge stays literal text |
+
+**How a specialist inherits it.** Because the `<Output_Format>` envelope is cloned
+byte-for-byte (see [What a specialist may narrow vs must keep identical](#what-a-specialist-may-narrow-vs-must-keep-identical)),
+a specialist inherits the "Render it for Linear" pointer for free — keep that bullet, just
+swap the badge text to `**[backlogd <suffix>]**`. No specialist needs to restate the rules;
+they live once in `output-styles/linear-comment.md`.
+
+**How a specialist overrides it.** If a specialist's surface needs different formatting
+(say it posts to a target with richer table support, or it must emit raw logs verbatim),
+add a `<Constraints>` line in *that* specialist naming the deviation and why, and point at a
+sibling output-style file rather than editing the shared one. Keep the override narrow:
+the shared rule-set stays the default for every specialist that does not opt out.
+
+> **Why an Output Style and not just prose.** `output-styles/linear-comment.md` is a real
+> Claude Code Output Style: a maintainer can activate it session-wide with `/output-style`
+> while driving backlogd, so the same constraints apply to the orchestrator's own Linear
+> writes, not only the subagents' comments. The subagents additionally get the rules at the
+> prompt level (the `<Output_Format>` pointer), which is what makes the constraint apply
+> even when no session-level style is selected.
+
 ## The STATUS contract
 
 Every specialist's final report — the single structured summary the scrum-master reads —
