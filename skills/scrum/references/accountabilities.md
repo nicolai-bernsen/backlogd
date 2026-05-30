@@ -49,11 +49,61 @@ than guessing past them.
 | All git operations — worktree, branch, commits, PR, merge, release tag | Speak as the PO in the issue — uses neutral / scrum-master voice |
 | Posting the PO-facing solution brief on hand-back | Re-dispatch when `/backlogd:review` finds gaps — that is the next `solve` run |
 | Surfacing blockers and asking the PO genuine judgement calls | Silently guess past a blocker |
+| Clearing a reviewer `block` **only** when an existing ADR/precedent already answers it (a lookup miss) | **Author a missing standard itself** — a genuine standards gap is non-delegable; it goes to the PO (see below) |
 
 The five commands slice the Scrum Master function by *moment in the loop* —
 `scope` (Sprint Planning), `solve` (execution), `status` (Daily Scrum, read-only),
 `review` (Sprint Review, gates against AC + DoD), `release` (engineering recipe for
 shipping the Increment). See [`events.md`](events.md) for the full mapping.
+
+### The non-delegable standards boundary
+
+When the reviewer returns a **`block`** — a consequential decision in the change with
+**no governing Accepted standard** (the fourth verdict outcome; see
+`agents/reviewer.md` → *Missing load-bearing standard*) — the scrum-master must respect
+a hard boundary on what it may decide itself.
+
+The reviewer classifies every `block` as one of two kinds, and the boundary follows the
+classification:
+
+- **`fact:` (a missing *fact*)** — a one-time lookup the change needs (a value, a
+  version, a path). The scrum-master **may** clear it **only when an existing
+  ADR/precedent already answers it** (a lookup miss, not a genuine gap): cite the
+  governing standard, answer once, and let the story continue. No ADR, no PO.
+- **`standard:` (a missing *standard*)** — a durable, cross-issue governance gap. This
+  is **non-delegable**: the scrum-master **must never author the standard itself**. The
+  team does not invent the standard *for* the PO — if it did, the scrum-master would
+  silently become the de-facto architect, baking an ungoverned decision into the corpus
+  by default. A `standard:` block always goes to the **PO** via the Linear-native flow
+  below.
+
+The line is sharp on purpose: *answering a lookup an existing standard already settles*
+is impediment-removal (the Scrum Master's job); *deciding what a brand-new standard
+should say* is a product/architecture call (the PO's). This boundary is documented where
+the scrum-master acts on the verdict — [`../../../commands/review.md`](../../../commands/review.md)
+step 5 and the ship-on-green chain [`../../solve/ship.md`](../../solve/ship.md).
+
+### The Linear-native missing-standard flow (`standard:` block)
+
+On a `standard:` block, the scrum-master routes it through Linear's **sub-issue +
+blocked-by** primitives — never a buried comment — so the gap is first-class and the
+parent story visibly parks until it is answered:
+
+1. **Create a `Define standard for X` sub-issue** of the blocked problem
+   (`save_issue` with `parentId` = the problem; `title` = `Define standard for {X}`,
+   carrying the reviewer's named gap).
+2. **Mark the parent blocked-by it** (`save_issue(id: problem, blockedBy:
+   [sub-issue])`) — the parent does **not** merge; it parks *In Review*, blocked.
+3. **Surface to the PO** the question *"what standard would you like for {X}?"* — a
+   genuine judgement call the scrum-master does not guess past (it does **not** invent
+   the answer).
+4. **On the PO's answer**, refine + solve the sub-issue — write the ADR from the ADR
+   template (`docs/standards/adrs/`), which regenerates `docs/standards/index.json`.
+5. The parent **unblocks** once the sub-issue is `completed` and the new standard now
+   governs X; the original story continues — re-run `/backlogd:review`, and the
+   previously-`block`ed decision now resolves against the freshly-Accepted ADR.
+
+`fact:` blocks skip this entirely: answer once (per the boundary above) and continue.
 
 ## Developers — the `backlogd:developer` subagent
 
@@ -86,7 +136,10 @@ Linear's side.
 
 PO doing the work · Scrum Master making product decisions · Developers
 self-transitioning state · cross-issue scope creep (each developer can only write to
-its own assigned issue, so drift becomes a *new* problem filed back to the PO).
+its own assigned issue, so drift becomes a *new* problem filed back to the PO) · **the
+Scrum Master quietly becoming the architect** (a `standard:` block is non-delegable — a
+missing standard is a `Define standard for X` sub-issue + a PO question, never an
+invented rule).
 
 ## See also
 

@@ -136,8 +136,11 @@ world — anything not in it is invisible to it. Mirror the developer envelope's
 no-implicit-context discipline. The reviewer reads the contract (its agent prompt loads
 **`skills/ac/SKILL.md`** for the typed-AC grammar so it can branch per kind on each
 `## Acceptance Criteria` bullet), walks every AC + every DoD line, and returns both its
-rollup (`accepted` / `sent back` / `needs PO`) **and** a **drafted verdict body**
-(markdown) you will post verbatim as the `**[backlogd review]**` comment in step 4:
+rollup (`accepted` / `sent back` / `needs PO` / **`block`**) **and** a **drafted verdict
+body** (markdown) you will post verbatim as the `**[backlogd review]**` comment in step 4.
+The fourth rollup, **`block`**, fires when a consequential decision in the change has **no
+governing Accepted standard** — the reviewer names the gap and classifies it `standard:`
+or `fact:` (it does **not** invent the standard); you route it in step 5:
 
 > Review this problem in `verdict` mode. Read its `## Acceptance Criteria` and walk the
 > Definition of Done (`docs/scrum/definition-of-done.md`); load `skills/ac/SKILL.md` for
@@ -165,8 +168,9 @@ rollup (`accepted` / `sent back` / `needs PO`) **and** a **drafted verdict body*
 > Worktree path: {$WT if still present, else "(removed — read via gh pr diff)"}
 
 Capture the reviewer's final structured summary verbatim — specifically the rollup
-(`accepted` / `sent back` / `needs PO`), its `AC:` + `DoD:` glyph counts, and the
-`drafted-verdict-body` markdown block. Verify the reviewer's `**[backlogd reviewer]**`
+(`accepted` / `sent back` / `needs PO` / `block`), its `AC:` + `DoD:` glyph counts, the
+`Standards:` line (and, on a `block`, the named missing standard + its `standard:`/`fact:`
+classification), and the `drafted-verdict-body` markdown block. Verify the reviewer's `**[backlogd reviewer]**`
 comment landed on the issue (`list_comments`); do **not** re-post it yourself. If the
 comment is missing, this is most likely the NB-340 tool-grant hazard (step 0 above) —
 surface it as a tool-grant failure, not a reviewer failure.
@@ -181,7 +185,7 @@ the body in step 3; you **post** it — do not delegate posting. Use the reviewe
 `drafted-verdict-body` verbatim; the template it follows is:
 
 ```
-**[backlogd review]** Verdict: accepted | sent back | needs you
+**[backlogd review]** Verdict: accepted | sent back | needs you | block
 
 Acceptance criteria
   ✅ [{kind}] {criterion} — {how it is met, with cited evidence (command + exit code for [test])}
@@ -197,18 +201,32 @@ Definition of Done
   ❌ {DoD line} — {what is missing}
   ❔ {DoD line} — {the judgement call for you}
 
+Applicable standards (filtered from docs/standards/index.json by scope)
+  ✅ {ADR-NNN} {assertion} — {how the diff honours it}
+  ❌ {ADR-NNN} {assertion} — {how the diff violates it}
+  🚫 {decision X} — no Accepted standard governs X (see Missing standard / fact below)
+  (or: "none applicable to this diff")
+
+Missing standard / fact   ← only on a block (one line per gap)
+  🚫 standard: {decision X} — durable cross-issue gap → graduate to an ADR, escalate to the PO
+  🚫 fact: {lookup Y} — one-time lookup → answer once, no ADR, no PO
+
 Evidence the reviewer ran
   - `{command}` → {what it showed}
   - {…}
 
 CI signal: {green | red | pending}
 
-{Rework notes (if sent back), or the question (if needs you), or empty (if accepted)}
+{Rework notes (if sent back), the question (if needs you), the gap to route (if block), or empty (if accepted)}
 ```
 
 The parsed AC `[{kind}]` tag (one of `[test]` / `[manual]` / `[review]`) appears in
 square brackets at the start of each AC line so the PO can see, at a glance, *how*
-each item was checked. Untagged AC items appear as `[review]` (the default).
+each item was checked. Untagged AC items appear as `[review]` (the default). The
+**Applicable standards** section lists the index-filtered ADRs the reviewer judged the
+diff against (or states none applied); the **Missing standard / fact** section appears
+**only on a `block`** — one `🚫` line per gap, tagged `standard:` or `fact:` so you can
+route it in step 5.
 
 You may **not** override the reviewer's per-AC or per-DoD judgement without surfacing
 the override explicitly (e.g. "PO override: accepted despite ❌ — see comment below").
@@ -225,10 +243,11 @@ auto-chain (see `skills/solve/ship.md`) act on it, so the merge condition and th
 base-race guard below live here once and are reused, never re-derived.
 
 **The happy-path merge condition (exact):** auto-merge **only** when **every AC `✅` AND
-every DoD line `✅` AND CI green AND zero `[manual]` AND zero `❔`**. Any `❌`, any `❔`,
-any unconfirmed `📝`/`[manual]`, or red CI does **not** merge — it routes to *sent back* or
-*needs PO* below. A red DoD line weighs the same as a red AC line; the floor is
-non-negotiable.
+every DoD line `✅` AND CI green AND zero `[manual]` AND zero `❔`** (and **no `🚫`
+block**). Any `❌`, any `❔`, any unconfirmed `📝`/`[manual]`, any `🚫` block, or red CI
+does **not** merge — it routes to *sent back*, *needs PO*, or *block* below. A red DoD
+line weighs the same as a red AC line; the floor is non-negotiable, and a `block` parks
+the problem blocked-by a new sub-issue until the gap is governed.
 
 - **`accepted`** (every AC `✅` AND every DoD `✅` AND CI green AND zero `[manual]`/`❔`) →
   **merge the PR and close the loop**. First run the **base-race guard** — immediately
@@ -273,17 +292,44 @@ non-negotiable.
   the PO before the verdict can close. Treat unanswered manual checks as a blocker, not
   a silent pass: `accepted` requires every `📝` confirmed `✅`; an answered-no drops the
   verdict to `sent back`; unanswered holds it at `needs you`.
+- **`block`** (a `🚫` line — a consequential decision with **no governing Accepted
+  standard**) → **the problem does NOT merge.** It **parks blocked-by a new sub-issue**
+  until the gap is governed. Route it by the reviewer's classification — the
+  **non-delegable standards boundary**: you may clear a `fact:` lookup yourself **only**
+  when an existing ADR/precedent already answers it; you must **never author a missing
+  `standard:` yourself** (that silently makes the scrum-master the de-facto architect).
+  See [`../skills/scrum/references/accountabilities.md`](../skills/scrum/references/accountabilities.md)
+  → *The non-delegable standards boundary*.
+  - **`🚫 standard:` (durable, cross-issue gap) → the Linear-native missing-standard
+    flow.** Create a **`Define standard for {X}` sub-issue** of the problem
+    (`save_issue` with `parentId` = the problem; `title` = `Define standard for {X}`,
+    body = the reviewer's named gap), then mark the **parent blocked-by it**
+    (`save_issue(id: problem, blockedBy: [sub-issue])`) — Linear sub-issue + blocked-by
+    primitives, **not** a buried comment. Leave the problem **In Review**, PR open;
+    re-evaluate the `blocked` label (`skills/linear/blocked-label.md`). **Surface to the
+    PO** the question *"what standard would you like for {X}?"* — a genuine judgement
+    call; do **not** invent the answer. On the PO's answer, **refine + solve the
+    sub-issue** (write the ADR from the ADR template under `docs/standards/adrs/`, which
+    regenerates `docs/standards/index.json`); once it is `completed` the parent
+    **unblocks** and the original story continues — re-run `/backlogd:review`, and the
+    once-`block`ed decision now resolves against the freshly-Accepted ADR.
+  - **`🚫 fact:` (one-time lookup) → answer once and continue.** No ADR, no PO, no
+    sub-issue. Clear it **only** by citing the existing ADR/precedent that already
+    answers it; record the answer in your rollup comment and re-run the verdict. If no
+    existing standard settles it, it is not a `fact:` — treat it as a `standard:` gap
+    above.
 
-Confirm the transition + merge (or the deliberate non-merge) succeeded.
+Confirm the transition + merge (or the deliberate non-merge / the blocked-by park) succeeded.
 
 ## 6. Report
 
 ```
 {identifier} — {title}
-  reviewer    -> {accepted | sent back | needs PO}, evidence cited
+  reviewer    -> {accepted | sent back | needs PO | block}, evidence cited
   acceptance  -> {n met}/{n total} criteria ({t} [test], {m} [manual], {r} [review]), {k} needs-PO
+  standards   -> {m} applicable of {n} indexed, {b} missing (🚫)
   CI          -> {green | red | pending}
-  verdict     -> accepted (PR merged → Done) | sent back (PR open → In Progress) | needs you (← {question})
+  verdict     -> accepted (PR merged → Done) | sent back (PR open → In Progress) | needs you (← {question}) | block (PR open → blocked-by {Define standard for X} sub-issue, asked the PO)
 ```
 
 The kind breakdown on the `acceptance` line lets the PO see, at a glance, how *teeth*
