@@ -39,11 +39,20 @@ Rules:
   space after the closing bracket. Anywhere else, the brackets are body text.
 - **At most one tag per item.** A second `[…]` in the body is body text.
 - **Untagged → `[review]`.** Backwards compatible with every existing problem.
-- **Parsing rule (unambiguous):** if the item text matches the regex
-  `^\[(test|manual|review)\] ` (case-sensitive, single trailing space), strip that <!-- markdownlint-disable-line MD038 -->
-  prefix and the rest is the *body*; otherwise the whole text is the body with
-  kind=`review`. The reviewer applies the rule once; bodies that incidentally start
-  with `[something]` (any token other than the three kinds) keep their brackets.
+- **Parsing rule (normalize, then match):** kind extraction is *normalize-then-match*,
+  because Linear escapes a bare leading `[` when it stores a description — an authored
+  `[test] …` comes back as `\[test\] …`, and the backtick workaround `` `[test]` … ``
+  round-trips verbatim. So **before** matching, normalize the *leading tag region* of
+  the item text: unwrap a leading inline code span around the tag (`` `[test]` `` →
+  `[test]`) and markdown-unescape a leading bracket escape (`\[`→`[`, `\]`→`]`). Then
+  apply the regex `^\[(test|manual|review)\] ` (case-sensitive, single trailing space): <!-- markdownlint-disable-line MD038 -->
+  on a match, strip that prefix and the rest is the *body*; otherwise the whole
+  **original** text is the body with kind=`review`. Normalization is surgical — only the
+  leading tag region is rewritten, so backslashes or code spans elsewhere in the body
+  survive untouched, and a non-kind `[something]` (or `\[something\]`) keeps its
+  brackets and stays `review`. **`scripts/ac_parse.py` is the reference implementation**
+  (`extract_kind` → `(kind, body)`); the reviewer (an LLM, there is no runtime parser)
+  mirrors it exactly, the way `/backlogd:status` mirrors `scripts/forecast.py`.
 
 ## When to use each kind
 
@@ -153,7 +162,9 @@ When `/backlogd:review` dispatches the **reviewer subagent** (`agents/reviewer.m
 in `verdict` mode, the reviewer walks each `- [ ]` bullet under `## Acceptance
 Criteria`:
 
-1. **Parse the kind** with the regex above. Untagged → `[review]`.
+1. **Parse the kind** by the normalize-then-match rule above — normalize Linear's
+   escaped (`\[test\]`) and code-span (`` `[test]` ``) storage forms, then match
+   (mirror `scripts/ac_parse.py`). Untagged / non-kind token → `[review]`.
 2. **Branch per-kind:**
    - **`[test]`** → extract the first backticked command from the body. If none, mark
      `❔ needs PO judgement: no runnable check found`. Otherwise run the command from
@@ -186,6 +197,13 @@ When in doubt, leave the bullet untagged — that is always safe.
 
 ## Examples — round trip
 
+A *true* round trip has two states: what the author writes, and what Linear stores and
+returns. They differ — Linear escapes the leading `[` — so the reviewer normalizes the
+stored form back to the bare kind before matching (see the Parsing rule;
+`scripts/ac_parse.py` is the reference impl).
+
+**What the author writes** (bare tags):
+
 ```markdown
 ## Acceptance Criteria
 
@@ -196,7 +214,22 @@ When in doubt, leave the bullet untagged — that is always safe.
 - [ ] Existing untagged criteria continue to work (defaults to `[review]`).
 ```
 
-Reviewer's walk on the above (sketch):
+**What Linear stores and `get_issue` returns** (leading brackets escaped — this is what
+the reviewer actually parses, and what `scripts/ac_parse.py` normalizes back to the bare
+kind):
+
+```markdown
+## Acceptance Criteria
+
+- [ ] \[test\] `bash hooks/install-git-hooks.sh test@example.com && git config backlogd.expectedEmail` prints `test@example.com`.
+- [ ] \[test\] No regression in existing scope flow — `python -m pytest tests/scope/` exits 0.
+- [ ] \[manual\] The PO runs `/backlogd:scope NB-XXX` on a freshly-filed problem and the resulting decomposition looks reasonable.
+- [ ] \[review\] The new code path is small enough to read in one sitting.
+- [ ] Existing untagged criteria continue to work (defaults to `[review]`).
+```
+
+Reviewer's walk on the stored form (sketch — kinds resolve correctly *because* the
+escaping is normalized first):
 
 ```text
 Acceptance criteria

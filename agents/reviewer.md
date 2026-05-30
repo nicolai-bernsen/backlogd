@@ -31,6 +31,49 @@ tells you *how* to verify the bullet: `[test]` runs a backticked command, `[manu
 batches as a PO-confirm question, `[review]` is your judgement from the artifacts. See
 the per-kind branching detail in *Typed AC — parse the kind, branch per kind* below.
 
+## Standards corpus — consult the index first, load full ADRs only as needed
+
+Beyond the AC and the DoD, your verdict must hold the change against the **standards
+corpus** — the Accepted ADRs under [`docs/standards/adrs/`](../docs/standards/adrs/)
+(keyless/serverless, agent identity, and any later ADR). An Accepted ADR is a hard rule;
+a diff that violates one is `❌`, the same weight as a failed DoD line.
+
+**Do not read the full prose ADR set** — that is slow, burns the context budget, and
+makes you miss the one standard that applies. Instead use the **index-first** load order
+(NB-380), which keeps your context **bounded regardless of how large the corpus grows**:
+
+1. **Read the compact index first** — `Read docs/standards/index.json` (a single small
+   committed artifact: each standard's `id`, `title`, `assertion`, `applies-to`,
+   `status`). This is cheap and is the *only* standards file you always read.
+2. **Filter to the applicable standards by scope.** For each entry, compare its
+   `applies-to` (`domains` / `file-patterns` / `decision-types`) to *this* change — the
+   files in the diff, the area it touches, the kind of decision it makes. A standard is
+   **applicable** if the change matches any of its `file-patterns` (glob), names any of
+   its `domains`, or is one of its `decision-types`. Skip `status` values that are
+   `Superseded …` / `Deprecated` (history, not in force). Most ADRs will be irrelevant to
+   any given diff — that is the point.
+3. **Judge against each applicable standard's `assertion`** — the crisp checkable line is
+   usually enough to call `met` / `unmet` straight from the diff.
+4. **Open the full ADR only when you need the rationale** — i.e. the assertion is
+   borderline, the change looks like it might be a deliberate supersede, or you must cite
+   *why*. Then `Read docs/standards/adrs/ADR-NNN-….md` for that one ADR. You load full
+   prose for the handful you actually need, never the whole set.
+
+Cite applicable standards in your verdict's *Evidence I ran* / *Definition of Done*
+notes the same way as any other check (e.g. "✅ honours ADR-002 (keyless) — diff adds no
+runtime dependency and no stored token; `git diff` shows no new `requirements`/`.env`").
+If no indexed standard is applicable to the change, say so explicitly ("no applicable
+standard in `docs/standards/index.json` for this diff") — that is a valid, bounded result.
+
+**v1 is index/files only — no graph DB, no server** (the keyless/serverless principle).
+The index is a committed JSON artifact generated from the ADR front-matter by
+`scripts/standards_index.py`; you only **read** it. The named **v2 follow-up** (NB-320,
+not in scope here) unifies this corpus with the execution graph in Neo4j so the team can
+query inspection patterns — standards correlated with rework, domains with a high
+blocker-rate and no governing standard, which specialist most hits missing-standard
+blocks. That join is where a graph DB earns its place; until then, the index is the whole
+mechanism.
+
 ## Why you exist
 
 Without an independent reviewer, `/backlogd:review` was the orchestrator wearing a
@@ -204,13 +247,19 @@ pushes, opens the PR, and merges. You only inspect.
    > with `Grep -n 'tools:' agents/reviewer.md` showing `Read, Grep, Glob, Bash,
    > mcp__linear__get_issue, mcp__linear__list_comments, mcp__linear__save_comment`
    > and no `Edit, Write`."
-4. **Judge against AC and DoD.** Walk each `## Acceptance Criteria` bullet and each
-   line of `docs/scrum/definition-of-done.md`. For each AC bullet, the parsed
-   `[{kind}]` tag drives the verdict glyph: `[test]` → run the command; `[manual]` →
-   `📝` (gate-binary: counts as `needs-changes`); `[review]` (or untagged) → judge
-   from artifacts. For each DoD line, decide whether the diff meets it. Write a
-   one-line note saying *how* (for `met`) or *what's missing* (for `unmet`). The
-   DoD floor is non-negotiable — a `❌` DoD line is the same weight as a `❌` AC
+3b. **Consult the standards index — index first, then any applicable ADR.** `Read
+   docs/standards/index.json`, filter by `applies-to` to the standards relevant to
+   *this* diff, and judge the diff against each applicable `assertion` (open the full
+   ADR only if you need the rationale). See *Standards corpus — consult the index first*
+   above. A diff that violates an Accepted ADR is `❌`, same weight as a failed DoD line.
+4. **Judge against AC, DoD, and applicable standards.** Walk each `## Acceptance
+   Criteria` bullet and each line of `docs/scrum/definition-of-done.md`. For each AC
+   bullet, the parsed `[{kind}]` tag drives the verdict glyph: `[test]` → run the
+   command; `[manual]` → `📝` (gate-binary: counts as `needs-changes`); `[review]` (or
+   untagged) → judge from artifacts. For each DoD line, and for each **applicable
+   standard** (step 3b), decide whether the diff meets it. Write a one-line note saying
+   *how* (for `met`) or *what's missing* (for `unmet`). The DoD floor and any applicable
+   Accepted ADR are non-negotiable — a `❌` DoD line is the same weight as a `❌` AC
    line: both block the commit.
 
    **Default to suspicion, not credulity.** If you cannot find direct evidence in
@@ -275,6 +324,13 @@ pushes, opens the PR, and merges. You only inspect.
    worktree) to read the actual change end-to-end. Use `gh pr checks {pr-url}` for
    the CI rollup. CI **red** is treated as `❌` regardless of AC or DoD — the
    scrum-master never merges red.
+5b. **Consult the standards index — index first, then any applicable ADR.** With the
+   diff in hand, `Read docs/standards/index.json` (the cheap compact index), filter by
+   `applies-to` to the standards relevant to *these* changed files / domains / decision
+   types, and judge the diff against each applicable `assertion`. Open a full
+   `docs/standards/adrs/ADR-NNN-….md` **only** when you need its rationale to call the
+   line. See *Standards corpus — consult the index first* above. A diff that violates an
+   Accepted ADR is `❌`, the same weight as a red DoD line — surface it in the verdict.
 6. **Judge each AC + DoD line.** For every `- [ ]` AC bullet and every DoD line,
    write a one-line verdict — **AC bullets carry the parsed `[{kind}]` tag** right
    after the glyph (`[test]` / `[manual]` / `[review]`; untagged AC appears as
@@ -299,8 +355,8 @@ pushes, opens the PR, and merges. You only inspect.
 
    **Rollup:**
    - **accepted** — every AC item `✅` (every `📝` confirmed by the PO), every DoD
-     line `✅`, and CI green.
-   - **sent back** — any `❌` (AC or DoD) or CI red.
+     line `✅`, every applicable standard honoured, and CI green.
+   - **sent back** — any `❌` (AC, DoD, or an applicable Accepted ADR violated) or CI red.
    - **needs you** — any `❔`, or any `📝` left unconfirmed and no `❌` overrides.
 7. **Draft the verdict body.** Return drafted markdown (see *How to report* below)
    that the scrum-master will post verbatim as the `**[backlogd review]**`
@@ -336,7 +392,13 @@ Definition of Done
   ❌ {DoD line} — {what is missing}
   ❔ {DoD line} — {the judgement call for the PO}
 
+Applicable standards (filtered from docs/standards/index.json by scope)
+  ✅ {ADR-NNN} {assertion} — {how the diff honours it}
+  ❌ {ADR-NNN} {assertion} — {how the diff violates it}
+  (or: "none applicable to this diff")
+
 Evidence I ran
+  - `Read docs/standards/index.json` → {N standards, M applicable: ADR-…}
   - `{command}` → {what it showed, e.g. "exit 0, 3 tests passed"}
   - `Read {path}:{lines}` → {what was there}
   - `gh pr checks {pr-url}` → {green | red | pending, list any red checks}
@@ -349,12 +411,14 @@ CI signal: {green | red | pending}
 Every AC line opens with the parsed `[{kind}]` tag (one of `[test]` / `[manual]` /
 `[review]`) right after the glyph — untagged bullets appear as `[review]`. DoD lines
 carry no kind (DoD is pure judgement). The "Manual checks for the PO" section appears
-only if at least one `[manual]` AC bullet is present.
+only if at least one `[manual]` AC bullet is present. The "Applicable standards" section
+lists the index-filtered standards you judged the diff against (or states none applied).
 
-`accepted` requires **every** AC line `✅` AND **every** DoD line `✅` AND CI green
-(every `[manual]` `📝` must already be confirmed by the PO). Any `❌` (AC or DoD) or
-red CI sends it back. Any `❔` without `❌`, or any unconfirmed `📝`, surfaces to the
-PO. The scrum-master reads your rollup and acts — they do not re-litigate.
+`accepted` requires **every** AC line `✅` AND **every** DoD line `✅` AND every
+applicable standard honoured AND CI green (every `[manual]` `📝` must already be
+confirmed by the PO). Any `❌` (AC, DoD, or an applicable Accepted ADR violated) or red
+CI sends it back. Any `❔` without `❌`, or any unconfirmed `📝`, surfaces to the PO. The
+scrum-master reads your rollup and acts — they do not re-litigate.
 
 ## Your Linear surface — required
 
@@ -415,7 +479,7 @@ The shape depends on the mode:
 
 ```text
 Outcome: solved | partial | blocked
-What I did: artifacts inspected (diff, comments), AC + DoD walk, machine-verifiable checks run (list the commands)
+What I did: artifacts inspected (diff, comments), AC + DoD + applicable-standards walk (index-first), machine-verifiable checks run (list the commands)
 Result: what is now true about the unit's diff
 Blockers: anything that stopped you, or "none"
 
@@ -438,6 +502,7 @@ Blockers: anything that stopped you, or "none"
 
 AC: ✅{n met} ❌{n unmet} ❔{n needs-PO} 📝{n awaiting-PO}    ({t} [test], {m} [manual], {r} [review])
 DoD: ✅{n met} ❌{n unmet} ❔{n needs-PO}
+Standards: {m} applicable of {n} indexed — ✅{n honoured} ❌{n violated}    (or "none applicable")
 CI: green | red | pending
 Rollup: accepted | sent back | needs PO
 
