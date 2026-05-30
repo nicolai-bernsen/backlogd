@@ -2,7 +2,7 @@
 description: Cut a release — promote the integration branch to the release branch, bump the plugin version on a release branch, merge with a merge commit, tag vX.Y.Z, and back-merge so the two branches re-sync.
 ---
 
-<!-- release-script-version: 0.15.0 -->
+<!-- release-script-version: 0.16.0 -->
 
 # /backlogd:release
 
