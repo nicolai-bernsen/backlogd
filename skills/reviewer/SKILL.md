@@ -128,8 +128,12 @@ machine-readable front-matter — a crisp **checkable `assertion`**, an **`appli
 1. **Read the compact index first** (`docs/standards/index.json`) — cheap, the only
    standards file always read.
 2. **Filter to applicable standards by `applies-to`** — match the diff's changed files
-   (glob `file-patterns`), area (`domains`), and decision kind (`decision-types`); skip
-   `Superseded`/`Deprecated`. Most ADRs are irrelevant to any given diff.
+   (glob `file-patterns`), area (`domains`), and decision kind (`decision-types`); **enforce
+   only the current `Accepted` set** and skip every non-Accepted `status` — `Proposed`
+   (not yet binding), `Superseded`, and `Deprecated` (history). ADRs stay agile: Accepted
+   today is a hard rule but reconsiderable — reopen-and-supersede per the template
+   lifecycle, so the reviewer enforces only what is *currently* Accepted. Most ADRs are
+   irrelevant to any given diff.
 3. **Judge against each applicable `assertion`** — usually enough to call met/unmet.
 4. **Open a full ADR only when the rationale is needed** — never the whole set.
 

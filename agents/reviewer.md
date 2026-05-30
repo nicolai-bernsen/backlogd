@@ -49,9 +49,12 @@ makes you miss the one standard that applies. Instead use the **index-first** lo
    `applies-to` (`domains` / `file-patterns` / `decision-types`) to *this* change — the
    files in the diff, the area it touches, the kind of decision it makes. A standard is
    **applicable** if the change matches any of its `file-patterns` (glob), names any of
-   its `domains`, or is one of its `decision-types`. Skip `status` values that are
-   `Superseded …` / `Deprecated` (history, not in force). Most ADRs will be irrelevant to
-   any given diff — that is the point.
+   its `domains`, or is one of its `decision-types`. **Enforce only the current `Accepted`
+   set** — skip every non-Accepted `status`: `Proposed …` (under discussion, not yet
+   binding), `Superseded …`, and `Deprecated` (history, not in force). ADRs stay agile: an
+   Accepted ADR is a hard rule today but reconsiderable — it can be reopened and superseded
+   (per the ADR template lifecycle), so you enforce the *current* Accepted set and ignore
+   the rest. Most ADRs will be irrelevant to any given diff — that is the point.
 3. **Judge against each applicable standard's `assertion`** — the crisp checkable line is
    usually enough to call `met` / `unmet` straight from the diff.
 4. **Open the full ADR only when you need the rationale** — i.e. the assertion is
