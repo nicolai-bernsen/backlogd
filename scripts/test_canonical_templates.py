@@ -117,7 +117,13 @@ class CanonicalTemplateConstantsTest(unittest.TestCase):
 
 class ProblemIssueTemplateTest(unittest.TestCase):
     """AC2 — the ``Problem`` issue template body has both headings and applies the
-    ``problem`` label (encoded by name, the proven save_issue way)."""
+    ``problem`` label (carried by name; resolved to a labelId at seed time).
+
+    The draft-entity shape (NB-392): the issue ``templateData`` MUST carry ``title``
+    (empty — the PO names the problem) and ``priority`` (0 — no preset) for the Linear UI
+    to render it; the ``description`` markdown is auto-converted to ``descriptionData`` on
+    create; the applied label is carried under the ``labels`` name-marker and resolved to
+    ``labelIds`` at seed time (no hardcoded per-workspace id)."""
 
     def setUp(self):
         self.spec = linear_setup.CANONICAL_TEMPLATES["Problem"]
@@ -134,31 +140,52 @@ class ProblemIssueTemplateTest(unittest.TestCase):
         self.assertIn("- [ ] [review]", body)
         self.assertIn("- [ ] [manual]", body)
 
-    def test_applies_problem_label_by_name(self):
-        # The label is encoded the same way the proven save_issue create encodes
-        # labels — by NAME in a ``labels`` array (Linear resolves/auto-creates it),
-        # never a hardcoded per-workspace id. This keeps a templated issue
-        # pickup-eligible by construction.
-        self.assertIn("labels", self.data, "AC2: issue template must apply a label")
-        self.assertEqual(self.data["labels"], ["problem"])
+    def test_render_envelope_has_empty_title_and_zero_priority(self):
+        # NB-392 render-shape fix: the broken template omitted title + priority, so the
+        # Linear UI could not render the draft. They are now present — empty title (the PO
+        # names the problem) and priority 0 (no preset; ADR-003 §3 "no priority preset").
+        self.assertEqual(self.data["title"], "")
+        self.assertEqual(self.data["priority"], 0)
 
-    def test_create_plan_carries_label_in_templatedata(self):
-        # Drive the real planner: the create input's templateData must carry the
-        # applied label so the build is the single source of truth.
+    def test_applies_problem_label_by_name(self):
+        # The label is carried by NAME (Linear draft-entity drafts want ids, but the
+        # constant stays workspace-portable by carrying the name and resolving it to a
+        # labelId at seed time — never a hardcoded per-workspace id). The name lives under
+        # the engine's LABEL_NAMES_KEY marker.
+        self.assertIn(
+            linear_setup.LABEL_NAMES_KEY, self.data,
+            "AC2: issue template must apply a label by name",
+        )
+        self.assertEqual(self.data[linear_setup.LABEL_NAMES_KEY], ["problem"])
+
+    def test_create_plan_carries_label_marker_in_templatedata(self):
+        # Drive the real planner: the create input's templateData carries the by-name
+        # label marker (resolution to labelIds happens later, in _cmd_ensure_template,
+        # against the live team labels) + the render envelope (title/priority).
         plan = linear_setup.plan_ensure_template(
             "Problem", "issue", self.data, [], team_id="team_1"
         )
         self.assertEqual(plan["action"], "create")
         self.assertEqual(plan["input"]["type"], "issue")
-        self.assertEqual(plan["input"]["templateData"]["labels"], ["problem"])
-        self.assertIn("## Acceptance Criteria", plan["input"]["templateData"]["description"])
+        td = plan["input"]["templateData"]
+        self.assertEqual(td[linear_setup.LABEL_NAMES_KEY], ["problem"])
+        self.assertEqual(td["title"], "")
+        self.assertEqual(td["priority"], 0)
+        self.assertIn("## Acceptance Criteria", td["description"])
 
 
 # --- AC3: project template — ordered milestones + pointer description ------
 
 class ProjectTemplateTest(unittest.TestCase):
     """AC3 — the ``backlogd problem`` project template encodes the three milestones
-    in order and the one-line pointer description."""
+    in order and the one-line pointer description.
+
+    The draft-entity shape (NB-392): the project ``templateData`` MUST carry ``title``
+    (empty), ``priority`` (0), and — because the project draft does NOT auto-convert
+    ``description`` → ``descriptionData`` like an issue does — an explicit minimal
+    ``descriptionData`` Prosemirror doc, plus the empty collection arrays the working
+    project draft carries (``labelIds``/``initiativeIds``/``memberIds``/``teamIds``/
+    ``initialIssues``). ``statusId`` is omitted (workspace-specific)."""
 
     def setUp(self):
         self.spec = linear_setup.CANONICAL_TEMPLATES["backlogd problem"]
@@ -190,14 +217,43 @@ class ProjectTemplateTest(unittest.TestCase):
         self.assertIn("Spec document", self.data["description"])
         self.assertIn("Acceptance Criteria", self.data["description"])
 
+    def test_render_envelope_has_empty_title_and_zero_priority(self):
+        # NB-392 render-shape fix: the broken project template omitted title + priority.
+        self.assertEqual(self.data["title"], "")
+        self.assertEqual(self.data["priority"], 0)
+
+    def test_description_data_is_a_minimal_prosemirror_doc_with_the_pointer(self):
+        # Projects don't auto-convert description → descriptionData, so an explicit
+        # minimal Prosemirror doc carries the one-line pointer body into the render.
+        dd = self.data["descriptionData"]
+        self.assertEqual(dd["type"], "doc")
+        # doc → paragraph → text == the pointer description (the body the UI renders).
+        text = dd["content"][0]["content"][0]["text"]
+        self.assertEqual(text, linear_setup.CANONICAL_PROJECT_TEMPLATE_DESCRIPTION)
+
+    def test_carries_the_working_empty_collection_arrays(self):
+        # The working project draft carries these (all empty for a fresh template);
+        # matching them is what lets the draft render.
+        for key in ("labelIds", "initiativeIds", "memberIds", "teamIds", "initialIssues"):
+            self.assertIn(key, self.data, f"project draft must carry {key!r}")
+            self.assertEqual(self.data[key], [])
+
+    def test_omits_workspace_specific_status_id(self):
+        # statusId is workspace-specific — a create defaults it; we must not hardcode one.
+        self.assertNotIn("statusId", self.data)
+
     def test_create_plan_is_project_type(self):
         plan = linear_setup.plan_ensure_template(
             "backlogd problem", "project", self.data, [], team_id="team_1"
         )
         self.assertEqual(plan["action"], "create")
         self.assertEqual(plan["input"]["type"], "project")
-        names = [m["name"] for m in plan["input"]["templateData"]["projectMilestones"]]
+        td = plan["input"]["templateData"]
+        names = [m["name"] for m in td["projectMilestones"]]
         self.assertEqual(names, ["Investigate", "Implement", "Verify"])
+        self.assertEqual(td["title"], "")
+        self.assertEqual(td["priority"], 0)
+        self.assertEqual(td["labelIds"], [])
 
 
 # --- AC4: Spec document template via plan_ensure_template -----------------
@@ -235,6 +291,90 @@ class SpecDocumentTemplateTest(unittest.TestCase):
     def test_document_is_a_valid_template_type(self):
         # The engine already accepts ``document`` — no new verb/type is needed.
         self.assertIn("document", linear_setup.TEMPLATE_TYPES)
+
+    def test_document_shape_unchanged_no_render_envelope_or_label_marker(self):
+        # The document draft shape already renders (NB-392) — it is the proven
+        # save_document shape ``{title, content, icon}`` and must stay exactly that: no
+        # issue/project render-envelope fields and no by-name label marker leaking in.
+        self.assertEqual(set(self.data), {"title", "content", "icon"})
+        self.assertNotIn("priority", self.data)
+        self.assertNotIn(linear_setup.LABEL_NAMES_KEY, self.data)
+        self.assertNotIn("descriptionData", self.data)
+
+
+# --- Label-name → id resolution at seed time (the NB-392 render-shape fix) ---
+
+class ResolveTemplateLabelIdsTest(unittest.TestCase):
+    """``resolve_template_label_ids`` maps a template's by-name ``labels`` to a
+    ``labelIds`` array against the live team labels — at seed time, with no hardcoded
+    per-workspace id. This is what makes the issue draft render *and* stay portable."""
+
+    LIVE_LABELS = [
+        {"id": "lbl_problem", "name": "problem"},
+        {"id": "lbl_ops", "name": "kind:ops"},
+        {"id": "lbl_blocked", "name": "blocked"},
+    ]
+
+    def test_resolves_problem_name_to_live_label_id(self):
+        data = {"title": "", "priority": 0, "labels": ["problem"]}
+        out = linear_setup.resolve_template_label_ids(data, self.LIVE_LABELS)
+        # labelIds carries the resolved id; the by-name marker is dropped.
+        self.assertEqual(out["labelIds"], ["lbl_problem"])
+        self.assertNotIn("labels", out)
+        # The rest of the draft is preserved.
+        self.assertEqual(out["title"], "")
+        self.assertEqual(out["priority"], 0)
+
+    def test_resolution_is_case_insensitive_on_label_name(self):
+        # Linear's default label is `Problem`; the marker name `problem` must still resolve
+        # (normalize_label_name collapses case) — so a recased/uncased board still works.
+        data = {"labels": ["problem"]}
+        out = linear_setup.resolve_template_label_ids(
+            data, [{"id": "lbl_X", "name": "Problem"}]
+        )
+        self.assertEqual(out["labelIds"], ["lbl_X"])
+
+    def test_does_not_mutate_input(self):
+        # Pure: the caller's templateData dict is untouched (defensive copy).
+        data = {"labels": ["problem"], "title": ""}
+        linear_setup.resolve_template_label_ids(data, self.LIVE_LABELS)
+        self.assertEqual(data, {"labels": ["problem"], "title": ""})
+
+    def test_no_labels_key_is_passthrough(self):
+        # A template without the by-name marker (e.g. the document) is returned unchanged
+        # (a copy) — no labelIds key is invented.
+        data = {"title": "Spec", "content": "x", "icon": ":memo:"}
+        out = linear_setup.resolve_template_label_ids(data, self.LIVE_LABELS)
+        self.assertEqual(out, data)
+        self.assertNotIn("labelIds", out)
+
+    def test_preserves_and_extends_existing_label_ids(self):
+        # The project template carries an empty labelIds array; if a project ever also
+        # carried by-name labels, resolution appends to (not clobbers) the existing ids.
+        data = {"labelIds": ["already"], "labels": ["problem"]}
+        out = linear_setup.resolve_template_label_ids(data, self.LIVE_LABELS)
+        self.assertEqual(out["labelIds"], ["already", "lbl_problem"])
+        self.assertNotIn("labels", out)
+
+    def test_unresolved_label_name_raises_naming_the_name(self):
+        # If a by-name label has no live label, raise a clear error naming it — the caller
+        # surfaces it and skips that template rather than sending a draft with a missing id.
+        data = {"labels": ["nonexistent-label"]}
+        with self.assertRaises(ValueError) as ctx:
+            linear_setup.resolve_template_label_ids(data, self.LIVE_LABELS)
+        self.assertIn("nonexistent-label", str(ctx.exception))
+
+    def test_canonical_problem_template_resolves_against_live_labels(self):
+        # End-to-end on the real constant: the shipped Problem template's by-name label
+        # resolves to the live id, leaving a renderable issue draft (title/priority/
+        # description/labelIds, no leftover `labels` marker).
+        data = linear_setup.CANONICAL_TEMPLATES["Problem"]["templateData"]
+        out = linear_setup.resolve_template_label_ids(data, self.LIVE_LABELS)
+        self.assertEqual(out["labelIds"], ["lbl_problem"])
+        self.assertNotIn("labels", out)
+        self.assertEqual(out["title"], "")
+        self.assertEqual(out["priority"], 0)
+        self.assertIn("## Acceptance Criteria", out["description"])
 
 
 # --- plan_canonical_templates: the init.md single-source-of-truth surface --

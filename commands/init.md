@@ -270,6 +270,15 @@ and report the outcome; `action: "noop"` is a success, not a failure.
   JSON!`. If a template payload is rejected, report it and continue with the rest — do not
   abort the whole apply.)
 
+  > **`templateData` is Linear's draft-entity shape, and the label is resolved by the
+  > engine.** `templateData` is the *draft entity* a template pre-fills (e.g. an issue's
+  > `title` / `priority` / `description` / `labelIds`), **not** the MCP create-args — the
+  > engine encodes the shapes that actually render (NB-392). You pass the `Problem`
+  > template's `problem` label through **by name** exactly as it sits in `CANONICAL_TEMPLATES`;
+  > `ensure-template` resolves that name to the workspace's live label **id** at seed time
+  > (so no per-workspace id is ever hardcoded). If the `problem` label does not yet exist,
+  > the verb fails loudly naming it — so `ensure-label` runs **before** `ensure-template`.
+  >
   > **Created ≠ renders.** Whether Linear actually *renders* the stored `templateData` is the
   > freeform-`JSON!` gap ADR-003 names — a `[manual]` fact only a human observing the Linear
   > UI can confirm (issue body + applied label; project milestones; document body + icon).
