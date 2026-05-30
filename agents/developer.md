@@ -127,7 +127,7 @@ inspecting the repo by hand.
    understanding then surfaces to the product owner immediately instead of at report-back.
    The format is fixed (not free prose) — fill the four slots:
 
-   ```
+   ```text
    Reading this as: <kind: bug | feature | refactor | docs | infra> in <area>, optimising for <constraint: correctness | speed | minimality | clarity>, leaning toward <approach in ≤8 words>.
    ```
 
@@ -171,9 +171,10 @@ is **not** a substitute; it omits the work log.
   the comment's first content line is your one-line Problem Read (see
   `<Investigation_Protocol>`), in the fixed format:
 
-  ```
+  ```text
   Reading this as: <kind: bug | feature | refactor | docs | infra> in <area>, optimising for <constraint: correctness | speed | minimality | clarity>, leaning toward <approach in ≤8 words>.
   ```
+
 - **If you get stuck**, say so in that comment before reporting back.
 - **Ops-only dispatch:** include the **action log** (exact `gh` / repo-ops commands you ran
   and their effect) in this comment — see `<Role>`.
