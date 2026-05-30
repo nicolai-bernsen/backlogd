@@ -47,6 +47,30 @@
           "dependency"
         ]
       }
+    },
+    {
+      "id": "ADR-003",
+      "title": "Canonical Linear workspace configuration",
+      "status": "Accepted",
+      "assertion": "A fresh backlogd workspace seeds exactly the canonical set and nothing more — issue labels problem, kind:ops, blocked (agent:* is owned but runtime-created, never seeded), no project labels, and three templates (a Problem issue, a backlogd-problem project with Investigate/Implement/Verify milestones, and a Spec document); kind:* beyond kind:ops and the area:* family are dogfood/per-repo only and are never seeded or adopter-facing.",
+      "applies-to": {
+        "domains": [
+          "linear",
+          "workspace-config",
+          "init"
+        ],
+        "file-patterns": [
+          "scripts/linear_setup.py",
+          "commands/init.md",
+          "docs/guides/workspace-bootstrap.md"
+        ],
+        "decision-types": [
+          "workspace-config",
+          "labels",
+          "templates",
+          "seed"
+        ]
+      }
     }
   ]
 }
