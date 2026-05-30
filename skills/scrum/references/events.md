@@ -18,8 +18,9 @@ The Scrum Guide says (verbatim):
 >
 > — *The 2020 Scrum Guide*, Scrum Events.
 
-backlogd preserves four of the five as commands; the Sprint Retrospective is out of
-scope today.
+backlogd maps all five to commands. The Sprint Retrospective lands as
+**`/backlogd:retro`** — a milestone-scoped, graph-grounded look-back that files candidate
+improvements for the PO to prioritize.
 
 ## Mapping
 
@@ -29,7 +30,7 @@ scope today.
 | **Sprint Planning** — initiates the Sprint; produces the Sprint Backlog (why / what / how) | **`/backlogd:scope`** | Picks a `problem`-labelled issue, writes the spec + `## Acceptance Criteria` into the description, decomposes on discovery (sub-issues + `blocked-by`, or promotes to a Project), sets priority. Produces the Sprint-Backlog-equivalent for that one problem. No solving; no state change to *In Progress*. |
 | **Daily Scrum** — 15-minute Developer event to inspect progress toward the Sprint Goal and adapt the plan | **`/backlogd:status`** | Surveys active `problem` issues, reads decomposition / states / `blocked-by`, reports progress + blockers to the PO. **Read-only — writes nothing.** Same inspection function as the Daily Scrum; plan adaptation lives in `solve`, not here. |
 | **Sprint Review** — inspects the outcome of the Sprint; stakeholders decide what next | **`/backlogd:review`** | Verifies an *In Review* problem against its `## Acceptance Criteria` and the Definition of Done. All met → Done; gaps → back to *In Progress* with rework notes; genuine judgement call → ask the PO. |
-| **Sprint Retrospective** — inspects how the last Sprint went; identifies improvements | **Out of scope today.** | backlogd has no retrospective command in v1. Process improvement happens out-of-band by the PO updating `/docs` and the `/backlogd:*` commands when patterns emerge. A future command could automate this; it is not in this initiative. |
+| **Sprint Retrospective** — inspects how the last Sprint went; identifies improvements | **`/backlogd:retro`** | Over a completed **milestone** (primary; cycle-end as a cadence safety-net, and on-demand `--cycle` / `--since` / `--last` selectors), reads the **execution graph** (`scripts/graph.py report --json`: rework, latency, blockers, partials) as objective evidence, detects **cross-issue patterns** no single review can see, classifies each learning (recurring failure → ADR/standard · process problem → framework bug · one-off → noted), and **files the load-bearing ones as candidate `kind:improvement` issues**. The retro proposes; the PO prioritizes. Closes the adaptation pillar. See `skills/retro/SKILL.md`. |
 
 > **`/backlogd:solve` is not a Scrum event.** It is the *execution* of the Sprint
 > Backlog produced by `/backlogd:scope` — the Developers' work *during* the Sprint,
@@ -52,7 +53,7 @@ scope today.
 | The PO asks "where are we?" — no writes expected | `/backlogd:status` — survey and report. |
 | A problem is *In Review* and waiting on a verdict | `/backlogd:review` — verify against AC + DoD; accept or send back. |
 | `dev` is green and the PO wants a release cut | `/backlogd:release` — bump, merge, tag. |
-| The PO wants to "look back on the last few problems" | **Out of scope today** — no command. The PO does it manually. |
+| A milestone closed (or the PO wants to "look back on the last few problems") | `/backlogd:retro` — read the graph, detect cross-issue patterns, file candidate improvements. Defaults to the most-recent milestone; `--cycle` / `--since` / `--last` for other scopes. |
 
 ## What is intentionally not here
 
