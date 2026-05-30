@@ -71,6 +71,32 @@
           "seed"
         ]
       }
+    },
+    {
+      "id": "ADR-004",
+      "title": "backlogd is problem-type-agnostic empirical Scrum for an agent team",
+      "status": "Accepted",
+      "assertion": "The framework layer is domain-agnostic Scrum scaffolding that never does domain work — all domain work routes to pluggable, credential-agnostic specialists (each declaring domain, inputs, and non-scope); an instance's value = specialists × standards (the domain DoD); scope is code and non-code alike; backlogd does NOT rebuild Cyrus runtime plumbing or duplicate Linear Diffs.",
+      "applies-to": {
+        "domains": [
+          "identity",
+          "scope",
+          "framework",
+          "specialists",
+          "standards",
+          "scrum"
+        ],
+        "file-patterns": [
+          "**"
+        ],
+        "decision-types": [
+          "identity",
+          "scope",
+          "positioning",
+          "agent-identity",
+          "specialist-contract"
+        ]
+      }
     }
   ]
 }
