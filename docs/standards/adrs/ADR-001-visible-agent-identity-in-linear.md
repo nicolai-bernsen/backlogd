@@ -1,3 +1,18 @@
+---
+id: ADR-001
+title: Visible agent identity in Linear
+status: Accepted
+date: 2026-05-29
+problem: NB-370
+supersedes: ~
+superseded-by: ~
+assertion: Agent identity in Linear stays comment-badge based (Tier 0); Tier 1 (MCP delegate, no server) is a gated experiment only; Tier 2 (held actor=app token + webhook server) is rejected and may not be built without superseding this ADR.
+applies-to:
+  domains: [agent-identity, linear, runtime]
+  file-patterns: [skills/linear/**, commands/**, agents/**, docs/guides/po-overview.md]
+  decision-types: [agent-identity, runtime-loop, hosting]
+---
+
 # ADR-001 — Visible agent identity in Linear
 
 - **Status:** Accepted _(2026-05-29)_ · **Problem:** NB-370

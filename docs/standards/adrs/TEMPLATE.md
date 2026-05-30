@@ -6,6 +6,11 @@ date: <YYYY-MM-DD>
 problem: NB-<n>
 supersedes: ~        # ADR-NNN this one replaces, or ~ (none)
 superseded-by: ~     # filled in when a later ADR replaces this one
+assertion: <one crisp, checkable rule — the decision as an enforceable sentence, not prose rationale>
+applies-to:
+  domains: [<domain>, ...]            # e.g. auth, runtime, docs, linear — the area(s) this governs
+  file-patterns: [<glob>, ...]        # e.g. scripts/**, docs/**, *.md — files a change touches to be in scope
+  decision-types: [<type>, ...]       # e.g. dependency, runtime-loop, agent-identity — kinds of decision this gates
 ---
 
 # ADR-NNN — <short imperative title>
@@ -21,7 +26,13 @@ superseded-by: ~     # filled in when a later ADR replaces this one
 ## Front-matter keys
 
 Every ADR opens with a `---`-fenced YAML block so an index can enumerate ADRs without
-parsing prose ([NB-380](https://linear.app/nicolai-bernsen/issue/NB-380) consumes it).
+parsing prose. [NB-380](https://linear.app/nicolai-bernsen/issue/NB-380) consumes it:
+`python scripts/standards_index.py` regenerates the compact
+[`docs/standards/index.json`](../index.json) (id · title · assertion · applies-to · status)
+from these keys, `--check` fails if any required key is missing, and
+`scripts/test_standards_index.py` fails if the committed index has drifted from the corpus.
+So **front-matter is the single source of truth** — edit it, then regenerate the index in
+the same change (CI's drift test enforces it).
 
 | Key | Required | Meaning |
 |---|---|---|
@@ -29,9 +40,28 @@ parsing prose ([NB-380](https://linear.app/nicolai-bernsen/issue/NB-380) consume
 | `title` | yes | Short imperative title, matching the `#` heading. |
 | `status` | yes | Lifecycle value — see below. Keep in sync with the `## Status` section. |
 | `date` | yes | Date of the current status (accepted / superseded), `YYYY-MM-DD`. |
+| `assertion` | yes | One crisp, **checkable** rule — the decision stated as a single enforceable sentence (e.g. "No new runtime dependency lands without an ADR"), *not* prose rationale. This is the line a reviewer reads first from the index. |
+| `applies-to` | yes | Scope that decides whether this ADR is relevant to a given change. A mapping of three lists — `domains`, `file-patterns`, `decision-types` (see below). A reviewer filters the index by this before loading the full ADR. |
 | `problem` | rec. | The `NB-<n>` problem this ADR came from. |
 | `supersedes` | opt. | The `ADR-NNN` this one replaces, or `~`. |
 | `superseded-by` | opt. | The `ADR-NNN` that later replaced this one, or `~`. |
+
+### `applies-to` — the selective-loading scope
+
+`applies-to` is what lets a reviewer load **only the relevant standards** into context
+instead of the whole prose corpus. Each of its three lists is an axis a change can match on
+— a standard is *applicable* to a change if the change touches any listed domain, matches
+any file-pattern, or is any listed decision-type. Use lower-case kebab tokens; keep them
+small and reusable across ADRs so the vocabulary stays a usable filter.
+
+| Sub-key | Meaning | Examples |
+|---|---|---|
+| `domains` | The area(s) of the system this ADR governs. | `auth`, `runtime`, `docs`, `linear`, `agent-identity`, `dependencies` |
+| `file-patterns` | Globs for files whose change brings this ADR into scope. | `scripts/**`, `docs/**`, `pyproject.toml`, `**/*.md` |
+| `decision-types` | Kinds of decision this ADR gates. | `dependency`, `runtime-loop`, `agent-identity`, `secret-custody`, `hosting` |
+
+An axis with no relevant entries may be an empty list (`[]`), but at least one of the three
+must be non-empty — a standard that applies to nothing is dead weight.
 
 ## Status
 
