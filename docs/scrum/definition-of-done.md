@@ -55,5 +55,9 @@ These are **not** in the DoD — listed here so they are not added by accident:
   tests come first.
 - **Human review of every PR.** backlogd's loop is autonomous by design — the PO files
   problems and accepts results; the scrum-master commands open and merge PRs against
-  green CI. Requiring a human reviewer on every PR would break the loop. The PO
-  reviews the *increment* at `/backlogd:review`, not the diff line-by-line.
+  green CI. Requiring a human reviewer on every PR would break the loop. The **independent
+  verdict reviewer** verifies the *increment* against this floor; on the happy path
+  `/backlogd:solve` auto-chains that verdict and merges a fully-green increment to *Done*
+  with **no human gate** (ship-on-green). The PO does not trigger the review or click merge
+  on green — they are interrupted only on a sent-back verdict, a `❔`/`[manual]` judgement
+  call, or a blocker. `/backlogd:review` remains available as a manual re-entry point.

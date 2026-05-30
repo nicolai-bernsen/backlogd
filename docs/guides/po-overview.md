@@ -116,8 +116,11 @@ Three steps, ~60 seconds total.
 1. **Scan View 1's blockers section** — the `blocked` rows at the top. Each one is waiting
    on something. Resolve, re-prioritise, or comment "still blocked, here's why" so the
    agent knows you've seen it.
-2. **Scan View 1's in-flight rows** — the rest of View 1. Anything stuck in In Review
-   longer than feels right? Run `/backlogd:review` on it.
+2. **Scan View 1's in-flight rows** — the rest of View 1. On the happy path *In Review* is
+   transient — `/backlogd:solve` auto-chains the verdict review and merges a fully-green
+   increment to Done (ship-on-green), so a problem sitting in *In Review* usually means it
+   needs you: a `❔`/`[manual]` judgement call, or it was run with `--no-ship`. Open it,
+   answer the question, or run `/backlogd:review` to re-verify and merge once it is clear.
 3. **Glance at the Project's forecast block** — velocity, queue, ETA. If "insufficient
    data" persists past a couple of days, close or cancel something to break the silence.
 

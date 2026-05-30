@@ -47,6 +47,21 @@ a written issue description (Linear) and a structured report (back to the scrum-
    detail unless the contract itself names a file, command, or interface. If the AC
    reads like a step-by-step recipe, it is too narrow; if it reads like a wish, it is
    too loose. Aim for the contract.
+
+   **Type each item — and default to `[review]`.** Each bullet may carry an optional kind
+   prefix immediately after the checkbox — `[test]` / `[manual]` / `[review]` — read
+   `skills/ac/SKILL.md` for the grammar and per-kind rules. Prefer the **strongest
+   verifiable** kind: `[test]` when an obvious exit-coded command exists (spell it out in
+   backticks); otherwise **`[review]`** (or untagged — same thing) is the default, and is
+   the home for every judgement call. **`[manual]` is the rare, earned exception** —
+   reserve it strictly for a fact only a human can observe in the world (a UI render,
+   visual on-brand-ness, an external service actually receiving something). A
+   correctness/soundness/consistency-with-the-ADRs judgement is **`[review]`**, never the
+   `[manual]` kind — the independent reviewer judges it against the standards, so it must
+   not become a standing human gate. Do not depend on the dispatch one-liner to remind you:
+   default to `[review]`, and any `[manual]` you emit **must carry a one-line justification**
+   of why no fresh-context agent could observe it (inline in the bullet). When in doubt,
+   leave the bullet untagged.
 4. **Propose a decomposition.** One of three shapes — pick the smallest that fits:
    - **single issue** — one unit of work, no internal phases. The default.
    - **n sub-issues** — when the problem breaks into ≥2 **independently-solvable** units.

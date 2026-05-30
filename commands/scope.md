@@ -85,11 +85,16 @@ structure and state writes that follow.
 > propose a decomposition, and report your proposal and any genuine ambiguities. AC
 > items may carry an optional kind prefix — `[test]` / `[manual]` / `[review]` —
 > immediately after the checkbox; untagged defaults to `[review]` (backwards
-> compatible). Load `skills/ac/SKILL.md` for the grammar and prefer the **strongest
-> verifiable kind** the item supports (`[test]` with a backticked exit-coded command
-> when one is obvious; `[manual]` when only a human can confirm; `[review]` or
-> untagged otherwise). Do **not** fabricate a `[test]` command that doesn't exist —
-> when in doubt, leave the bullet untagged.
+> compatible). Load `skills/ac/SKILL.md` for the grammar and per-kind rules. Prefer the
+> **strongest verifiable kind**: `[test]` with a backticked exit-coded command when one
+> is obvious; otherwise **default to `[review]`** (or untagged — same thing), which is the
+> home for every judgement call, including "is this decision sound / consistent with the
+> ADRs / correct". **`[manual]` is the rare, earned exception** — reserve it strictly for
+> a fact only a human can observe in the world (a UI render, visual on-brand-ness, an
+> external service actually receiving something), and make any `[manual]` carry a one-line
+> justification of why no fresh-context agent could observe it. It is **not** a peer
+> default alongside `[review]`. Do **not** fabricate a `[test]` command that doesn't
+> exist — when in doubt, leave the bullet untagged.
 >
 > Problem ({identifier}, issue id {id}): {title}
 >

@@ -219,17 +219,37 @@ the floor.
 
 ## 5. Decide and transition — orchestrator-owned
 
-Act on the reviewer's rollup:
+Act on the reviewer's rollup. This step is the **single source of the merge decision** —
+both this manual `/backlogd:review` invocation and `/backlogd:solve`'s ship-on-green
+auto-chain (see `skills/solve/ship.md`) act on it, so the merge condition and the
+base-race guard below live here once and are reused, never re-derived.
 
-- **`accepted`** (every AC `✅` AND every DoD `✅` AND CI green) → **merge the PR and
-  close the loop**: find the problem's open PR (via its linked PR / branch name),
-  confirm **CI is green** (`gh pr checks`), then **squash-merge** it into the
-  integration branch (`gh pr merge {pr} --squash --delete-branch`) and move the
-  problem to the `completed` state (Done). Remove the problem's worktree if one
-  remains (`git worktree remove`). **Never merge red** — if CI isn't green, treat it
-  as *sent back* below.
-  *(Ops-only run — `kind:ops`: there is no PR to merge. Skip the merge + worktree
-  cleanup and just move the problem to Done.)*
+**The happy-path merge condition (exact):** auto-merge **only** when **every AC `✅` AND
+every DoD line `✅` AND CI green AND zero `[manual]` AND zero `❔`**. Any `❌`, any `❔`,
+any unconfirmed `📝`/`[manual]`, or red CI does **not** merge — it routes to *sent back* or
+*needs PO* below. A red DoD line weighs the same as a red AC line; the floor is
+non-negotiable.
+
+- **`accepted`** (every AC `✅` AND every DoD `✅` AND CI green AND zero `[manual]`/`❔`) →
+  **merge the PR and close the loop**. First run the **base-race guard** — immediately
+  before merging, re-confirm the live PR is still safe to merge (it may have gone stale or
+  conflicted while the review ran — this is the NB-382 / concurrent-review race):
+
+  ```bash
+  gh pr checks {pr}                                   # CI still green on the live head?
+  gh pr view {pr} --json mergeable,mergeStateStatus   # mergeable into the integration branch?
+  ```
+
+  Proceed to merge **only** if CI is still green **and** `mergeable` is `MERGEABLE` (and
+  `mergeStateStatus` is not `BEHIND` / `DIRTY` / `BLOCKED`). If the head went red or the PR
+  is no longer cleanly mergeable, **bail to a surfaced blocker** (surface to the PO, leave
+  the problem In Review, PR open) — **do not auto-rebase and do not merge on a stale or
+  conflicted state** (PO decision). Otherwise find the problem's open PR (via its linked PR
+  / branch name) and **squash-merge** it into the integration branch (`gh pr merge {pr}
+  --squash --delete-branch`), then move the problem to the `completed` state (Done) and
+  remove the problem's worktree if one remains (`git worktree remove`). **Never merge red.**
+  *(Ops-only run — `kind:ops`: there is no PR to merge. Skip the merge + base-race guard +
+  worktree cleanup and just move the problem to Done.)*
 - **`sent back`** (any AC `❌` OR any DoD `❌` OR CI red) → move the problem back to
   the *In Progress* state, with the reviewer's `❌` notes (AC and DoD alike) carried
   into your rollup comment as **actionable rework notes**. Leave the PR open — a fresh

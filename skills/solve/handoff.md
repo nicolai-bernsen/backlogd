@@ -132,7 +132,15 @@ Move the problem to the *In Review* state (resolved in `skills/solve/identity.md
 marker `handback` — typically `on track` because the slice is complete and unblocked
 (see **`skills/linear/references/documents-and-updates.md` § "Project health updates"**
 for the body shape and dedupe-by-marker procedure). **Single-issue and sub-issue forms do
-NOT post this update.** Then **stop** — the run is complete. `/backlogd:review` (or the
-PO) verifies the AC and merges the PR to land it (on ops-only runs, `/backlogd:review`
-verifies the AC against the action logs on the units and the GitHub surfaces they
-changed — there is no PR to merge).
+NOT post this update.** The handoff is then complete.
+
+This is **not** the end of the run on the happy path: `/backlogd:solve` continues to its
+**ship-on-green** final phase (`commands/solve.md` step 8 → **`skills/solve/ship.md`**),
+which auto-chains the same independent verdict review `/backlogd:review` owns and, on a
+fully-green verdict, merges the PR and moves the problem to *Done* with no human gate. Under
+`--dryrun` the run already exited before this skill; under `--no-ship` the ship phase still
+runs the verdict but **holds the problem at In Review with the PR open** — and `/backlogd:review`
+(or the PO) verifies the AC and merges the PR to land it then. On ops-only runs there is no PR
+to merge: the verdict (auto-chained, or via a manual `/backlogd:review`) verifies the AC
+against the action logs on the units and the GitHub surfaces they changed, and on accept the
+problem moves straight to *Done*.
