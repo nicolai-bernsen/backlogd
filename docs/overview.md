@@ -23,7 +23,8 @@ the *solutions*.
 
 For the full Scrum Guide concept map — every accountability, event, and artifact mapped
 to a backlogd surface — see [`docs/scrum/mapping.md`](scrum/mapping.md). The Definition of
-Done that `/backlogd:review` enforces lives at
+Done that the independent verdict review enforces — auto-chained by `/backlogd:solve` on the
+happy path (ship-on-green), or run manually via `/backlogd:review` — lives at
 [`docs/scrum/definition-of-done.md`](scrum/definition-of-done.md).
 
 ## The two specifications

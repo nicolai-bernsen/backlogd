@@ -18,13 +18,17 @@ solution.
 - **You (PO)** file a problem as a Linear issue.
 - **`/backlogd:scope`** shapes that problem into an executable, decomposed issue.
 - **`/backlogd:solve`** executes it — dispatches a developer per unit of work (in
-  parallel when the units are blocked-by-independent), opens **one** PR, and hands back
-  a solution brief at In Review. On ops-only problems (e.g. tweaking GitHub repo
+  parallel when the units are blocked-by-independent), opens **one** PR, hands back a
+  solution brief at In Review, then **auto-chains the independent verdict review and, on a
+  fully-green result, merges to Done with no human gate** (ship-on-green, on by default;
+  `--no-ship` holds it at In Review). On ops-only problems (e.g. tweaking GitHub repo
   settings) it skips the worktree entirely — no PR, just an action log on the issue.
 - **`/backlogd:status`** gives a read-only standup of progress and blockers, changing nothing.
-- **`/backlogd:review`** dispatches an **independent reviewer agent** to verify the
-  acceptance criteria against the diff (it runs the checks itself, with a fresh context),
-  then accepts to Done or sends it back.
+- **`/backlogd:review`** is the manual re-entry to the same gate: it dispatches an
+  **independent reviewer agent** to verify the acceptance criteria against the diff (it runs
+  the checks itself, with a fresh context), then accepts to Done (merging) or sends it back.
+  On the happy path `/backlogd:solve` already ran this for you; reach for it to re-verify a
+  held or sent-back problem.
 
 Throughout, developer agents own the technical calls, blockers return to you as questions
 rather than silent guesses, and everything — status, decisions, results — is recorded in Linear.
@@ -35,8 +39,10 @@ the problem and the outcome, not the process.
 
 The framework backlogd embodies is **Scrum**: you are the Product Owner, the slash
 commands are the Scrum Master, and the team-skill subagents — `refiner`, `developer`,
-`tester`, `reviewer` — are the Developers. `/backlogd:review` gates every problem against
-the [Definition of Done](docs/scrum/definition-of-done.md) alongside its acceptance criteria.
+`tester`, `reviewer` — are the Developers. The **independent verdict reviewer** gates every
+problem against the [Definition of Done](docs/scrum/definition-of-done.md) alongside its
+acceptance criteria — auto-chained by `/backlogd:solve` on the happy path, or run manually
+via `/backlogd:review`.
 
 ## Status
 
@@ -124,15 +130,18 @@ The first slice proves the whole loop with one command. From a clean checkout:
    (`solve` shapes the problem first if it isn't already; run `/backlogd:scope` yourself when
    you want to review the shape and decomposition before solving. Add `--dryrun`
    — `/backlogd:solve --dryrun {identifier}` — to preview the dispatch plan without touching
-   Linear or git.)
+   Linear or git, or `--no-ship` to stop at In Review instead of auto-merging on green.)
 
 4. Watch the loop:
    - the issue moves **Backlog → In Progress**,
    - a `backlogd:developer` agent picks up the problem and takes a concrete action,
    - its result is recorded as a **comment** on the issue,
-   - and the issue moves to **In Review** with a high-level solution brief — accept it to
-     **Done** yourself, or run **`/backlogd:review`** to check it against its acceptance criteria
-     and accept or send it back (it pauses for you if the developer hits a blocker).
+   - the issue moves to **In Review** with a high-level solution brief,
+   - and `/backlogd:solve` **auto-chains the independent verdict review and, on a fully-green
+     result, merges the PR and moves the issue to Done — no second command** (ship-on-green).
+     You are interrupted only if it is sent back, needs a judgement call from you, or hits a
+     blocker. (Run with `--no-ship`, or want to re-check a held problem? Run **`/backlogd:review`**
+     to verify it against its acceptance criteria and accept or send it back.)
 
 That's the contract: you described a problem, an agent owned the solution, and the result
 is visible on the issue — no spec, no step-by-step.

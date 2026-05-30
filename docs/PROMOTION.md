@@ -47,8 +47,10 @@ publishes.
 >    sub-issues if it earns it, sets priority, stops.
 > 3. `/backlogd:solve` picks it up: walks dependencies, dispatches an
 >    isolated developer per unit, posts updates back to Linear, opens a PR
->    when there's code.
-> 4. `/backlogd:review` gates the PR. `/backlogd:release` promotes dev → main.
+>    when there's code — then auto-chains an independent verdict review and
+>    merges a fully-green increment to Done with no second command (ship-on-green).
+> 4. `/backlogd:review` is the manual re-entry to that gate. `/backlogd:release`
+>    promotes dev → main.
 >
 > Claude is the scrum master, the developer, and the release engineer. You're
 > the PO — you accept results, not code reviews.
@@ -72,9 +74,11 @@ publishes.
 > File a problem (one Linear issue with the `problem` label). Run
 > `/backlogd:scope` — Claude writes acceptance criteria and decomposes the
 > work. Run `/backlogd:solve` — Claude walks the dependency graph, dispatches
-> an isolated worktree per sub-issue, commits, opens a PR, and posts a
-> PO-facing solution brief back to Linear. `/backlogd:review` gates the PR;
-> `/backlogd:release` promotes dev → main.
+> an isolated worktree per sub-issue, commits, opens a PR, posts a
+> PO-facing solution brief back to Linear, then auto-chains an independent
+> verdict review and merges a fully-green increment to Done — no second
+> command (ship-on-green). `/backlogd:review` is the manual re-entry to that
+> gate; `/backlogd:release` promotes dev → main.
 >
 > Self-dogfooded: backlogd's own backlog (including the `/backlogd:release`
 > command itself) was filed → scoped → solved → released using its own loop.
@@ -103,8 +107,8 @@ publishes.
 > 2/ The loop is four commands:
 >
 >     /backlogd:scope    — shape a problem (AC + decomposition)
->     /backlogd:solve    — execute (worktree → commit → PR)
->     /backlogd:review   — gate the PR
+>     /backlogd:solve    — execute (worktree → commit → PR → verify → merge on green)
+>     /backlogd:review   — manual re-entry to the gate
 >     /backlogd:release  — dev → main
 >
 > 3/ Why Linear? It's the control plane. Comments are the audit trail. State
