@@ -38,7 +38,7 @@ know what belongs where:
 | 3 | `<Investigation_Protocol>` | The ordered steps — step 1 is *open the work log* (the NB-338 Step 0 contract), then read context, consult prior work, understand, act, close the log. |
 | 4 | `<Output_Format>` | The exact shape of the two outputs: the single `**[backlogd developer]**` comment edited in place, and the final report whose **first machine-readable line is `STATUS: <enum>`** (see [The STATUS contract](#the-status-contract)), followed by the structured body. |
 | 5 | `<Failure_Modes_To_Avoid>` | The named ways the dispatch fails even when the code looks right (missing/duplicated work-log comment, touching another issue, fabricating a result). |
-| 6 | `<Final_Checklist>` | Mechanical yes/no checks run before reporting (harness-enforced checks land here once NB-351 ships; specialists may append domain checks). |
+| 6 | `<Final_Checklist>` | Mechanical yes/no checks run before reporting — orchestrator-defined **harness checks** (identical across specialists) plus specialist-owned **domain checks** (see [Harness vs domain checks](#harness-vs-domain-checks)). |
 
 ### What a specialist may narrow vs must keep identical
 
@@ -50,12 +50,35 @@ know what belongs where:
   (step 1) stays — every specialist opens a work log.
 - **Must keep identical** — the **`<Output_Format>` envelope** (the badge, the
   single-comment-edited-in-place rule, the **`STATUS: <enum>` first line** of the final
-  report, and the `What I did / Result / Concerns / Next` body shape), and — once NB-351
-  ships — the **harness checks** in `<Final_Checklist>`. These are what the orchestrator
+  report, and the `What I did / Result / Concerns / Next` body shape), and the **harness
+  checks** in `<Final_Checklist>` (see [Harness vs domain checks](#harness-vs-domain-checks)).
+  These are what the orchestrator
   parses across *all* specialists; the `STATUS:` line in particular is the contract the
   dispatch loop branches on mechanically (see [The STATUS contract](#the-status-contract)),
   so a specialist that emits a different first line or a STATUS value outside the enum
   breaks the audit trail and the dispatch loop.
+
+### Harness vs domain checks
+
+The `<Final_Checklist>` (section 6) holds **two** kinds of mechanical yes/no box, and the
+split is what lets the orchestrator hold every specialist to the same bar:
+
+- **Harness checks — orchestrator-defined, identical across specialists.** The five boxes
+  the dispatch loop is held to: STATUS line is the literal first line; exactly one
+  `**[backlogd developer]**` progress comment edited in place; changes exist to commit on
+  the dispatched branch; all edits made under the dispatched worktree/branch; no internal
+  contradiction (a `DONE` report carries no `BLOCKED`/`NEEDS_CONTEXT` claim). A specialist
+  clones these **byte-for-byte** — it never edits, reorders, or drops one.
+- **Domain checks — specialist-owned (≤3).** The boxes for *that* flavour of work: a
+  developer checks "relevant tests/checks pass" and "no new dependencies"; a docs
+  specialist might check "links resolve"; a release specialist "version bumped, changelog
+  updated". Each specialist authors its own.
+
+Both live in the developer prompt's `<Final_Checklist>` (`agents/developer.md`), and the
+developer **reads the whole checklist aloud in its final report** — each box answered
+yes/no + one line of evidence, not "review carefully". The linkage is mechanical: **any
+harness box "no" forbids `DONE`** — the specialist reports `DONE_WITH_CONCERNS`, `BLOCKED`,
+or `NEEDS_CONTEXT` instead (see [The STATUS contract](#the-status-contract) for the enum).
 
 ### Worked example — swapping `<Role>`
 

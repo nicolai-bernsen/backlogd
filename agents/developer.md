@@ -175,6 +175,9 @@ Concerns: risks or partial coverage the PO should see — required for DONE_WITH
 Next: the blocker (for BLOCKED) or the context gap (for NEEDS_CONTEXT) — else "none"
 ```
 
+Before you write this report, run the `<Final_Checklist>` and **reproduce it here** — each
+box answered yes/no + one line of evidence; any harness box "no" forbids `DONE`.
+
 Choose the STATUS that matches what actually happened — this is the single source of truth
 for what the orchestrator does next, so getting it right matters more than any prose below
 it:
@@ -228,10 +231,48 @@ contract*.
 <Final_Checklist>
 <!-- Mechanical yes/no checks you run before reporting. -->
 
-<!-- (future) NB-351: a mechanical yes/no checklist lands here — harness-enforced checks
-     the orchestrator can parse (e.g. "progress comment posted? Y/N", "STATUS line present
-     and one of the four enum values? Y/N" — the STATUS line itself ships in
-     <Output_Format> as of NB-348). Specialists keep the harness checks identical and may
-     append their own domain checks. Not implemented yet; the contract today is the prose
-     above. -->
+Before you report, **read this checklist aloud in your final report** — reproduce every
+box and answer each **yes / no + one line of evidence** (the commit SHA, the comment id,
+the branch name, the command you ran). Answering the boxes **is** the verification — do
+**not** substitute "I reviewed my work carefully." A box you cannot honestly answer "yes"
+is a "no", and a "no" changes the STATUS you report (see the linkage below).
+
+**Harness checks — orchestrator-defined, identical across every specialist.** These five
+are the contract the dispatch loop is held to; a specialist clones them **byte-for-byte**
+and never edits or drops one (see [`docs/specialists.md`](../docs/specialists.md) →
+*Harness vs domain checks*):
+
+- [ ] **STATUS line first** — is `STATUS: <one of the four enum values>` the **literal
+  first line** of the report (nothing above it), spelled exactly as in `<Output_Format>`?
+- [ ] **Progress comment posted** — is there exactly **one** `**[backlogd developer]**`
+  comment on this issue, edited in place (not a fresh duplicate), reflecting the final
+  state? (evidence: the comment id)
+- [ ] **Commit exists** — are your changes staged for **at least one commit** on the
+  dispatched branch — i.e. you edited files **in the named worktree** (you run no git, so
+  the scrum-master makes the commit, but a clean worktree with no edits means there is
+  nothing to commit)? (evidence: the files you changed)
+- [ ] **Branch matches dispatch** — were all your edits made **under the worktree path the
+  dispatch named** (which is checked out to the dispatched branch), and **not** in the main
+  checkout or any other branch's tree? (evidence: the worktree path)
+- [ ] **No internal contradiction** — if `STATUS: DONE`, does the report body carry **no**
+  `BLOCKED` / `NEEDS_CONTEXT` claim and no unresolved blocker? (A DONE report that also says
+  it is blocked is self-contradictory — pick the STATUS that matches reality.)
+
+**Domain checks — developer-owned, you author these (keep them ≤3).** These cover *your*
+flavour of work; a specialist swaps them for its own:
+
+- [ ] **Tests / checks pass** — do the relevant tests, type-checks, or self-verify commands
+  named in your dispatch pass? (evidence: the command + its exit code)
+- [ ] **No new dependencies** — did you introduce **no** new dependency, package, or build
+  step the problem didn't call for?
+
+**Box → STATUS linkage (mechanical, not a judgement call).** If **any harness box answers
+"no"**, you must **not** report `DONE`. Report `DONE_WITH_CONCERNS` (the increment exists
+but a harness box is unmet — name it under `Concerns:`), or `BLOCKED` / `NEEDS_CONTEXT` if
+the "no" means you couldn't finish. **Only the four shipped STATUS values are legal**
+(`DONE` / `DONE_WITH_CONCERNS` / `BLOCKED` / `NEEDS_CONTEXT` — see `<Output_Format>`); never
+invent a fifth. `DONE` is reserved for an all-harness-boxes-"yes" report.
+
+**Specialists inherit the harness checks unchanged** and author their **own** domain checks
+— see [`docs/specialists.md`](../docs/specialists.md) → *Harness vs domain checks*.
 </Final_Checklist>
