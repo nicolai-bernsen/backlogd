@@ -6,6 +6,12 @@ flavour of work (docs, release, UI…) — and let `/backlogd:scope` pick the ri
 it shapes a problem. The product owner keeps final say: a Linear label exposes the choice
 and flips it.
 
+> **Canonical roster.** The list of specialists and their *select-when* routing criteria
+> lives in the roster catalog — [`docs/specialists/roster.md`](specialists/roster.md). That
+> table is the source of truth `/backlogd:scope` reads to route; this page explains the
+> *mechanism* (discovery, the picker, the two surfaces, PO override). Add a specialist =
+> add a row there + drop the agent file.
+
 ## The convention
 
 A *specialist* is any Claude Code subagent whose `name:` frontmatter begins with
@@ -172,16 +178,28 @@ wins.
 
 ## How scope picks
 
-The picker is **description-driven** — there's no taxonomy, no scoring, no extra
-frontmatter. Scope reads the problem (title + spec + AC) and the roster
-(`{name, description}` per agent), reasons about best fit, and picks one. If nothing
-clearly matches, it picks the generic `developer` and says so explicitly in its report.
+The picker is **criteria-driven**, and it reads two sources in order:
 
-> **Writing a good specialist description.** The description is what scope reasons over,
-> so write it for that reader. Lead with the **shape of work** the specialist handles
-> ("README polish, narrative prose, conventions pages") and what it **leaves out**
-> ("not for code-level refactors"). One or two crisp sentences beats a paragraph; vague
-> descriptions get vague picks.
+1. **The roster catalog first** — [`docs/specialists/roster.md`](specialists/roster.md).
+   Scope reads the problem (title + spec + AC) and routes it by the catalog's *select-when*
+   rows. This is the **primary** source: one scannable table read once, instead of
+   reasoning over N `description:` blocks.
+2. **The per-file `description:` as fallback** — used only when the catalog can't answer:
+   the catalog file is **missing**, or a **discovered agent has no row** in it. A
+   discovered-but-unlisted agent is still routed by its `description:` and picked if it
+   fits; scope **flags the missing row as a catalog gap** in its report so the gap gets
+   closed. The catalog is the fast path, not a hard gate.
+
+There's still no taxonomy, no scoring, no extra frontmatter. If nothing clearly matches,
+scope picks the generic `developer` and says so explicitly in its report.
+
+> **Writing a good specialist description.** Even with the catalog as the primary source,
+> the `description:` still matters — it is the fallback scope scans, and it is what Claude
+> Code's *native* subagent picker reads. Keep it saying the same thing as the catalog row's
+> *select-when* (the catalog wins for backlogd's picker when they drift). Lead with the
+> **shape of work** the specialist handles ("README polish, narrative prose, conventions
+> pages") and what it **leaves out** ("not for code-level refactors"). One or two crisp
+> sentences beats a paragraph; vague descriptions get vague picks.
 
 ## Two surfaces, on purpose
 

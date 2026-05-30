@@ -205,11 +205,29 @@ frontmatter, and note the skip in §6's report (don't fail the run on it). The g
 `developer` (no suffix) is the **fallback**, not a specialist — exclude it from the picker
 but use it when nothing matches.
 
+**Routing source — catalog first, `description:` as fallback.** The canonical routing
+table is the roster catalog
+[`docs/specialists/roster.md`](../docs/specialists/roster.md) (resolve it relative to
+`${CLAUDE_PLUGIN_ROOT:-.}`) — a row per specialist with crisp *select-when* criteria.
+Match the discovered agents against it in this order:
+
+1. **Read the catalog** and route each dispatch target by its *select-when* rows. This is
+   the **primary** picker source — match once against the table rather than reasoning over
+   N `description:` blocks.
+2. **Fall back to the per-file `description:` scan** only when the catalog can't answer:
+   the catalog file is **missing**, or a **discovered agent has no row** in it. In the
+   no-row case, route that agent by its `description:` as before **and** record the missing
+   row as a **catalog gap** in §6's report (e.g.
+   `catalog gap: developer-foo discovered but absent from docs/specialists/roster.md`) so
+   the gap gets closed. A discovered-but-unlisted agent is still eligible — the catalog is
+   the fast path, not a hard gate.
+
 **Pick.** For each dispatch target, read the title + spec + AC and reason about best fit
-against the collected roster of `{name, description}` entries. The match is description-
-driven — there is no taxonomy or scoring; pick the single specialist whose description
-best fits the unit of work. If nothing is a clear match, pick generic `developer` and say
-so explicitly in §6 (e.g. `specialist -> developer (no specialist matched)`).
+against the catalog's *select-when* rows (falling back to the collected
+`{name, description}` entries per the rule above). The match is criteria-driven — there is
+no taxonomy or scoring; pick the single specialist that best fits the unit of work. If
+nothing is a clear match, pick generic `developer` and say so explicitly in §6 (e.g.
+`specialist -> developer (no specialist matched)`).
 
 **Record — two surfaces, on purpose:**
 
@@ -262,3 +280,9 @@ Ready for: /backlogd:solve {identifier}
 If any specialist file in the roster was skipped because of malformed frontmatter,
 mention the skip on its own line under `specialist` (e.g.
 `skipped: agents/developer-foo.md (missing name frontmatter)`).
+
+If a discovered specialist was routed by its `description:` because it has **no row** in
+[`docs/specialists/roster.md`](../docs/specialists/roster.md) (the §4.5 fallback path),
+mention the **catalog gap** on its own line under `specialist` (e.g.
+`catalog gap: developer-foo discovered but absent from docs/specialists/roster.md`) so the
+missing row gets added.
