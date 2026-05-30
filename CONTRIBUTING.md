@@ -59,6 +59,38 @@ on a mismatch via the plugin's SessionStart hook. The guard is a no-op until
 > [`skills/worktree-isolation/SKILL.md`](skills/worktree-isolation/SKILL.md) — load that
 > skill in any session that opens or re-enters a worktree. Background: #301.
 
+### Linting & checks
+
+Style and hygiene are enforced by [`pre-commit`](https://pre-commit.com). Install the
+hooks once, then let them run on every commit:
+
+```sh
+pip install pre-commit && pre-commit install
+pre-commit run --all-files   # run every hook over the whole tree once
+```
+
+A single [`.pre-commit-config.yaml`](.pre-commit-config.yaml) drives both the local hooks
+and the CI `pre-commit/action` step, so what passes locally is what CI runs.
+
+**What gates `dev` (blocking — these run in CI on every pull request):**
+
+| Check | What it catches |
+| ----- | --------------- |
+| markdownlint (`markdownlint-cli2`) | Markdown style across the docs-dense tree |
+| File hygiene | Final newline, trailing whitespace, mixed line endings (normalised to LF) |
+| `check-json` / `check-yaml` | Malformed JSON / YAML |
+| `claude plugin validate .` | Plugin manifest is valid (with a Python JSON-manifest parse as a fallback) |
+| `actionlint` | Errors in the GitHub Actions workflows |
+| Internal links (`lychee --offline`) | Dead relative/internal links — offline, no network calls |
+| Plugin / template / test-suite / witness checks | Required hygiene files, template headings, the Python test suite, and shipped-fix markers |
+
+A red result on any of the above blocks the merge into `dev`.
+
+**What's advisory (never gates):** external-link checking runs in a *separate* weekly
+[scheduled workflow](.github/workflows/links-external.yml) (plus manual dispatch), reaching
+the live internet. It has no pull-request trigger, so a flaky or transient external link
+can never fail a PR — instead it opens (or refreshes) a tracking issue when a link rots.
+
 ## Branching & releases
 
 backlogd uses a **`feature → dev → main`** flow:
