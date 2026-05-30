@@ -71,6 +71,22 @@ When the plan looks right, run it for real:
 /backlogd:init
 ```
 
+### Approving the engine's writes
+
+`init` makes its Linear *settings* writes (labels · states · templates) by shelling out to
+the setup engine with your Admin key. In an **interactive** Claude Code session you'll be
+**prompted to approve** each engine command (`python … scripts/linear_setup.py …`) — approve
+them, or choose **"don't ask again"** to clear the rest of the run. That approval prompt is
+the consent step; the key itself never appears in the prompt or in agent context (the engine
+reads it internally).
+
+Running **unattended** — headless, CI, or an auto-approval mode — an agent can't
+self-authorize a live write to your shared workspace, by design. Pre-allow the engine once:
+add a rule like `Bash(python … scripts/linear_setup.py:*)` to your Claude Code settings
+(`/permissions` → **Allow** → Bash), or simply run `/backlogd:init` in a normal interactive
+session and approve the prompts. Either path applies **only** to this one-time setup — the
+runtime loop stays key-free and prompts you for nothing.
+
 ### What it configures
 
 - **Labels.** Ensures the three canonical labels exist, all lowercase: `problem` (the

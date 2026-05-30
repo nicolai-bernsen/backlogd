@@ -22,6 +22,17 @@ correct-by-construction. The runtime loop (`scope` / `solve` / `status` / `revie
 > yourself about to `Read` the credentials file or interpolate a key into a command —
 > **stop**; that is a contract violation.
 
+> **Approving the engine's writes (set the operator's expectation).** `init` makes its
+> label/state/template writes by shelling out to the engine — so in an **interactive** session
+> Claude Code **prompts the operator to approve** each `python … scripts/linear_setup.py …`
+> command (approve, or "don't ask again" to clear the rest of the run). That prompt *is* the
+> consent step; it is normal, not a wart. Running **unattended** (headless, or an
+> auto-approval/classifier mode), an agent **cannot self-authorize** a live write to a shared
+> workspace — the operator pre-allows the engine once with a
+> `Bash(python … scripts/linear_setup.py:*)` rule (e.g. via `/permissions`), or runs `init`
+> in a normal interactive session. Either way this is the **one-time setup only**; the runtime
+> loop reaches Linear via the MCP and prompts for nothing.
+
 The engine is **`scripts/linear_setup.py`** (resolve it as
 `${CLAUDE_PLUGIN_ROOT:-.}/scripts/linear_setup.py`, the same idiom `/backlogd:solve` uses
 for `scripts/graph.py`). Its idempotent verbs are `audit`, `ensure-label`, `recase-label`,
