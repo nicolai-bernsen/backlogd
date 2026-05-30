@@ -333,22 +333,18 @@ class AC4_SolveWritesSolutionBriefDocumentForProject(unittest.TestCase):
             "AC4: commands/solve.md step 0 must pre-load save_document for Project-form",
         )
 
-    def test_AC4_handoff_section_4_byte_identical_with_problem_worktree(self):
-        """Regression: §4 of skills/solve/handoff.md must be byte-identical
-        to the problem worktree's HEAD — the developer touched only §3 (and
-        the §3 lead-in fork) for this unit."""
-        problem_handoff = (
-            REPO_ROOT.parent
-            / "backlogd-wt-NB-362"
-            / "skills"
-            / "solve"
-            / "handoff.md"
-        )
-        if not problem_handoff.is_file():
-            self.skipTest(
-                f"problem-worktree handoff not found at {problem_handoff} — "
-                "cannot compare §4 byte-identity in this environment"
-            )
+    def test_AC4_handoff_section_4_preserves_in_review_transition(self):
+        """Regression: §4 of skills/solve/handoff.md must keep the stable
+        In-Review transition mechanics.
+
+        Originally (NB-364) this asserted §4 was byte-identical to a sibling
+        worktree's HEAD. NB-393 (ship-on-green) legitimately rewrites §4's tail
+        — handoff no longer ends the run with "PO triggers review + merges";
+        the run continues to solve's ship-on-green final phase. The sibling
+        byte-identity check is therefore superseded. We instead pin the parts
+        of §4 that must NOT regress: the In Review state move, the Project-form
+        `handback` health-update rule, and the single-issue/sub-issue carve-out.
+        """
 
         def _section_four(text: str) -> str:
             marker = "## 4. Move the problem to In Review"
@@ -357,16 +353,17 @@ class AC4_SolveWritesSolutionBriefDocumentForProject(unittest.TestCase):
                 return ""
             return text[idx:]
 
-        ours = _section_four(_read(HANDOFF_SKILL))
-        theirs = _section_four(_read(problem_handoff))
-        self.assertTrue(ours, "AC4: §4 marker missing in unit handoff.md")
-        self.assertTrue(theirs, "AC4: §4 marker missing in problem-worktree handoff.md")
-        self.assertEqual(
-            ours,
-            theirs,
-            "AC4: skills/solve/handoff.md §4 must be byte-identical to the "
-            "problem worktree's HEAD (NB-365 owns §4 — this unit only touches §3)",
-        )
+        sec4 = _section_four(_read(HANDOFF_SKILL))
+        self.assertTrue(sec4, "AC4: §4 marker missing in handoff.md")
+        for needle, why in (
+            ("*In Review* state", "§4 must still move the problem to the In Review state"),
+            ("marker `handback`", "§4 must keep the Project-form `handback` health-update rule"),
+            (
+                "Single-issue and sub-issue forms do",
+                "§4 must keep the single-issue / sub-issue carve-out (no health update)",
+            ),
+        ):
+            self.assertIn(needle, sec4, f"AC4: {why}")
 
 
 # AC5 is [manual] — re-running scope/solve updates the same Documents in place

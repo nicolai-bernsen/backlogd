@@ -22,5 +22,13 @@
     "marker_snippet": "## 6. Back-merge the release branch into the integration branch",
     "shipped_in": "v0.8.1",
     "shipped_at": "2026-05-27"
+  },
+  {
+    "id": "NB-351",
+    "title": "Pre-flight check matrix (mechanical yes/no) as the developer subagent's tail step",
+    "marker_file": "agents/developer.md",
+    "marker_snippet": "`DONE` is reserved for an all-harness-boxes-\"yes\" report.",
+    "shipped_in": "dev",
+    "shipped_at": "2026-05-30"
   }
 ]

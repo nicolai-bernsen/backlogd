@@ -9,6 +9,13 @@ When `--dryrun` is set, run the loop as a **preview**: every read you would norm
 but **no writes** — Linear, git, or graph — and **no developer dispatch**. The output is
 the plan; the world is untouched.
 
+The **ship-on-green** final phase (`commands/solve.md` step 8 → `skills/solve/ship.md`)
+**never runs under `--dryrun`** — the dry run exits after printing the plan, so there is no
+reviewer dispatch and no merge. `--no-ship` is independent of `--dryrun`: parse it (and
+`BACKLOGD_SHIP_ON_GREEN=0`) the same way and note in the plan whether the real run *would*
+ship-on-green or hold at In Review (see the output contract below), but take no action either
+way under dryrun.
+
 ## Allowed (reads only)
 
 - **Linear:** `list_*` / `get_*` to resolve identity, find the problem, walk the units;
@@ -36,6 +43,8 @@ the plan; the world is untouched.
   No `dispatch-start` / `dispatch-end` / `pr-opened` / `run-end` / `rework` /
   `labeled` / legacy `emit`.
 - **No developer dispatch** — do not call `Agent`; print the envelope verbatim.
+- **No ship-on-green phase** — do not dispatch the verdict reviewer and do not merge. The
+  dry run exits after the plan; `skills/solve/ship.md` never runs under dryrun.
 - **No inline triage write** — describe what `/backlogd:scope` *would* do in (c); the dry
   run exits whether shaped or not.
 
@@ -84,6 +93,13 @@ the plan; the world is untouched.
   When the unit is in a parallel group, also print a single-line annotation **above the
   envelope** noting "parallel group {n}/{total}, size {k}" so the preview makes the
   fanout obvious.)
+
+(f) Ship-on-green plan
+  ship-on-green: on (default) | off (--no-ship | BACKLOGD_SHIP_ON_GREEN=0)
+  on a real run the happy path would: auto-chain the verdict review → on fully-green
+       (every AC ✅ + every DoD ✅ + CI green + zero [manual]/❔) run the base-race guard
+       and squash-merge into origin/{integration} → Done; off → hold at In Review.
+  (ops-only: no PR to merge — accept moves straight to Done.)
 ```
 
 Exit with: `[dry-run] no writes performed — Linear, git, and graph are unchanged.`

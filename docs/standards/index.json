@@ -1,0 +1,76 @@
+{
+  "version": "backlogd-standards/v1",
+  "standards": [
+    {
+      "id": "ADR-001",
+      "title": "Visible agent identity in Linear",
+      "status": "Accepted",
+      "assertion": "Agent identity in Linear stays comment-badge based (Tier 0); Tier 1 (MCP delegate, no server) is a gated experiment only; Tier 2 (held actor=app token + webhook server) is rejected and may not be built without superseding this ADR.",
+      "applies-to": {
+        "domains": [
+          "agent-identity",
+          "linear",
+          "runtime"
+        ],
+        "file-patterns": [
+          "skills/linear/**",
+          "commands/**",
+          "agents/**",
+          "docs/guides/po-overview.md"
+        ],
+        "decision-types": [
+          "agent-identity",
+          "runtime-loop",
+          "hosting"
+        ]
+      }
+    },
+    {
+      "id": "ADR-002",
+      "title": "Keyless, OAuth-as-the-user, no server",
+      "status": "Accepted",
+      "assertion": "The runtime loop holds no API key, no stored secret, and runs no backlogd-hosted server — Linear/GitHub are reached only via official OAuth-as-the-user paths (Linear MCP, gh CLI); the sole exception is the one-time, local, setup-only /backlogd:init admin key, never read by the orchestrator or any agent.",
+      "applies-to": {
+        "domains": [
+          "auth",
+          "runtime",
+          "dependencies",
+          "linear"
+        ],
+        "file-patterns": [
+          "**"
+        ],
+        "decision-types": [
+          "secret-custody",
+          "runtime-loop",
+          "hosting",
+          "dependency"
+        ]
+      }
+    },
+    {
+      "id": "ADR-003",
+      "title": "Canonical Linear workspace configuration",
+      "status": "Accepted",
+      "assertion": "A fresh backlogd workspace seeds exactly the canonical set and nothing more — issue labels problem, kind:ops, blocked (agent:* is owned but runtime-created, never seeded), no project labels, and three templates (a Problem issue, a backlogd-problem project with Investigate/Implement/Verify milestones, and a Spec document); kind:* beyond kind:ops and the area:* family are dogfood/per-repo only and are never seeded or adopter-facing.",
+      "applies-to": {
+        "domains": [
+          "linear",
+          "workspace-config",
+          "init"
+        ],
+        "file-patterns": [
+          "scripts/linear_setup.py",
+          "commands/init.md",
+          "docs/guides/workspace-bootstrap.md"
+        ],
+        "decision-types": [
+          "workspace-config",
+          "labels",
+          "templates",
+          "seed"
+        ]
+      }
+    }
+  ]
+}

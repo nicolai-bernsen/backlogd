@@ -6,6 +6,11 @@ date: 2026-05-29
 problem: NB-377
 supersedes: ~
 superseded-by: ~
+assertion: The runtime loop holds no API key, no stored secret, and runs no backlogd-hosted server — Linear/GitHub are reached only via official OAuth-as-the-user paths (Linear MCP, gh CLI); the sole exception is the one-time, local, setup-only /backlogd:init admin key, never read by the orchestrator or any agent.
+applies-to:
+  domains: [auth, runtime, dependencies, linear]
+  file-patterns: ["**"]
+  decision-types: [secret-custody, runtime-loop, hosting, dependency]
 ---
 
 # ADR-002 — Keyless, OAuth-as-the-user, no server
