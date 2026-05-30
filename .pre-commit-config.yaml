@@ -1,0 +1,34 @@
+# pre-commit configuration for backlogd.
+# Single source of truth for local hooks and CI (run in CI via pre-commit/action).
+# All revisions are pinned to released tags. Run locally with: pre-commit run --all-files
+# See CONTRIBUTING.md for setup. Docs: https://pre-commit.com
+---
+repos:
+  # File hygiene + manifest well-formedness.
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+        # Normalize to LF, matching .gitattributes (* text=auto eol=lf).
+        args: [--fix=lf]
+      - id: check-json
+      - id: check-yaml
+
+  # Markdown style — reads .markdownlint-cli2.jsonc automatically.
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.22.1
+    hooks:
+      - id: markdownlint-cli2
+
+  # Python linting. Wired but NON-GATING (NB-285 AC #7): stages: [manual] keeps it
+  # out of the default hook set, so `pre-commit run --all-files` (what CI runs) skips
+  # it and ruff never gates `dev`. Run on demand: pre-commit run --hook-stage manual ruff-check
+  # Real ruff enforcement is deferred to a future change.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.15
+    hooks:
+      - id: ruff-check
+        files: \.py$
+        stages: [manual]

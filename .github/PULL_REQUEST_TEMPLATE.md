@@ -12,4 +12,4 @@ Solves **NB-**
 <!-- How you confirmed it works: commands run, output, manual checks. -->
 - [ ] CI is green
 
-> Feature PRs target `dev` and are squash-merged on green CI (branch auto-deleted). Releases promote `dev → main`. See [CONTRIBUTING.md](CONTRIBUTING.md).
+> Feature PRs target `dev` and are squash-merged on green CI (branch auto-deleted). Releases promote `dev → main`. See [CONTRIBUTING.md](../CONTRIBUTING.md).

@@ -26,7 +26,7 @@ The load-bearing MCP rules from [`linear-mcp.md`](linear-mcp.md) all apply:
 backlogd attaches **one Document per role per Project**. Two roles are defined today:
 
 | Role | Title (canonical) | Icon | Owner | Lives until |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | **Spec** | `Spec` | `:memo:` | `/backlogd:scope` writes; refreshed on re-scope | Project closes |
 | **Solution brief** | `Solution brief` | `:white_check_mark:` | `/backlogd:solve` (at In Review) and `/backlogd:review` (on accept) | Project closes |
 
@@ -122,7 +122,7 @@ Health is **derived from existing stall signals**, not a new piece of state the
 scrum-master invents:
 
 | Health | Trigger |
-|---|---|
+| --- | --- |
 | **on track** | No open `blocked-by`, recent forward motion, no stalled units. |
 | **at risk** | One open `blocked-by` *or* a single stalled unit *or* a milestone slipping. |
 | **off track** | Multiple open `blocked-by`, repeated rework, or a Project past its target. |

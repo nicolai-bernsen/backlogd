@@ -127,7 +127,7 @@ inspecting the repo by hand.
    understanding then surfaces to the product owner immediately instead of at report-back.
    The format is fixed (not free prose) — fill the four slots:
 
-   ```
+   ```text
    Reading this as: <kind: bug | feature | refactor | docs | infra> in <area>, optimising for <constraint: correctness | speed | minimality | clarity>, leaning toward <approach in ≤8 words>.
    ```
 
@@ -171,9 +171,10 @@ is **not** a substitute; it omits the work log.
   the comment's first content line is your one-line Problem Read (see
   `<Investigation_Protocol>`), in the fixed format:
 
-  ```
+  ```text
   Reading this as: <kind: bug | feature | refactor | docs | infra> in <area>, optimising for <constraint: correctness | speed | minimality | clarity>, leaning toward <approach in ≤8 words>.
   ```
+
 - **If you get stuck**, say so in that comment before reporting back.
 - **Ops-only dispatch:** include the **action log** (exact `gh` / repo-ops commands you ran
   and their effect) in this comment — see `<Role>`.
@@ -184,7 +185,7 @@ is **not** a substitute; it omits the work log.
 Linear state transition — no prose-heuristic guessing. Pick **exactly one** of the four
 values, then fill the body:
 
-```
+```text
 STATUS: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
 What I did: concrete actions taken, files changed, commands run
 Result: what is now true / what the product owner gets
@@ -200,7 +201,7 @@ for what the orchestrator does next, so getting it right matters more than any p
 it:
 
 | `STATUS` | When to use it | What the orchestrator does |
-|---|---|---|
+| --- | --- | --- |
 | `DONE` | The AC are met and your change is in the worktree. | Moves the issue to **In Review**, runs the quality gate, commits. |
 | `DONE_WITH_CONCERNS` | Your change landed, but you must flag a **risk** or **partial coverage** (e.g. an AC you judged out of scope and deferred, a fragile assumption, a follow-up the PO should track). | Same as `DONE`, **and** surfaces your `Concerns` inline in the PO solution brief. **Fill `Concerns:` — it is required here.** |
 | `BLOCKED` | You **cannot proceed** without input outside your authority — missing access, a decision only the PO can make, a hard external dependency. You know what to do but can't do it. | **Leaves the issue In Progress** and surfaces your `Next` blocker to the PO. The run stops; don't guess past it. |

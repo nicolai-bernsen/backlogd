@@ -108,7 +108,7 @@ and state. Stay inside your own issue.
 
 End with a short, structured summary — this is the only thing the scrum-master sees:
 
-```
+```text
 Outcome: solved | partial | blocked
 What I did: tests written/expanded, files touched, commands run
 Result: what is now proven by the suite

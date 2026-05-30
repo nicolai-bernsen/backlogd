@@ -63,7 +63,7 @@ get to the step. Sub-skills carry the dry-run carve-outs.
    Make a **single batched `ToolSearch` call** that names every `mcp__linear__*` tool
    this command (or any subagent it dispatches — developer, tester, reviewer) may touch:
 
-   ```
+   ```text
    ToolSearch(select: "mcp__linear__get_issue,mcp__linear__save_issue,mcp__linear__save_comment,mcp__linear__list_comments,mcp__linear__list_issue_statuses,mcp__linear__list_issue_labels,mcp__linear__list_issues,mcp__linear__list_teams,mcp__linear__list_milestones,mcp__linear__get_project,mcp__linear__save_milestone")
    ```
 
@@ -144,7 +144,7 @@ get to the step. Sub-skills carry the dry-run carve-outs.
    **`skills/solve/ops.md`** *(ops-only path — `gh`/repo-ops actions, no worktree, no
    commit, no PR; the developer posts an action log on the unit)*. For each ready unit:
    **skip if reconcile classified it `completed`**; otherwise claim → inject prior-work
-   + record `dispatch_started` → dispatch the `backlogd:developer` with a **curated-context
+   - record `dispatch_started` → dispatch the `backlogd:developer` with a **curated-context
    inline envelope** (the unit's title + full description + `## Acceptance Criteria`
    inlined verbatim under a `## Issue context` block, reusing the orchestrator's existing
    `get_issue` result — see `skills/solve/dispatch.md`, so the developer reads its spec
@@ -195,7 +195,7 @@ get to the step. Sub-skills carry the dry-run carve-outs.
 
 Tell the user what happened, end to end:
 
-```
+```text
 {identifier} — {title}
   route    -> standard (worktree + PR)  |  ops-only (no worktree, no PR)
   units    -> {n} solved{, k blocked}
@@ -221,6 +221,6 @@ is surfaced to only on *sent back*, *needs you*, or a *blocker* (see step 8 /
 For the rolled-up view across all runs (rework rate, partial rate, dispatch→PR latency,
 blocker frequency by area), run:
 
-```
+```bash
 python scripts/graph.py report
 ```

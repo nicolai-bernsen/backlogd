@@ -13,7 +13,7 @@ applies-to:
   decision-types: [<type>, ...]       # e.g. dependency, runtime-loop, agent-identity — kinds of decision this gates
 ---
 
-# ADR-NNN — <short imperative title>
+**ADR-NNN — <short imperative title>**
 
 - **Status:** Proposed _(YYYY-MM-DD)_ · **Problem:** NB-N
 - **Decision (TL;DR):** one sentence — the call, front-loaded, readable in isolation.
@@ -26,8 +26,10 @@ applies-to:
 ## Front-matter keys
 
 Every ADR opens with a `---`-fenced YAML block so an index can enumerate ADRs without
-parsing prose. [NB-380](https://linear.app/nicolai-bernsen/issue/NB-380) consumes it:
-`python scripts/standards_index.py` regenerates the compact
+parsing prose. The front-matter `title` is the canonical document title — the body opens
+with the same title as a **bold lead-in** (not an `#` heading, which would duplicate the
+front-matter title), then the first `##` section. [NB-380](https://linear.app/nicolai-bernsen/issue/NB-380)
+consumes the front-matter: `python scripts/standards_index.py` regenerates the compact
 [`docs/standards/index.json`](../index.json) (id · title · assertion · applies-to · status)
 from these keys, `--check` fails if any required key is missing, and
 `scripts/test_standards_index.py` fails if the committed index has drifted from the corpus.
@@ -35,12 +37,12 @@ So **front-matter is the single source of truth** — edit it, then regenerate t
 the same change (CI's drift test enforces it).
 
 | Key | Required | Meaning |
-|---|---|---|
-| `id` | yes | `ADR-NNN`, matching the filename and `#` heading. |
-| `title` | yes | Short imperative title, matching the `#` heading. |
+| --- | --- | --- |
+| `id` | yes | `ADR-NNN`, matching the filename and the bold title line. |
+| `title` | yes | Short imperative title, matching the bold title line. |
 | `status` | yes | Lifecycle value — see below. Keep in sync with the `## Status` section. |
 | `date` | yes | Date of the current status (accepted / superseded), `YYYY-MM-DD`. |
-| `assertion` | yes | One crisp, **checkable** rule — the decision stated as a single enforceable sentence (e.g. "No new runtime dependency lands without an ADR"), *not* prose rationale. This is the line a reviewer reads first from the index. |
+| `assertion` | yes | One crisp, **checkable** rule — the decision stated as a single enforceable sentence (e.g. "No new runtime dependency lands without an ADR"), _not_ prose rationale. This is the line a reviewer reads first from the index. |
 | `applies-to` | yes | Scope that decides whether this ADR is relevant to a given change. A mapping of three lists — `domains`, `file-patterns`, `decision-types` (see below). A reviewer filters the index by this before loading the full ADR. |
 | `problem` | rec. | The `NB-<n>` problem this ADR came from. |
 | `supersedes` | opt. | The `ADR-NNN` this one replaces, or `~`. |
@@ -50,12 +52,12 @@ the same change (CI's drift test enforces it).
 
 `applies-to` is what lets a reviewer load **only the relevant standards** into context
 instead of the whole prose corpus. Each of its three lists is an axis a change can match on
-— a standard is *applicable* to a change if the change touches any listed domain, matches
+— a standard is _applicable_ to a change if the change touches any listed domain, matches
 any file-pattern, or is any listed decision-type. Use lower-case kebab tokens; keep them
 small and reusable across ADRs so the vocabulary stays a usable filter.
 
 | Sub-key | Meaning | Examples |
-|---|---|---|
+| --- | --- | --- |
 | `domains` | The area(s) of the system this ADR governs. | `auth`, `runtime`, `docs`, `linear`, `agent-identity`, `dependencies` |
 | `file-patterns` | Globs for files whose change brings this ADR into scope. | `scripts/**`, `docs/**`, `pyproject.toml`, `**/*.md` |
 | `decision-types` | Kinds of decision this ADR gates. | `dependency`, `runtime-loop`, `agent-identity`, `secret-custody`, `hosting` |
@@ -72,14 +74,14 @@ context, and keep it in sync with the `status:` front-matter key.
 it can be reopened and superseded when technology or circumstances change — record the
 decision, not dogma.
 
-```
+```text
 Proposed  ──►  Accepted  ──►  Superseded by ADR-NNN
                    │
                    └────────►  Deprecated
 ```
 
 | Status | Meaning |
-|---|---|
+| --- | --- |
 | `Proposed` | Under discussion; not yet binding. |
 | `Accepted` | Binding now. Do not edit the decision in place — supersede it instead. |
 | `Superseded by ADR-NNN` | Replaced by a newer ADR; kept for history. Set `superseded-by`. |
@@ -101,7 +103,7 @@ The realistic options, compared on the axes that actually decide it. A table is 
 front-load the trade-off, then one short bullet per option for nuance the table can't hold.
 
 | Option | Pro | Con | Fits the constraint? |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | **A** … | … | … | … |
 | **B** … | … | … | … |
 

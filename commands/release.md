@@ -46,7 +46,7 @@ and the command does not silently regress on the NB-340 tool-grant hazard.
 Make a **single batched `ToolSearch` call** that names the canonical Linear MCP tool
 list (identical across all `/backlogd:*` commands):
 
-```
+```text
 ToolSearch(select: "mcp__linear__get_issue,mcp__linear__save_issue,mcp__linear__save_comment,mcp__linear__list_comments,mcp__linear__list_issue_statuses,mcp__linear__list_issue_labels,mcp__linear__list_issues,mcp__linear__list_teams,mcp__linear__list_milestones,mcp__linear__get_project,mcp__linear__save_milestone")
 ```
 
@@ -123,25 +123,31 @@ Work on an isolated worktree so the shared checkout's HEAD is never moved (a par
 may share it). Cut the release branch **off the integration branch**, remember the path as
 `$WT`, and run **every** git command via `git -C "$WT"`:
 
-    git -C <repo> fetch origin
-    git -C <repo> worktree add <path>/backlogd-wt-release-X.Y.Z -b release/vX.Y.Z origin/{integration}
+```bash
+git -C <repo> fetch origin
+git -C <repo> worktree add <path>/backlogd-wt-release-X.Y.Z -b release/vX.Y.Z origin/{integration}
+```
 
 Bump `version` in `.claude-plugin/plugin.json` to the new version (edit the file under `$WT`),
 then commit just that change with a conventional message:
 
-    git -C "$WT" add .claude-plugin/plugin.json
-    git -C "$WT" commit -m "chore(release): vX.Y.Z"
-    git -C "$WT" push -u origin release/vX.Y.Z
+```bash
+git -C "$WT" add .claude-plugin/plugin.json
+git -C "$WT" commit -m "chore(release): vX.Y.Z"
+git -C "$WT" push -u origin release/vX.Y.Z
+```
 
 ## 4. Open the release PR and merge it with a merge commit
 
 Open the PR **into the release branch** and merge it **with a merge commit** — not a squash, so
 the release branch stays a descendant of the integration branch and the two never drift:
 
-    gh pr create --base {release} --head release/vX.Y.Z \
-      --title "release: vX.Y.Z" \
-      --body "Promote {integration} → {release} and bump the plugin to vX.Y.Z."
-    gh pr merge <pr> --merge --delete-branch
+```bash
+gh pr create --base {release} --head release/vX.Y.Z \
+  --title "release: vX.Y.Z" \
+  --body "Promote {integration} → {release} and bump the plugin to vX.Y.Z."
+gh pr merge <pr> --merge --delete-branch
+```
 
 `main` requires a reviewed PR — if the merge is blocked on review, use the maintainer admin
 override (`--admin`) only when you are acting with owner credentials; otherwise hand the open PR
@@ -151,9 +157,11 @@ to the product owner to merge. **Never squash** this PR.
 
 After the merge lands on the release branch, tag that merge commit `vX.Y.Z` and push the tag:
 
-    git -C "$WT" fetch origin {release}
-    git -C "$WT" tag vX.Y.Z origin/{release}
-    git -C "$WT" push origin vX.Y.Z
+```bash
+git -C "$WT" fetch origin {release}
+git -C "$WT" tag vX.Y.Z origin/{release}
+git -C "$WT" push origin vX.Y.Z
+```
 
 (If the tag already exists, the release was already cut — stop and report rather than retag.)
 
@@ -166,10 +174,12 @@ into the integration branch** — never check the integration branch out in the 
 and merge it **with a merge commit** (not a squash), so the bumped version lands on the integration
 branch without rewriting history:
 
-    gh pr create --base {integration} --head {release} \
-      --title "chore: back-merge {release} into {integration} after vX.Y.Z" \
-      --body "Re-sync {integration} with {release} after the vX.Y.Z release (merge commit, no squash)."
-    gh pr merge <pr> --merge
+```bash
+gh pr create --base {integration} --head {release} \
+  --title "chore: back-merge {release} into {integration} after vX.Y.Z" \
+  --body "Re-sync {integration} with {release} after the vX.Y.Z release (merge commit, no squash)."
+gh pr merge <pr> --merge
+```
 
 If the merge is blocked on review, use the maintainer admin override (`gh pr merge <pr> --merge
 --admin`) only when you are acting with owner credentials; otherwise hand the open PR to the
@@ -191,7 +201,9 @@ git) carries the same audit trail. Call shapes and idempotency markers live in
 
 Walk the merge commits from the previous tag to the new one and extract Linear identifiers:
 
-    git -C "$WT" log --merges <prev-tag>..vX.Y.Z --pretty=format:"%H %s%n%b"
+```bash
+git -C "$WT" log --merges <prev-tag>..vX.Y.Z --pretty=format:"%H %s%n%b"
+```
 
 For each merge commit, scan the subject, body, and the head-branch name (PRs cut by
 `/backlogd:solve` follow `nicolaibernsen/nb-<n>-<slug>`) for Linear identifiers. The
@@ -206,7 +218,9 @@ Deduplicate the resulting set of `NB-N` ids.
 **Degrade gracefully.** If the range yields no Linear identifiers (e.g. a release built
 from external contributions only), fall back to issues *completed* in the tag range:
 
-    list_issues({ team: "<team>", filter: { completedAt: { gte: <prev-tag date>, lte: <vX.Y.Z date> }, labels: { name: { eq: "problem" } } } })
+```text
+list_issues({ team: "<team>", filter: { completedAt: { gte: <prev-tag date>, lte: <vX.Y.Z date> }, labels: { name: { eq: "problem" } } } })
+```
 
 (If the `problem`-label filter returns nothing, retry without it — the AC accepts "issues
 completed in range" as the fallback; be explicit in the §7 report about which path was
@@ -219,16 +233,18 @@ tech-debt (use the issue's labels via `get_issue` or the already-fetched `list_i
 payload; default any unlabelled issue to "Other"). Render a Markdown body and write it to
 a temp file the next step can hand to `gh`:
 
-    NOTES_FILE="$(mktemp -t backlogd-release-vX.Y.Z-XXXXXX).md"
-    cat > "$NOTES_FILE" <<'EOF'
-    ## Features
-    - NB-N — <title>
-    …
+```bash
+NOTES_FILE="$(mktemp -t backlogd-release-vX.Y.Z-XXXXXX).md"
+cat > "$NOTES_FILE" <<'EOF'
+## Features
+- NB-N — <title>
+…
 
-    ## Fixes
-    - NB-N — <title>
-    …
-    EOF
+## Fixes
+- NB-N — <title>
+…
+EOF
+```
 
 Keep the file path; the next step needs it.
 
@@ -236,7 +252,9 @@ Keep the file path; the next step needs it.
 
 Cut the GitHub Release on the just-pushed tag and capture its URL:
 
-    REL_URL="$(gh release create vX.Y.Z --title "vX.Y.Z" --notes-file "$NOTES_FILE")"
+```bash
+REL_URL="$(gh release create vX.Y.Z --title "vX.Y.Z" --notes-file "$NOTES_FILE")"
+```
 
 `gh release create` prints the release URL on success — capture it as `$REL_URL` for the
 Linear writes below. **If `gh` is unavailable**, surface to the product owner and
@@ -266,8 +284,10 @@ roll-up comment so the container records the release too. Same idempotency check
 per-issue comment — list first, skip if a `Shipped in vX.Y.Z` body already exists, else
 create:
 
-    save_comment({ projectId: "<project id>",     body: "**[backlogd]** Shipped in vX.Y.Z — <n> issues — <$REL_URL>" })
-    save_comment({ initiativeId: "<initiative id>", body: "**[backlogd]** Shipped in vX.Y.Z — <n> issues — <$REL_URL>" })
+```text
+save_comment({ projectId: "<project id>",     body: "**[backlogd]** Shipped in vX.Y.Z — <n> issues — <$REL_URL>" })
+save_comment({ initiativeId: "<initiative id>", body: "**[backlogd]** Shipped in vX.Y.Z — <n> issues — <$REL_URL>" })
+```
 
 `save_comment` accepts exactly one parent at a time, so an Initiative and its Project each
 get their own call.
@@ -282,7 +302,7 @@ not let a re-run silently rewrite it.
 
 ## 7. Report
 
-```
+```text
 Released vX.Y.Z
   bump       -> {previous} → {new} in .claude-plugin/plugin.json
   promote    -> {integration} → {release} (merge commit, PR #{pr})

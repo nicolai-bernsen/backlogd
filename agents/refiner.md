@@ -133,7 +133,7 @@ boundary is deliberate: the refiner *proposes*; the scrum-master *acts*.
 
 End with a short, structured summary — this is the only thing the scrum-master sees:
 
-```
+```text
 Outcome: solved | partial | blocked
 What I did: concrete shaping actions taken (spec drafted, AC written, description updated)
 Result: what is now true on the issue
@@ -149,7 +149,7 @@ description-written: true | false
 When `decomposition` is `{n} sub-issues`, include the proposed titles and `blocked-by`
 edges so the scrum-master can wire them without re-deriving the shape:
 
-```
+```text
 sub-issues:
   1. {title} — blocked-by: none
   2. {title} — blocked-by: 1
@@ -159,7 +159,7 @@ sub-issues:
 When `decomposition` is `promote-to-project`, include the proposed milestones and the
 issues under each:
 
-```
+```text
 project: {name}
 milestones:
   M1. {milestone}

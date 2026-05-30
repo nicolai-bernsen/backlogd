@@ -33,7 +33,7 @@ the orchestrator must work around*) — without it, any specialist with an expli
 Make a **single batched `ToolSearch` call** that names every `mcp__linear__*` tool this
 command (or any subagent it dispatches) may touch:
 
-```
+```text
 ToolSearch(select: "mcp__linear__get_issue,mcp__linear__save_issue,mcp__linear__save_comment,mcp__linear__list_comments,mcp__linear__list_issue_statuses,mcp__linear__list_issue_labels,mcp__linear__list_issues,mcp__linear__list_teams,mcp__linear__list_milestones,mcp__linear__get_project,mcp__linear__save_milestone")
 ```
 
@@ -249,7 +249,7 @@ triggers with `/backlogd:solve`.
 
 Show what you shaped so it is visible in the transcript:
 
-```
+```text
 Shaped: {identifier} — {title}
   acceptance criteria  -> {n} written
   decomposition        -> single issue | {n} sub-issues (blocked-by wired) | promoted to Project "{name}" ({n} issues, {m} milestones)

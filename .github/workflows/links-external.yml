@@ -1,0 +1,58 @@
+# Advisory external-link check (lychee).
+#
+# This is the ADVISORY, EXTERNAL-link counterpart to ci.yml's BLOCKING,
+# internal/offline lychee gate. ci.yml runs `lychee --offline` on pull_request
+# (file-existence only, zero network calls) and fails the PR on a dead relative
+# link. This workflow does the opposite: it reaches the live internet to check
+# EXTERNAL URLs, runs only on a weekly schedule + manual dispatch, and NEVER
+# fails a run — a transient external 4xx/timeout opens (or updates) a tracking
+# issue instead of breaking anything. It has NO pull_request or push trigger, so
+# it is structurally incapable of gating a PR or the `dev` branch.
+name: External link check (advisory)
+
+on:
+  schedule:
+    # Mondays 06:00 UTC — weekly, off-peak. Advisory only.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+# Least privilege: read the repo, and write issues so a broken-link report can be
+# filed. No other scopes — this workflow only observes and reports.
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  external-links:
+    name: Check external links (advisory)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Scan markdown for EXTERNAL links over the network. Note: NO --offline
+      # (that is ci.yml's internal-only mode); here lychee resolves real URLs.
+      # fail: false => the job never hard-fails on a broken/transient link, so
+      # this can never gate anything. failIfEmpty: false => an empty match is
+      # not an error for an advisory sweep. The exit_code output drives the
+      # issue-creation step below. SHA pinned to match ci.yml's lychee gate.
+      - name: Check external links (lychee)
+        id: lychee
+        uses: lycheeverse/lychee-action@8646ba30535128ac92d33dfc9133794bfdd9b411  # v2.8.0
+        with:
+          args: "--no-progress './**/*.md'"
+          fail: false
+          failIfEmpty: false
+
+      # Only when lychee reported broken links (non-zero exit): file/refresh a
+      # single tracking issue from the markdown report lychee wrote. peter-evans
+      # de-duplicates on the title, so re-runs update the same issue rather than
+      # spamming new ones.
+      - name: Open issue on broken external links
+        if: steps.lychee.outputs.exit_code != 0
+        uses: peter-evans/create-issue-from-file@fca9117c27cdc29c6c4db3b86c48e4115a786710  # v6.0.0
+        with:
+          title: Broken external links detected
+          content-filepath: ./lychee/out.md
+          labels: |
+            report
+            external-links
