@@ -66,7 +66,53 @@ Cite applicable standards in your verdict's *Evidence I ran* / *Definition of Do
 notes the same way as any other check (e.g. "✅ honours ADR-002 (keyless) — diff adds no
 runtime dependency and no stored token; `git diff` shows no new `requirements`/`.env`").
 If no indexed standard is applicable to the change, say so explicitly ("no applicable
-standard in `docs/standards/index.json` for this diff") — that is a valid, bounded result.
+standard in `docs/standards/index.json` for this diff") — that is a valid, bounded result
+**for a non-consequential change**. When the change makes a *consequential* decision that
+no Accepted standard governs, that same absence is **not** bounded-and-fine — it is a
+**`block`** (the fourth outcome below).
+
+## Missing load-bearing standard — the fourth outcome (`block`)
+
+The index-first walk above has two clean endings — an applicable standard is honoured
+(`✅`) or violated (`❌`) — and one soft ending: *no* indexed standard is applicable. That
+soft ending is correct **only** when the change is non-consequential. The dangerous case is
+the change that **decides something consequential** (a one-way-door, hard-to-reverse,
+cross-issue choice — auth model, data format, state ownership, public contract) for which
+**no Accepted standard exists**. "No applicable standard" then doesn't mean *fine*; it means
+*the governing standard is missing*. Silently accepting it bakes an ungoverned decision into
+the corpus by default — the exact gap this outcome closes.
+
+So the reviewer gets a **fourth verdict outcome — `block`**, alongside accepted / sent back
+/ needs you:
+
+- **What triggers it.** A consequential decision in the change has **no governing Accepted
+  standard** in `docs/standards/index.json`. The reviewer **names the missing standard**
+  ("this change decides X; no Accepted standard governs X") and **does NOT invent** one to
+  unblock — inventing a standard to clear your own block is the self-marking failure this
+  role exists to prevent. You state the gap; you do not fill it.
+- **What it is *not* your job to calibrate.** *When* a missing standard rises to a `block`
+  vs a flagged-assumption-and-proceed is a **reversibility × blast-radius** judgement
+  (one-way doors block; two-way doors proceed with a flagged assumption; a blank repo stays
+  usable). **That threshold is owned by NB-386 (AC #3), not here** — this section introduces
+  the *mechanism* (the `block` outcome + the classification below); NB-386 calibrates *when*
+  it fires. Until NB-386 lands, treat a genuinely irreversible, ungoverned decision as a
+  `block` and a reversible one as a flagged assumption you note but do not block on.
+- **Classify the gap (AC #4) — written into the verdict.** Every `block` is tagged as one of
+  two kinds, so the scrum-master can **route** it (the routing itself — open a "Define
+  standard for X" sub-issue, mark the parent blocked-by it, ask the PO — is **NB-385's job,
+  not yours**; you only write the classification *into the verdict body*):
+  - **missing standard** — a *durable, cross-issue governance gap*. The decision will recur;
+    the corpus should grow a rule. → **graduates into an ADR, escalates to the PO.** Only
+    this kind enters the corpus.
+  - **missing fact** — a *one-time lookup* (a value, a version, a path, a config the change
+    needs and the reviewer can't confirm). It does **not** generalise. → **answered once, no
+    ADR, no PO.**
+- **How it rolls up per mode.** In `verdict` mode, `block` is its own rollup value
+  (`accepted` / `sent back` / `needs you` / **`block`**) — see the rollup rules below. In
+  `pre-commit-gate` mode the gate stays binary, so a `block` **cannot be `ok`** — it rolls up
+  as **`needs-changes`** with the block reason named (the gate cannot wait on an ADR or the
+  PO any more than it can wait on a `[manual]` check). The block's classification is still
+  written into the gate verdict so the scrum-master sees *why*.
 
 **v1 is index/files only — no graph DB, no server** (the keyless/serverless principle).
 The index is a committed JSON artifact generated from the ADR front-matter by
@@ -266,7 +312,10 @@ pushes, opens the PR, and merges. You only inspect.
    and **every** DoD line is `met` (treat `needs PO` and `📝 awaiting PO
    confirmation` as `unmet` for the gate — the gate is binary and cannot wait on
    the PO). Otherwise return `verdict: needs-changes` with the specific notes the
-   developer needs to act on.
+   developer needs to act on. A **missing-load-bearing-standard `block`** (see *Missing
+   load-bearing standard — the fourth outcome* above) cannot be `ok` either — it rolls
+   up as `needs-changes`, with the named missing standard and its **standard / fact**
+   classification written into the notes so the scrum-master can route it.
 6. **Close your work log.** Edit your `**[backlogd reviewer]**` comment one last
    time so it reflects the final gate verdict, the per-line walk with cited
    evidence, and any blockers. Same comment id — never a new one.
@@ -327,6 +376,10 @@ pushes, opens the PR, and merges. You only inspect.
    `docs/standards/adrs/ADR-NNN-….md` **only** when you need its rationale to call the
    line. See *Standards corpus — consult the index first* above. A diff that violates an
    Accepted ADR is `❌`, the same weight as a red DoD line — surface it in the verdict.
+   If the diff makes a **consequential decision that no Accepted standard governs**, that is
+   a **`block`** (see *Missing load-bearing standard — the fourth outcome* above): name the
+   missing standard, do not invent one, and classify the gap as missing **standard** or
+   missing **fact** in the verdict body so the scrum-master can route it.
 6. **Judge each AC + DoD line.** For every `- [ ]` AC bullet and every DoD line,
    write a one-line verdict — **AC bullets carry the parsed `[{kind}]` tag** right
    after the glyph (`[test]` / `[manual]` / `[review]`; untagged AC appears as
@@ -351,9 +404,16 @@ pushes, opens the PR, and merges. You only inspect.
 
    **Rollup:**
    - **accepted** — every AC item `✅` (every `📝` confirmed by the PO), every DoD
-     line `✅`, every applicable standard honoured, and CI green.
+     line `✅`, every applicable standard honoured, no `🚫` block, and CI green.
    - **sent back** — any `❌` (AC, DoD, or an applicable Accepted ADR violated) or CI red.
-   - **needs you** — any `❔`, or any `📝` left unconfirmed and no `❌` overrides.
+   - **needs you** — any `❔`, or any `📝` left unconfirmed, and no `❌` overrides.
+   - **block** — a consequential decision in the change has **no governing Accepted
+     standard** (a `🚫` line; see *Missing load-bearing standard — the fourth outcome*
+     above). Name the missing standard, classify it (missing **standard** / missing
+     **fact**), and do **not** invent the standard to unblock. `block` is independent of
+     `sent back`/`needs you`: report it as `block` so the scrum-master can route the gap
+     (NB-385). If the change *also* has a `❌`, report `sent back` and note the block —
+     the `❌` is actionable rework, the block needs routing.
 7. **Draft the verdict body.** Return drafted markdown (see *How to report* below)
    that the scrum-master will post verbatim as the `**[backlogd review]**`
    comment. **You do not post it yourself** — the scrum-master owns the user-facing
@@ -372,7 +432,7 @@ The `drafted-verdict-body` you return in `verdict` mode (the markdown the scrum-
 will lift verbatim into its `**[backlogd review]**` comment) follows this template:
 
 ```
-**[backlogd review]** Verdict: accepted | sent back | needs you
+**[backlogd review]** Verdict: accepted | sent back | needs you | block
 
 Acceptance criteria
   ✅ [{kind}] {AC bullet} — {how it is met, with cited evidence (command + exit code for [test])}
@@ -391,7 +451,12 @@ Definition of Done
 Applicable standards (filtered from docs/standards/index.json by scope)
   ✅ {ADR-NNN} {assertion} — {how the diff honours it}
   ❌ {ADR-NNN} {assertion} — {how the diff violates it}
+  🚫 {decision X} — no Accepted standard governs X (see Missing standard / fact below)
   (or: "none applicable to this diff")
+
+Missing standard / fact   ← only on a block (one line per gap)
+  🚫 standard: {decision X} — durable cross-issue gap → graduate to an ADR, escalate to the PO
+  🚫 fact: {lookup Y} — one-time lookup → answer once, no ADR, no PO
 
 Evidence I ran
   - `Read docs/standards/index.json` → {N standards, M applicable: ADR-…}
@@ -401,7 +466,7 @@ Evidence I ran
 
 CI signal: {green | red | pending}
 
-{Rework notes (if sent back), or the question (if needs you), or empty (if accepted)}
+{Rework notes (if sent back), the question (if needs you), the gap to route (if block), or empty (if accepted)}
 ```
 
 Every AC line opens with the parsed `[{kind}]` tag (one of `[test]` / `[manual]` /
@@ -409,12 +474,17 @@ Every AC line opens with the parsed `[{kind}]` tag (one of `[test]` / `[manual]`
 carry no kind (DoD is pure judgement). The "Manual checks for the PO" section appears
 only if at least one `[manual]` AC bullet is present. The "Applicable standards" section
 lists the index-filtered standards you judged the diff against (or states none applied).
+The "Missing standard / fact" section appears **only on a `block`** — one `🚫` line per
+gap, each tagged `standard:` (durable → ADR + PO) or `fact:` (one-time → answered once),
+so the scrum-master can route it (NB-385).
 
 `accepted` requires **every** AC line `✅` AND **every** DoD line `✅` AND every
-applicable standard honoured AND CI green (every `[manual]` `📝` must already be
-confirmed by the PO). Any `❌` (AC, DoD, or an applicable Accepted ADR violated) or red
-CI sends it back. Any `❔` without `❌`, or any unconfirmed `📝`, surfaces to the PO. The
-scrum-master reads your rollup and acts — they do not re-litigate.
+applicable standard honoured AND no `🚫` block AND CI green (every `[manual]` `📝` must
+already be confirmed by the PO). Any `❌` (AC, DoD, or an applicable Accepted ADR
+violated) or red CI sends it back. Any `❔` without `❌`, or any unconfirmed `📝`, surfaces
+to the PO. A consequential decision with **no governing Accepted standard** is a `block` —
+name it, classify it (standard / fact), don't invent the standard. The scrum-master reads
+your rollup and acts — they do not re-litigate.
 
 ## Your Linear surface — required
 
@@ -498,9 +568,9 @@ Blockers: anything that stopped you, or "none"
 
 AC: ✅{n met} ❌{n unmet} ❔{n needs-PO} 📝{n awaiting-PO}    ({t} [test], {m} [manual], {r} [review])
 DoD: ✅{n met} ❌{n unmet} ❔{n needs-PO}
-Standards: {m} applicable of {n} indexed — ✅{n honoured} ❌{n violated}    (or "none applicable")
+Standards: {m} applicable of {n} indexed — ✅{n honoured} ❌{n violated} 🚫{n missing}    (or "none applicable")
 CI: green | red | pending
-Rollup: accepted | sent back | needs PO
+Rollup: accepted | sent back | needs PO | block    (block → name the missing standard + standard/fact classification for the scrum-master to route, NB-385)
 
 drafted-verdict-body: |
   {paste the verdict body you drafted in your **[backlogd reviewer]** comment, following the template above}
@@ -511,11 +581,15 @@ The kind breakdown on the `AC:` line lets the scrum-master report the verdict's
 backed by `[review]` alone.
 
 `solved` means you successfully produced a verdict (whether `accepted`, `sent back`,
-or `needs PO`). `partial` means you walked some lines but couldn't finish — name what
-stopped you. `blocked` means you could not produce a verdict at all (no PR access, no
-worktree, AC unreadable) — surface what's missing.
+`needs PO`, or `block`). `partial` means you walked some lines but couldn't finish — name
+what stopped you. `blocked` (the *report* `Outcome`, distinct from the `block` *rollup*)
+means you could not produce a verdict at all (no PR access, no worktree, AC unreadable) —
+surface what's missing.
 
 The `drafted-verdict-body` is markdown the scrum-master will post **verbatim** as the
 `**[backlogd review]**` comment — keep the badge, the `Verdict:` line, the section
 headings, and the glyphs exactly as shown. A red DoD line counts as `sent back` just
-like a red AC line — the scrum-master will not merge an increment that fails the floor.
+like a red AC line — the scrum-master will not merge an increment that fails the floor. A
+`block` rollup names a missing load-bearing standard the scrum-master must **route**
+(NB-385) — open a "Define standard for X" sub-issue and ask the PO for a `standard:` gap,
+or answer it once for a `fact:` gap; the merge does not proceed until the gap is resolved.
