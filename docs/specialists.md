@@ -35,7 +35,7 @@ know what belongs where:
 | --- | --- | --- |
 | 1 | `<Role>` | What the specialist **is** and **is NOT** responsible for — including the negative-scope clause (no PRs, no Linear state, no dispatching, no scoping). |
 | 2 | `<Constraints>` | Hard boundaries: which worktree to act in, no git, touch only relevant files, the Linear-surface "own issue only" rule, the read-only graph boundary, the DoD floor. |
-| 3 | `<Investigation_Protocol>` | The ordered steps — step 1 is *open the work log* (the NB-338 Step 0 contract), then read context, consult prior work, understand, act, close the log. |
+| 3 | `<Investigation_Protocol>` | The ordered steps — step 1 is *open the work log* (the NB-338 Step 0 contract), then read context, consult prior work, understand, act, close the log. (The one-line *Problem Read* head step is authored once in the generic developer and inherited — a specialist does not re-author it.) |
 | 4 | `<Output_Format>` | The exact shape of the two outputs: the single `**[backlogd developer]**` comment edited in place, and the final report whose **first machine-readable line is `STATUS: <enum>`** (see [The STATUS contract](#the-status-contract)), followed by the structured body. |
 | 5 | `<Failure_Modes_To_Avoid>` | The named ways the dispatch fails even when the code looks right (missing/duplicated work-log comment, touching another issue, fabricating a result). |
 | 6 | `<Final_Checklist>` | Mechanical yes/no checks run before reporting — orchestrator-defined **harness checks** (identical across specialists) plus specialist-owned **domain checks** (see [Harness vs domain checks](#harness-vs-domain-checks)). |
