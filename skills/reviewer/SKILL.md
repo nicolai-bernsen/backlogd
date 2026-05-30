@@ -184,17 +184,36 @@ dispatch is the symmetric pre-load point.
 ## How the reviewer fits into the loop
 
 ```
-/backlogd:solve → developer (one per unit) → solution brief → In Review
-                                                                  ↓
-/backlogd:review → reviewer (fresh, restricted) → verdict draft
+/backlogd:solve → developer (one per unit) → [pre-commit gate] → solution brief → In Review
+                                                                                      ↓
+   ship-on-green auto-chain (happy path, on by default)  ──┐   ┌── /backlogd:review (manual re-entry)
+                                                           ↓   ↓
+                              reviewer (fresh, restricted) → verdict draft
                                                           ↓
-                  orchestrator acts (merge / send back / surface ❔)
+              orchestrator acts (merge → Done on fully-green / send back / surface ❔)
 ```
 
-The reviewer never gets a turn that isn't initiated by `/backlogd:review`. There is
-no "pre-commit gate" reviewer dispatch in this model — that is a richer Scrum-flavoured
-extension (see NB-329) that may layer on top. For NB-326's trust-defining spec, one
-reviewer dispatch per `/backlogd:review` invocation is enough.
+The verdict pass has **two triggers, one engine**: `/backlogd:solve`'s ship-on-green final
+phase auto-chains it on the happy path (no human gate), and `/backlogd:review` remains the
+manual re-entry point the PO can invoke any time. Both dispatch the identical
+`verdict`-mode reviewer and act on the identical merge decision.
+
+The same reviewer subagent is dispatched in **two distinct passes**, both honouring the
+three trust properties above:
+
+1. **The pre-commit gate** — dispatched *inside* `/backlogd:solve` per unit, before commit,
+   in **`pre-commit-gate`** mode (binary `ok` / `needs-changes`; see
+   `skills/solve/gate.md`). This is the in-session gate.
+2. **The independent verdict** — dispatched after *In Review* against the whole problem, in
+   **`verdict`** mode (`accepted` / `sent back` / `needs PO`; see `commands/review.md`). This
+   is the fresh-context pass whose `accepted` rollup gates the merge.
+
+The verdict pass is **never** triggered by the reviewer itself — it is initiated either by
+the PO running `/backlogd:review`, or **automatically** as `/backlogd:solve`'s ship-on-green
+final phase (`skills/solve/ship.md`), which auto-chains the same `verdict`-mode dispatch and
+merge decision on the happy path. **Ship-on-green removes the human *trigger*, never the
+independent *verification*:** the merge is gated on this independent reviewer's `accepted`
+rollup, not on the pre-commit gate alone — the two passes stay separate, and both run.
 
 ## Boundaries — what is **not** the reviewer's job
 

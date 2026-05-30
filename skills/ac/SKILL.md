@@ -56,10 +56,13 @@ Rules:
 
 ## When to use each kind
 
-Pick the **strongest** check the AC item can support. Reaching higher up the ladder is
-better — `[test]` is the strongest, `[manual]` is a question to the PO, `[review]` is
-Claude judgement. But **don't fabricate**: if no runnable check exists, leave the item
-untagged (defaults to `[review]`) rather than inventing a test command that doesn't
+Pick the **strongest** check the AC item can support. `[test]` is the strongest — an
+exit-coded command. `[review]` is Claude judgement against the artifacts and the
+standards, and is the **default** for everything that is not a runnable check. `[manual]`
+is the **rare exception** — reserved for a fact only a human can observe in the world (see
+its section below); it is **not** a peer default and **never** the home for a
+correctness/soundness call. But **don't fabricate**: if no runnable check exists, leave the
+item untagged (defaults to `[review]`) rather than inventing a test command that doesn't
 exist.
 
 ### `[test]` — automated, exit-coded
@@ -89,13 +92,36 @@ Example:
 - [ ] [test] AC parser handles untagged items — `python -m pytest tests/test_ac.py::test_untagged_defaults_to_review` exits 0.
 ```
 
-### `[manual]` — PO confirms
+### `[manual]` — a fact only a human can observe in the world
 
-Use when the AC item is **observable but only by a human running it**:
+`[manual]` is the **rare, earned exception**, not a peer default. Reserve it strictly for
+**facts a fresh-context agent genuinely cannot observe in the world** — something whose
+truth lives outside the repo, the diff, the issue, and the comments, where no command and
+no careful read can reach:
 
-- "the UI renders without console errors",
-- "the README skim reads naturally to a new contributor",
-- "running `/backlogd:scope` on a fresh problem produces a sensible decomposition".
+- "does this `templateData` actually render in the Linear UI",
+- "is this visually on-brand / does the layout look right",
+- "did the external service actually receive the webhook".
+
+Soundness, correctness, and consistency-with-our-standards judgements all route to
+`[review]` — they are explicitly **excluded** from the `[manual]` kind. "Is this the right
+call", "does this match the ADRs", "did the refiner shape this well", "the PO signs off that
+the content reads well" — every one of these is a judgement an independent reviewer makes
+against the artifacts and the documented standards, so each routes to `[review]`, not to a
+human gate. An item phrased as "the PO confirms the content is right" is mis-typed: retype it
+`[review]` and let the independent reviewer judge it. The test is narrow: *can no agent
+observe this, even with a fresh context, the diff, and Bash?* If a reviewer could read or run
+something to settle it, it is a `[review]` item.
+
+**Two rules the refiner and the scope dispatch enforce:**
+
+1. **Default to `[review]`.** When you are unsure which kind fits, it is `[review]`
+   (or untagged, which is the same) — never `[manual]`.
+2. **Justify every `[manual]`.** Any `[manual]` item must carry a **one-line justification of
+   why no fresh-context agent could observe it** — inline in the bullet (e.g. *"— [manual]
+   because only a human eye can confirm the brand palette renders correctly in Linear"*). A
+   `[manual]` without that justification is treated as mis-typed and should be retyped
+   `[review]`.
 
 The reviewer subagent **does not try to verify** `[manual]` items itself. Instead,
 it batches every `[manual]` item on the problem into a single follow-up section in
@@ -143,14 +169,19 @@ When `/backlogd:scope` shapes a problem, it dispatches the **refiner subagent** 
 draft the description; the dispatch envelope tells the refiner to load this skill and
 to write AC bullets with **explicit kinds where possible**:
 
-1. **Default to `[review]`** when unsure — better than inventing a `[test]` that has
-   no real runnable command behind it. Untagged (no prefix) is fine and equivalent.
+1. **Default to `[review]`** whenever unsure — it is the home for every judgement call,
+   including "is this decision sound / correct / consistent with the ADRs", which the
+   independent reviewer decides against the artifacts and standards. Untagged (no prefix)
+   is fine and equivalent. Better `[review]` than inventing a `[test]` with no real command.
 2. **Use `[test]`** only when the bullet describes something with an obvious automated
    check (a test path, a lint command, an exact string that must appear in a file, a
    shell snippet that exits non-zero on failure). Spell out the command in backticks
    inside the bullet so the reviewer can extract it.
-3. **Use `[manual]`** for observable-but-human checks (UI feel, prose quality, an
-   end-to-end walk only a human can sanity-check).
+3. **Reserve `[manual]`** for the rare fact only a human can observe in the world (a UI
+   render, visual on-brand-ness, an external service actually receiving something) — see
+   the `[manual]` section above. It is **not** a peer default: a correctness/soundness/
+   consistency judgement is `[review]`, and every `[manual]` carries a one-line
+   justification of why no fresh-context agent could observe it.
 4. **Encourage the PO**, in the scope report, to refine kinds the reviewer flagged
    `❔ no runnable check found`.
 
