@@ -130,8 +130,12 @@ machine-readable front-matter — a crisp **checkable `assertion`**, an **`appli
 1. **Read the compact index first** (`docs/standards/index.json`) — cheap, the only
    standards file always read.
 2. **Filter to applicable standards by `applies-to`** — match the diff's changed files
-   (glob `file-patterns`), area (`domains`), and decision kind (`decision-types`); skip
-   `Superseded`/`Deprecated`. Most ADRs are irrelevant to any given diff.
+   (glob `file-patterns`), area (`domains`), and decision kind (`decision-types`); **enforce
+   only the current `Accepted` set** and skip every non-Accepted `status` — `Proposed`
+   (not yet binding), `Superseded`, and `Deprecated` (history). ADRs stay agile: Accepted
+   today is a hard rule but reconsiderable — reopen-and-supersede per the template
+   lifecycle, so the reviewer enforces only what is *currently* Accepted. Most ADRs are
+   irrelevant to any given diff.
 3. **Judge against each applicable `assertion`** — usually enough to call met/unmet.
 4. **Open a full ADR only when the rationale is needed** — never the whole set.
 
@@ -153,6 +157,56 @@ its place; v1 deliberately ships only the files + index that solve the lookup pa
 > the reviewer consults it. Front-matter is the single source of truth: edit it, then
 > regenerate the index (`python scripts/standards_index.py`) in the same change — CI's
 > drift test enforces the two stay in sync.
+
+## The fourth verdict outcome — `block` (missing load-bearing standard)
+
+The index walk above closes most reviews cleanly: an applicable standard is honoured or
+violated. It has one soft ending — *no* indexed standard applies — and that soft ending is
+right **only for a non-consequential change**. The hole it leaves is the dangerous case: a
+change that **decides something consequential** (a one-way-door choice — auth model, data
+format, state ownership, a public contract) for which **no Accepted standard exists**. "No
+applicable standard" then doesn't mean *fine*; it means *the governing standard is missing*,
+and silently accepting bakes an ungoverned decision into the corpus by default.
+
+So the reviewer's verdict has a **fourth outcome — `block`** — alongside accepted / sent
+back / needs you (the gate's binary `ok` / `needs-changes` rolls a block up as
+`needs-changes`, since the gate can't wait on an ADR or the PO):
+
+- **Detect & block, don't invent.** When a consequential decision has no governing Accepted
+  standard, the verdict is a **`block`** (not an accept). The reviewer **names the missing
+  standard** ("this change decides X; no Accepted standard governs X") and **does NOT invent
+  one to unblock** — inventing the rule that clears your own block is the self-marking
+  failure the whole role exists to prevent. State the gap; never fill it.
+- **Classify the gap, write it into the verdict.** Every block is tagged:
+  - **missing standard** — a *durable, cross-issue governance gap* → graduates into an ADR,
+    escalates to the PO. **Only this kind enters the corpus.**
+  - **missing fact** — a *one-time lookup* (a value, a path, a version) → answered once, no
+    ADR, no PO.
+
+  The classification is written into the verdict body (a "Missing standard / fact" section,
+  one `🚫` line per gap) **so the scrum-master can route it** — see the boundaries below.
+
+**Boundary — mechanism here, *threshold* and *routing* elsewhere.** This section (and the
+matching `agents/reviewer.md` outcome) introduces the *mechanism*: the `block` outcome plus
+the standard/fact classification. Two adjacent decisions live elsewhere, not in this trust
+model:
+
+- **The blocking *threshold* — *when* a missing standard rises to a block** vs a
+  flagged-assumption-and-proceed — is a **reversibility × blast-radius** calibration: a
+  `block` fires **only** on a **one-way door** (irreversible AND wide blast-radius — data
+  model, auth/onboarding model, public API shape, the keyless principle); a **two-way door**
+  (reversible *or* narrow) gets a **flagged assumption recorded in the verdict** and proceeds.
+  This is what keeps a **blank repo usable** — the empty-corpus bootstrap degrades gracefully
+  rather than firing fifty blocking questions on issue #1. The calibration itself (the
+  threshold + worked examples) is documented operationally in `agents/reviewer.md`
+  (*Calibrating the block — reversibility × blast-radius*, NB-386); this trust model states
+  *that* it exists and *why* (a wrongful block stalls a usable repo), and the agent doc owns
+  *how* it is applied.
+- **The scrum-master *routing* of a block** — open a "Define standard for X" sub-issue, mark
+  the parent blocked-by it, ask the PO — lives in `commands/review.md` / `commands/solve.md`
+  / `skills/scrum/` (a **separate unit, NB-385**). The reviewer's job ends at writing the
+  named, classified gap *into the verdict*; the scrum-master reads it and acts (judge / act
+  split — property 2). The reviewer never opens the sub-issue or changes state itself.
 
 ## NB-340: tool-grant hazard the orchestrator must work around
 
@@ -192,7 +246,7 @@ dispatch is the symmetric pre-load point.
                                                            ↓   ↓
                               reviewer (fresh, restricted) → verdict draft
                                                           ↓
-              orchestrator acts (merge → Done on fully-green / send back / surface ❔)
+              orchestrator acts (merge → Done on fully-green / send back / surface ❔ / route 🚫 block)
 ```
 
 The verdict pass has **two triggers, one engine**: `/backlogd:solve`'s ship-on-green final
@@ -207,8 +261,10 @@ three trust properties above:
    in **`pre-commit-gate`** mode (binary `ok` / `needs-changes`; see
    `skills/solve/gate.md`). This is the in-session gate.
 2. **The independent verdict** — dispatched after *In Review* against the whole problem, in
-   **`verdict`** mode (`accepted` / `sent back` / `needs PO`; see `commands/review.md`). This
-   is the fresh-context pass whose `accepted` rollup gates the merge.
+   **`verdict`** mode (`accepted` / `sent back` / `needs PO` / `block`; see
+   `commands/review.md`). This is the fresh-context pass whose `accepted` rollup gates the
+   merge — a `block` (missing load-bearing standard) holds the merge until the scrum-master
+   routes the gap (NB-385).
 
 The verdict pass is **never** triggered by the reviewer itself — it is initiated either by
 the PO running `/backlogd:review`, or **automatically** as `/backlogd:solve`'s ship-on-green
@@ -233,6 +289,18 @@ rollup, not on the pre-commit gate alone — the two passes stay separate, and b
   `**[backlogd reviewer]**` draft; the orchestrator may lift it verbatim into the
   rollup or annotate it. Two distinct badges, two distinct authors, two distinct
   audiences (audit trail vs PO).
+- **Restating the block *threshold* in this trust model.** The reviewer *detects* a missing
+  load-bearing standard, emits the `block` outcome (above), and **applies** the
+  reversibility × blast-radius calibration (one-way doors block; two-way doors proceed with a
+  flagged assumption) — but *that operational threshold + its worked examples live in
+  `agents/reviewer.md`* (*Calibrating the block*, NB-386), not here. This skill is the trust
+  model (why the outcome exists, why a wrongful block hurts a blank repo); the agent doc owns
+  *how* the reviewer calibrates each call.
+- **Routing a block.** Acting on a `block` — opening a "Define standard for X" sub-issue,
+  marking the parent blocked-by it, asking the PO, deciding ADR-vs-answer-once — is the
+  **scrum-master's** job (`commands/review.md` / `commands/solve.md` / `skills/scrum/`,
+  **NB-385**). The reviewer writes the named, classified gap *into the verdict* and stops —
+  judge / act split. It does not open the sub-issue or change state.
 
 ## Pitfalls checklist
 
@@ -255,3 +323,9 @@ rollup, not on the pre-commit gate alone — the two passes stay separate, and b
   reviewer → double-posting, breaks the in-place edit contract, blurs authorship.
   ✅ Reviewer posts only `**[backlogd reviewer]**`; orchestrator posts only
   `**[backlogd review]**`.
+- ❌ A consequential, ungoverned decision passed as "no applicable standard for this
+  diff" → an ungoverned one-way-door silently baked into the corpus. ✅ A consequential
+  decision with no governing Accepted standard is a `block` — name the missing standard.
+- ❌ The reviewer *inventing* the missing standard to clear its own block → self-marking;
+  it just authored the rule it then judged itself against. ✅ State the gap, classify it
+  (standard / fact), and hand it to the scrum-master to route (NB-385) — never fill it.

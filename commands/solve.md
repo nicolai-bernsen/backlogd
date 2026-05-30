@@ -185,7 +185,10 @@ get to the step. Sub-skills carry the dry-run carve-outs.
    **preserved and gating** — the merge is decided by the independent reviewer's `accepted`
    rollup, not the in-session pre-commit gate (`skills/solve/gate.md`), which is a distinct,
    earlier pass. **Surface to the PO only on** *sent back* (→ In Progress with rework notes),
-   *needs you* (`❔` or unconfirmed `[manual]` → held In Review), or a *base-race blocker* (→
+   *needs you* (`❔` or unconfirmed `[manual]` → held In Review), a *block* (a `🚫` missing
+   load-bearing standard → held In Review, parked blocked-by a `Define standard for X`
+   sub-issue, PO asked for the standard — see `commands/review.md` step 5 / `skills/solve/ship.md`),
+   or a *base-race blocker* (→
    held In Review). Under `--no-ship` the verdict still runs but the problem is **held at In
    Review with the PR open** and nothing is merged — `/backlogd:review` (or the PO) accepts
    later. *(Ops-only run — `kind:ops`: there is no PR; the verdict runs against the action
@@ -206,9 +209,10 @@ Tell the user what happened, end to end:
   graph    -> dispatch_started/completed + run_completed (fanout={k}) recorded (best-effort)
                  + pr_opened                                       ← standard only
   ship     -> on (default) | off (--no-ship / BACKLOGD_SHIP_ON_GREEN=0)
-  verdict  -> accepted | sent back | needs you | (skipped — held at In Review)   ← ship-on-green
+  verdict  -> accepted | sent back | needs you | block | (skipped — held at In Review)   ← ship-on-green
   problem  -> Done (merged → {integration})                    ← happy path: fully-green verdict, merged
                 In Review (solution brief posted, PR open)     ← --no-ship, or needs you
+                In Review (blocked-by {Define standard for X}) ← block: missing load-bearing standard, PO asked
                 In Progress (sent back: {rework reason})       ← any ❌ / red CI
                 paused: {blocker}                              ← dispatch blocker or base-race bail
 ```
