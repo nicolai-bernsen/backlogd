@@ -12,7 +12,7 @@ Linear has a small, deliberately opinionated object model. The load-bearing unit
 them, or *relates* them.
 
 | Primitive | Role | What it is |
-|---|---|---|
+| --- | --- | --- |
 | **Workspace** | container (top) | The whole org. Holds teams, initiatives, and all data. |
 | **Team** | container | A unit that owns its own workflow states, labels, cycles, and triage. **Every Issue belongs to exactly one team.** backlogd uses one team. |
 | **Initiative** | grouping (manual) | A hand-curated list of Projects representing a goal. In backlogd an **Initiative = a consulting engagement**, grouping that engagement's problem-Projects. |
@@ -34,7 +34,7 @@ Key distinctions for an agent:
 ## Issue relations
 
 | Relation | Meaning | backlogd use |
-|---|---|---|
+| --- | --- | --- |
 | **blocks / blocked-by** | Directional hard dependency: "A blocks B" ⇔ "B is blocked-by A". | **The only blocker signal.** Model every real dependency this way. The scrum-master detects stalls from open `blocked-by`. |
 | **related** | Non-directional "see also". No effect on scheduling or progress. | Cross-link for context only — **never** for a true dependency. |
 | **duplicate** | Marks an issue as a duplicate of another; moves it to the `duplicate` state. | Mark rediscovered work; never delete it (history + links survive). |
@@ -48,7 +48,7 @@ belongs to one fixed **category** (`type`). Categories — not names — drive p
 display name.**
 
 | Category (`type`) | Meaning | Counts as "active"? |
-|---|---|---|
+| --- | --- | --- |
 | `triage` | Unreviewed inbox (opt-in). | No |
 | `backlog` | Captured, not committed. | No |
 | `unstarted` | Committed, not begun (e.g. "Todo"). | **Yes** |
@@ -65,7 +65,7 @@ display name.**
 ## Other fields
 
 | Field | Notes for an agent |
-|---|---|
+| --- | --- |
 | **Labels** | Team-scoped. `problem` is backlogd's pickup trigger. Prefer Linear's native fields over inventing label taxonomies. |
 | **Priority** | Fixed enum: Urgent / High / Medium / Low / None (`1`–`4`, `0`). Scrum-master orders pickup by it. |
 | **Estimate** | Opt-in points. If estimates are off, every issue counts as 1 point — fine for backlogd's one-at-a-time loop. |
@@ -90,7 +90,7 @@ What the scrum-master should poll, in order: **project status category → healt
 ## backlogd → Linear terminology
 
 | backlogd concept | Linear primitive |
-|---|---|
+| --- | --- |
 | **Problem** (filed by the product owner) | An **Issue** labelled `problem` — promoted to its own **Project** once it's substantial (see SKILL.md). |
 | **Decomposition / the work** | **Sub-issues** (Issue form) or **Issues in the Project** (Project form), via `save_issue` `parentId`. |
 | **Phase** of a solution | A **Project Milestone** — never an epic/feature/story nesting. |

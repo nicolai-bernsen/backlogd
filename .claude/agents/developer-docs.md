@@ -117,7 +117,7 @@ generic developer's** ([`agents/developer.md`](../../agents/developer.md) `<Outp
 [`docs/specialists.md`](../../docs/specialists.md) → *The STATUS contract*). Pick exactly
 one value:
 
-```
+```text
 STATUS: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
 What I did: concrete actions taken, files changed
 Result: what is now true / what the product owner gets

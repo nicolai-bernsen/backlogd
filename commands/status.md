@@ -45,7 +45,7 @@ before dispatch*.
 Make a **single batched `ToolSearch` call** that names the canonical Linear MCP tool
 list:
 
-```
+```text
 ToolSearch(select: "mcp__linear__get_issue,mcp__linear__save_issue,mcp__linear__save_comment,mcp__linear__list_comments,mcp__linear__list_issue_statuses,mcp__linear__list_issue_labels,mcp__linear__list_issues,mcp__linear__list_teams,mcp__linear__list_milestones,mcp__linear__get_project,mcp__linear__save_milestone")
 ```
 
@@ -147,7 +147,7 @@ the console standup, so they cannot drift.
 
 The block format is exactly:
 
-```
+```text
 ## 📊 Forecast
 
 - **Velocity (7d):** 4.1 problems/day
@@ -182,13 +182,13 @@ _Last refreshed: 2026-05-28T07:30:00Z_
 
 Print one line in the standup output, immediately above or below the per-problem rows:
 
-```
+```text
 Forecast: velocity 4.1/day, queue 12 (4 in-flight + 8 backlog), ETA 3 days, 1 stalled
 ```
 
 Or, when velocity is zero:
 
-```
+```text
 Forecast: velocity 0.0/day, queue 7 (2 in-flight + 5 backlog), 0 stalled — insufficient data — close at least one problem this week to get a forecast
 ```
 
@@ -202,8 +202,8 @@ The orchestrator's runtime must follow this exact algorithm so re-runs are idemp
 1. **Find the START line.** Walk the description line by line. The first line that, after
    stripping a trailing `\r`, equals the literal `## 📊 Forecast` is the block's start.
 2. **Find the END line.** From the line *after* START, walk forward. The block ends one
-   line **before** the next line whose start matches `## ` (level-2 heading), or at end of
-   file when no such line exists. Sub-headings (`### `, `#### `, …) inside the block do
+   line **before** the next line whose start matches `## ` (level-2 heading), or at end of <!-- markdownlint-disable-line MD038 -->
+   file when no such line exists. Sub-headings (`### `, `#### `, …) inside the block do <!-- markdownlint-disable-line MD038 -->
    **not** terminate it — only level-2 headings do.
 3. **Trim trailing blank lines** *inside* the captured span — we re-emit our own spacing,
    so collapsing them prevents the block from drifting larger on each re-run.
@@ -216,7 +216,7 @@ The orchestrator's runtime must follow this exact algorithm so re-runs are idemp
 ### Edge cases (verify against the reference tests)
 
 | Case | Expected output |
-|---|---|
+| --- | --- |
 | `velocity > 0`, `queue > 0` | Block with `~N days` ETA |
 | `velocity == 0`, `queue > 0` | Block with "insufficient data" message; no divide |
 | `velocity > 0`, `queue == 0` | Block with `~0 days` ETA |
@@ -233,7 +233,7 @@ The reference implementation in `scripts/forecast.py` enforces every row of this
 
 Print to the product owner — the top-line first, so what needs them is unmissable:
 
-```
+```text
 Needs your attention ({n})
   ⚠ {identifier} — {title}: {what it is blocked or stalled on}
   …                                  (or "Nothing blocked — all moving." if none)

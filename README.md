@@ -51,6 +51,10 @@ then `/backlogd:solve` dispatches a developer agent that owns the *how* and hand
 high-level solution brief at In Review (see [Try the walking skeleton](#try-the-walking-skeleton)).
 Expect rough edges and breaking changes as the agent roster and blocker-surfacing flow grow.
 
+What "1.0" will mean — the minimal end-to-end loop that must work before launch, what is
+explicitly out, and the gates still open — is spelled out in the
+[**roadmap**: docs/ROADMAP.md](docs/ROADMAP.md).
+
 ## For Product Owners
 
 The PO's daily job in backlogd is small: notice blockers, glance at what's in flight,
@@ -64,7 +68,7 @@ specs, sort and grouping setup, and the daily routine.
 
 backlogd is a Claude Code plugin. Add the marketplace, then install it:
 
-```
+```text
 /plugin marketplace add nicolai-bernsen/backlogd
 /plugin install backlogd
 ```
@@ -109,7 +113,7 @@ the key-creation walkthrough and exactly what `init` configures.
 > gitignored. If you rename a workflow state or add a label backlogd should know about
 > inside the 24-hour window, **delete `.backlogd/identity.json`** to force a refresh on
 > the next run.
-
+>
 > **How backlogd uses Linear** — the operating model (how a problem maps to issues,
 > sub-issues, projects, and milestones) and the exact Linear MCP usage live in the
 > [`skills/linear/`](skills/linear/SKILL.md) skill.
@@ -123,7 +127,7 @@ The first slice proves the whole loop with one command. From a clean checkout:
    of running the demo."* Add the `problem` label and leave it in your Backlog.
 3. From this repo, with the plugin installed, run:
 
-   ```
+   ```text
    /backlogd:solve
    ```
 
@@ -151,7 +155,7 @@ active problems, with nothing changed.
 
 ## Layout
 
-```
+```text
 .claude-plugin/   plugin + marketplace manifests
 agents/           subagent definitions (refiner / developer / tester / reviewer)
 commands/         slash commands — scope + solve + status + review + release (the scrum-master)

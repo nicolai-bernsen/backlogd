@@ -46,7 +46,7 @@ refresh only** (e.g. if it suspects the issue changed mid-flight).
 > and Linear already says `Done`). Process `in-progress-mine` and `untouched` units below
 > exactly as you would in a fresh run. If reconcile surfaced an `inconsistent` unit the
 > orchestrator already paused — this skill is not reached.
-
+>
 > **Ops-only run?** If `skills/solve/walk.md` routed this run to the ops-only path (every
 > ready unit carries the **`kind:ops`** label), **do not run this section** — follow
 > **`skills/solve/ops.md`** instead. There is no worktree, no commit, and no PR; the
@@ -66,6 +66,11 @@ correct one into the envelope below.
 
 For each ready unit (in a parallel group: each unit in the group; in a sequential walk:
 each unit in `blocked-by` order):
+
+<!-- markdownlint-disable MD029 -->
+<!-- Step numbers are load-bearing identifiers: the 5b insertion is deliberate so steps
+     6/7/8 stay valid where they are referenced in-file and from gate.md and
+     commands/solve.md. Do not renumber this list. -->
 
 1. **Claim it** — move the unit to the *In Progress* state (from `skills/solve/identity.md`).
    On a **Project-form** run, post a project-thread health update immediately after the
@@ -156,27 +161,29 @@ each unit in `blocked-by` order):
    <details>
    <summary><strong>Worked envelope example</strong> (single unit NB-512, sequential — on <code>$WT</code>)</summary>
 
-   > Solve this problem. Take a concrete action toward resolving it, post your progress to
-   > your issue (the `**[backlogd developer]**` comment, edited in place), then report what
-   > you did and the outcome.
-   >
-   > Work in this worktree — make all your file changes under it: C:/Users/.../backlogd-wt-NB-512
-   >
-   > ## Issue context
-   >
-   > **Problem (NB-512, issue id NB-512): Dedupe the status forecast block**
-   >
-   > Today `/backlogd:status` appends a fresh 7-day forecast to the Project description on
-   > every run, so the description grows without bound.
-   >
-   > ## Acceptance Criteria
-   >
-   > - [ ] The forecast block is replaced in place (matched by a stable marker), not appended.
-   > - [ ] Running `/backlogd:status` twice leaves exactly one forecast block.
-   >
-   > ## Prior work
-   >
-   > - NB-341 (PO daily overview) last touched `skills/status/forecast.md`.
+   The literal envelope text sent to the developer (shown verbatim):
+
+       Solve this problem. Take a concrete action toward resolving it, post your progress to
+       your issue (the **[backlogd developer]** comment, edited in place), then report what
+       you did and the outcome.
+
+       Work in this worktree — make all your file changes under it: C:/Users/.../backlogd-wt-NB-512
+
+       ## Issue context
+
+       **Problem (NB-512, issue id NB-512): Dedupe the status forecast block**
+
+       Today /backlogd:status appends a fresh 7-day forecast to the Project description on
+       every run, so the description grows without bound.
+
+       ## Acceptance Criteria
+
+       - [ ] The forecast block is replaced in place (matched by a stable marker), not appended.
+       - [ ] Running /backlogd:status twice leaves exactly one forecast block.
+
+       ## Prior work
+
+       - NB-341 (PO daily overview) last touched skills/status/forecast.md.
 
    For a **parallel** unit, the only difference is the worktree line points at the unit's
    own `$WT_unit` (e.g. `.../backlogd-wt-NB-512-unit-NB-514`) and the `## Issue context`
@@ -264,6 +271,8 @@ each unit in `blocked-by` order):
    the group has returned. Identity-guard checks (`backlogd.expectedEmail` /
    `hooks/git/pre-commit`) apply automatically — `git config` is per-repo and shared
    across all linked worktrees of the same repo.
+
+<!-- markdownlint-enable MD029 -->
 
 ## Note on file-edge writes (low-signal)
 

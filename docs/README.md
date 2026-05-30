@@ -9,6 +9,8 @@ directory holds the **living** spec (how the system is built, and why).
 ## Start here
 
 - **[Overview](overview.md)** — what backlogd is, and the problem → dispatch → result loop.
+- **[Roadmap — the Definition of 1.0](ROADMAP.md)** — the minimal end-to-end loop that must
+  work before launch, what is explicitly out, the open gates, and the demo run-of-show.
 - **[Conventions](conventions.md)** — branching, Linear usage, and docs conventions.
 - **[Specialist developers](specialists.md)** — the `developer-<suffix>` convention; how
   scope picks one, how the PO overrides via the `agent:*` label, how solve dispatches.

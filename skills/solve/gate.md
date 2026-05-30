@@ -19,7 +19,7 @@ It is **skipped on `kind:ops` runs** — `skills/solve/walk.md` routes those thr
 > **Dry run:** in `--dryrun` mode this skill does not run. Render the planned tester
 > and reviewer envelopes read-only as part of the per-unit dispatch plan and follow
 > `skills/solve/dryrun.md`. No `Agent` call, no comment.
-
+>
 > **Resume:** the gate is **idempotent** — on resume, re-dispatch the tester and
 > reviewer from scratch against the unit's latest state. `gate_round` resets to 0 per
 > unit on resume.

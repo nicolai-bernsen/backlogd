@@ -59,6 +59,44 @@ on a mismatch via the plugin's SessionStart hook. The guard is a no-op until
 > [`skills/worktree-isolation/SKILL.md`](skills/worktree-isolation/SKILL.md) — load that
 > skill in any session that opens or re-enters a worktree. Background: #301.
 
+### Linting & checks
+
+Style and hygiene are enforced by [`pre-commit`](https://pre-commit.com). Install the
+hooks once, then let them run on every commit:
+
+```sh
+pip install pre-commit && pre-commit install
+pre-commit run --all-files   # run every hook over the whole tree once
+```
+
+A single [`.pre-commit-config.yaml`](.pre-commit-config.yaml) drives both the local hooks
+and the CI `pre-commit/action` step, so what passes locally is what CI runs.
+
+**What gates `dev` (blocking — these run in CI on every pull request):**
+
+| Check | What it catches |
+| ----- | --------------- |
+| markdownlint (`markdownlint-cli2`) | Markdown style across the docs-dense tree |
+| File hygiene | Final newline, trailing whitespace, mixed line endings (normalised to LF) |
+| `check-json` / `check-yaml` | Malformed JSON / YAML |
+| `claude plugin validate .` | Plugin manifest is valid (with a Python JSON-manifest parse as a fallback) |
+| `actionlint` | Errors in the GitHub Actions workflows |
+| Internal links (`lychee --offline`) | Dead relative/internal links — offline, no network calls |
+| Plugin / template / test-suite / witness checks | Required hygiene files, template headings, the Python test suite, and shipped-fix markers |
+
+A red result on any of the above blocks the merge into `dev`.
+
+**What's advisory (never gates):** external-link checking runs in a *separate* weekly
+[scheduled workflow](.github/workflows/links-external.yml) (plus manual dispatch), reaching
+the live internet. It has no pull-request trigger, so a flaky or transient external link
+can never fail a PR — instead it opens (or refreshes) a tracking issue when a link rots.
+
+A `ruff` (Python lint) hook is also **wired but non-gating**: it carries
+`stages: [manual]`, so `pre-commit run --all-files` (and therefore CI) skips it and it is
+*not* one of the checks that gate `dev`. Run it on demand with
+`pre-commit run --hook-stage manual ruff-check`. Turning ruff into an enforced gate is
+deferred to a future change.
+
 ## Branching & releases
 
 backlogd uses a **`feature → dev → main`** flow:
@@ -90,7 +128,7 @@ This keeps `main` clean and versioned for everyone installing from the marketpla
 
 Conventional Commits style, present tense:
 
-```
+```text
 feat: add scrum-master dispatch loop
 fix: handle empty Linear backlog
 docs: clarify install steps

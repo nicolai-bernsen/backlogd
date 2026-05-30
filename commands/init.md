@@ -64,7 +64,7 @@ single batched call is cheaper than deferred-loading each tool on first use.
 
 Make a **single batched `ToolSearch` call** that names the canonical Linear MCP tool list:
 
-```
+```text
 ToolSearch(select: "mcp__linear__get_issue,mcp__linear__save_issue,mcp__linear__save_comment,mcp__linear__list_comments,mcp__linear__list_issue_statuses,mcp__linear__list_issue_labels,mcp__linear__list_issues,mcp__linear__list_teams,mcp__linear__list_milestones,mcp__linear__get_project,mcp__linear__save_milestone")
 ```
 
@@ -101,7 +101,7 @@ Before showing any plan, prove the engine can talk to Linear with sufficient sco
 3. **Prove the key works and is Admin-scoped — with a cheap read-only call.** Run the
    engine's read-only `audit` verb as the probe (it performs no writes):
 
-   ```
+   ```bash
    python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/linear_setup.py" audit --team-id "$TEAM"
    ```
 
@@ -201,27 +201,33 @@ itself). Resolve `$ENGINE = ${CLAUDE_PLUGIN_ROOT:-.}/scripts/linear_setup.py` an
 and report the outcome; `action: "noop"` is a success, not a failure.
 
 - **Create labels** — for each `missing` entry:
-  ```
+
+  ```bash
   python "$ENGINE" ensure-label --team-id "$TEAM" --name "<name>" --color "<color>" --description "<description>"
   ```
+
   (The engine fills canonical color/description defaults when you omit them for a known
   canonical label; passing the values from the audit plan is fine too.) Result `action` is
   `created` or `noop`.
 
 - **Recase labels** — for each `recase` entry (`recase-label` finds the label by name and
   renames it to its canonical case, preserving the id):
-  ```
+
+  ```bash
   python "$ENGINE" recase-label --team-id "$TEAM" --name "<from>" --to "<to>"
   ```
+
   Result `action` is `updated` or `noop` (`reason: already_canonical` / `not_found`).
 
 - **Fill state gaps** — for each `state_gaps` category, additively create one state in that
   category (additive only — the engine refuses to rename/reorder/delete existing states).
   Choose a sensible display name for the category (e.g. `backlog`→"Backlog",
   `unstarted`→"Todo", `started`→"In Progress", `completed`→"Done", `canceled`→"Canceled"):
-  ```
+
+  ```bash
   python "$ENGINE" ensure-state --team-id "$TEAM" --category "<category>" --name "<display name>"
   ```
+
   Result `action` is `created` or `noop`. (The engine validates the category against its
   canonical set — `backlog · unstarted · started · completed · canceled`; the two `started`
   display states and `duplicate` are not auto-created here, so flag any of those that are
@@ -233,18 +239,22 @@ and report the outcome; `action: "noop"` is a success, not a failure.
   example a minimal `problem` issue template that applies the `problem` label and pre-fills
   the `## Problem` + `## Acceptance Criteria` headings, and a project template carrying the
   Investigate → Implement → Verify milestones:
-  ```
+
+  ```bash
   python "$ENGINE" ensure-template --team-id "$TEAM" --name "problem" --type issue --data "<json>"
   python "$ENGINE" ensure-template --team-id "$TEAM" --name "backlogd problem" --type project --data "<json>"
   ```
+
   Result `action` is `created` or `updated`. (Confirm the live `templateData` shape against
   the engine's docstring / `docs/guides/workspace-bootstrap.md`; if a template payload is
   rejected, report it and continue with the rest — do not abort the whole apply.)
 
 - **Delete cruft** — **only** for groups the product owner affirmatively approved in §3:
-  ```
+
+  ```bash
   python "$ENGINE" delete-label --team-id "$TEAM" --name "<name>"
   ```
+
   Result `action` is `deleted` or `noop` (`reason: not_found`). Skip entirely for any
   declined or unprompted group.
 
@@ -264,7 +274,7 @@ and continue with the remaining verbs — one failed label should not abort the 
 
 2. **Print the summary report.** Show what the bootstrap did, end to end:
 
-```
+```text
 Bootstrapped: {team} workspace
   preflight  -> key OK (Admin scope) | stopped: {missing key | under-scoped} → see docs/guides/workspace-bootstrap.md
   labels     -> {c} created, {r} recased, {d} deleted ({n} cruft groups declined)

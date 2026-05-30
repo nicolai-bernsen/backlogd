@@ -113,7 +113,7 @@ developer's tool grant (`get_issue` / `list_comments` / `save_comment` only). Se
 The Scrum Guide defines the Sprint as a fixed-length container of one month or less.
 backlogd takes "or less" to its limit and runs **one problem per loop**:
 
-```
+```text
 file → scope → solve → review → release
 ```
 

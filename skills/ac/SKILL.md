@@ -45,7 +45,7 @@ Rules:
   round-trips verbatim. So **before** matching, normalize the *leading tag region* of
   the item text: unwrap a leading inline code span around the tag (`` `[test]` `` →
   `[test]`) and markdown-unescape a leading bracket escape (`\[`→`[`, `\]`→`]`). Then
-  apply the regex `^\[(test|manual|review)\] ` (case-sensitive, single trailing space):
+  apply the regex `^\[(test|manual|review)\] ` (case-sensitive, single trailing space): <!-- markdownlint-disable-line MD038 -->
   on a match, strip that prefix and the rest is the *body*; otherwise the whole
   **original** text is the body with kind=`review`. Normalization is surgical — only the
   leading tag region is rewritten, so backslashes or code spans elsewhere in the body
@@ -286,7 +286,7 @@ kind):
 Reviewer's walk on the stored form (sketch — kinds resolve correctly *because* the
 escaping is normalized first):
 
-```
+```text
 Acceptance criteria
   ✅ [test] `bash hooks/install-git-hooks.sh …` — ran, exit 0, output matched.
   ❌ [test] `python -m pytest tests/scope/` — ran, exit 1 (3 failures).

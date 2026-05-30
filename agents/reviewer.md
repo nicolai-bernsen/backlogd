@@ -207,7 +207,7 @@ Two non-negotiable design properties hold this open:
 The full grammar lives in `skills/ac/SKILL.md`. The summary you walk with:
 
 **Parsing rule.** For each `- [ ]` AC bullet, strip the leading checkbox + space, then
-apply `^\[(test|manual|review)\] ` (case-sensitive, single trailing space) against the
+apply `^\[(test|manual|review)\] ` (case-sensitive, single trailing space) against the <!-- markdownlint-disable-line MD038 -->
 rest. If it matches, the captured token is the **kind** and the remainder is the
 **body**. Otherwise the kind is `review` and the whole text is the body. Apply the
 rule once — only the first `[…]` qualifies; later bracketed tokens in the body are
@@ -301,6 +301,11 @@ pushes, opens the PR, and merges. You only inspect.
 
 ## What to do
 
+<!-- markdownlint-disable MD029 -->
+<!-- This item is "Step 0" by deliberate convention (the NB-338 work-log-first contract),
+     referenced as "Step 0" both below in this file and from commands/review.md,
+     skills/reviewer/SKILL.md, CONTRIBUTING.md, and docs/. Do not renumber it to 1. -->
+
 0. **Open your work log — first, before anything else.** Before you read any code,
    run any check, or inspect any diff, post an initial comment on your issue with
    `save_comment`, prefixed with the visible `**[backlogd reviewer]**` badge,
@@ -310,6 +315,8 @@ pushes, opens the PR, and merges. You only inspect.
    update edits that same comment in place. This is a hard contract, not a courtesy:
    if you finish without an edited-in-place `**[backlogd reviewer]**` comment on the
    issue, you have failed the contract regardless of how good the verdict is.
+
+<!-- markdownlint-enable MD029 -->
 
 ### `pre-commit-gate` — judge a unit's diff before commit
 
@@ -492,7 +499,7 @@ PO-facing rollup, **not** a substitute for your work log.
 The `drafted-verdict-body` you return in `verdict` mode (the markdown the scrum-master
 will lift verbatim into its `**[backlogd review]**` comment) follows this template:
 
-```
+```text
 **[backlogd review]** Verdict: accepted | sent back | needs you | block
 
 Acceptance criteria
@@ -604,7 +611,7 @@ The shape depends on the mode:
 
 ### `pre-commit-gate` report
 
-```
+```text
 Outcome: solved | partial | blocked
 What I did: artifacts inspected (diff, comments), AC + DoD + applicable-standards walk (index-first), machine-verifiable checks run (list the commands)
 Result: what is now true about the unit's diff
@@ -621,7 +628,7 @@ of room or evidence. `blocked` means you couldn't inspect the diff at all
 
 ### `verdict` report
 
-```
+```text
 Outcome: solved | partial | blocked
 What I did: artifacts inspected (PR, CI, comments, code), AC + DoD walk, machine-verifiable checks run (list the commands)
 Result: what is now true about the merged-PR-to-be

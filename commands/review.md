@@ -38,7 +38,7 @@ around*).
 Make a **single batched `ToolSearch` call** that names every `mcp__linear__*` tool this
 command (or the reviewer it dispatches) may touch:
 
-```
+```text
 ToolSearch(select: "mcp__linear__get_issue,mcp__linear__save_issue,mcp__linear__save_comment,mcp__linear__list_comments,mcp__linear__list_issue_statuses,mcp__linear__list_issue_labels,mcp__linear__list_issues,mcp__linear__list_teams,mcp__linear__list_milestones,mcp__linear__get_project,mcp__linear__save_milestone")
 ```
 
@@ -184,7 +184,7 @@ comment (which stays on the issue as the audit trail). The reviewer agent **draf
 the body in step 3; you **post** it — do not delegate posting. Use the reviewer's
 `drafted-verdict-body` verbatim; the template it follows is:
 
-```
+```text
 **[backlogd review]** Verdict: accepted | sent back | needs you | block
 
 Acceptance criteria
@@ -254,8 +254,10 @@ the problem blocked-by a new sub-issue until the gap is governed.
   before merging, re-confirm the live PR is still safe to merge (it may have gone stale or
   conflicted while the review ran — this is the NB-382 / concurrent-review race):
 
-      gh pr checks {pr}                                   # CI still green on the live head?
-      gh pr view {pr} --json mergeable,mergeStateStatus   # mergeable into the integration branch?
+  ```bash
+  gh pr checks {pr}                                   # CI still green on the live head?
+  gh pr view {pr} --json mergeable,mergeStateStatus   # mergeable into the integration branch?
+  ```
 
   Proceed to merge **only** if CI is still green **and** `mergeable` is `MERGEABLE` (and
   `mergeStateStatus` is not `BEHIND` / `DIRTY` / `BLOCKED`). If the head went red or the PR
@@ -280,10 +282,13 @@ the problem blocked-by a new sub-issue until the gap is governed.
   and pass the rework notes so only their hash is stored (no note text leaks into
   `.backlogd/`):
 
-      python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" rework \
-          --session "review-{identifier}-$(date -u +%Y%m%dT%H%M%S)" \
-          --problem {identifier} \
-          --notes "{the unmet-criteria notes you just wrote}"
+  ```bash
+  python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" rework \
+      --session "review-{identifier}-$(date -u +%Y%m%dT%H%M%S)" \
+      --problem {identifier} \
+      --notes "{the unmet-criteria notes you just wrote}"
+  ```
+
 - **`needs PO`** (any AC `❔` without `❌`, **or** any `[manual]` items left as
   `📝 awaiting PO confirmation`) → **leave it In Review** (PR open) and surface the
   question(s) to the product owner. For `❔` items, don't guess at a call that's theirs
@@ -323,7 +328,7 @@ Confirm the transition + merge (or the deliberate non-merge / the blocked-by par
 
 ## 6. Report
 
-```
+```text
 {identifier} — {title}
   reviewer    -> {accepted | sent back | needs PO | block}, evidence cited
   acceptance  -> {n met}/{n total} criteria ({t} [test], {m} [manual], {r} [review]), {k} needs-PO

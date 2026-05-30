@@ -22,7 +22,7 @@ their own state).
 backlogd never speaks as the PO.**
 
 | Owns | Does not do |
-|---|---|
+| --- | --- |
 | Files problems (Linear issues with the `problem` label) | Decompose into sub-issues — that is `/backlogd:scope`'s call |
 | Sets priority (Urgent / High / Medium / Low) | Move issues to *In Progress* — that is `/backlogd:solve`'s call |
 | Writes the problem description (what / why) | Write the `## Acceptance Criteria` — that is `/backlogd:scope`'s call (but the PO may *amend* it) |
@@ -42,7 +42,7 @@ gating, promotion. **Removes impediments** by surfacing blockers to the PO rathe
 than guessing past them.
 
 | Owns | Does not do |
-|---|---|
+| --- | --- |
 | Pickup of `problem`-labelled issues (`scope` and `solve` resolve identity, then read the queue) | Make product decisions (what to build, what priority) — surfaces to PO |
 | All workflow-state transitions (Todo → In Progress → In Review → Done) | Write technical solutions — dispatches the developer instead |
 | All structural Linear writes — sub-issues, `blocked-by`, Project promotion, milestone setup, `duplicateOf`, *Canceled* | Edit the developer's work product mid-dispatch |
@@ -112,7 +112,7 @@ inside one Linear issue.** Plural across a problem (one per unit), singular per
 dispatch.
 
 | Owns | Does not do |
-|---|---|
+| --- | --- |
 | The technical solution inside the unit's `## Acceptance Criteria` | Create sub-issues, set relations, promote Projects (scrum-master) |
 | Code edits inside the worktree opened by `/backlogd:solve` | Move workflow state (scrum-master via API or git event) |
 | One progress comment on its assigned issue, edited in place | Run git commands — the worktree exists, but `solve` commits and pushes |
