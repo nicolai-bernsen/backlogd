@@ -186,13 +186,20 @@ back / needs you (the gate's binary `ok` / `needs-changes` rolls a block up as
 
 **Boundary — mechanism here, *threshold* and *routing* elsewhere.** This section (and the
 matching `agents/reviewer.md` outcome) introduces the *mechanism*: the `block` outcome plus
-the standard/fact classification. Two adjacent decisions are deliberately **not** owned here:
+the standard/fact classification. Two adjacent decisions live elsewhere, not in this trust
+model:
 
 - **The blocking *threshold* — *when* a missing standard rises to a block** vs a
-  flagged-assumption-and-proceed — is a **reversibility × blast-radius** calibration
-  (one-way doors block; two-way doors proceed with a flagged assumption; a blank repo stays
-  usable). That lives in its **own unit (NB-386)**; the reviewer doc states the mechanism and
-  defers the calibration of *when* it fires.
+  flagged-assumption-and-proceed — is a **reversibility × blast-radius** calibration: a
+  `block` fires **only** on a **one-way door** (irreversible AND wide blast-radius — data
+  model, auth/onboarding model, public API shape, the keyless principle); a **two-way door**
+  (reversible *or* narrow) gets a **flagged assumption recorded in the verdict** and proceeds.
+  This is what keeps a **blank repo usable** — the empty-corpus bootstrap degrades gracefully
+  rather than firing fifty blocking questions on issue #1. The calibration itself (the
+  threshold + worked examples) is documented operationally in `agents/reviewer.md`
+  (*Calibrating the block — reversibility × blast-radius*, NB-386); this trust model states
+  *that* it exists and *why* (a wrongful block stalls a usable repo), and the agent doc owns
+  *how* it is applied.
 - **The scrum-master *routing* of a block** — open a "Define standard for X" sub-issue, mark
   the parent blocked-by it, ask the PO — lives in `commands/review.md` / `commands/solve.md`
   / `skills/scrum/` (a **separate unit, NB-385**). The reviewer's job ends at writing the
@@ -280,11 +287,13 @@ rollup, not on the pre-commit gate alone — the two passes stay separate, and b
   `**[backlogd reviewer]**` draft; the orchestrator may lift it verbatim into the
   rollup or annotate it. Two distinct badges, two distinct authors, two distinct
   audiences (audit trail vs PO).
-- **Calibrating *when* a missing standard blocks.** The reviewer *detects* a missing
-  load-bearing standard and emits the `block` outcome (above). The **threshold** —
-  reversibility × blast-radius, one-way doors block vs two-way doors proceed with a flagged
-  assumption — is **NB-386's**, not the reviewer's. The mechanism is here; the calibration of
-  *when* it fires is a separate unit.
+- **Restating the block *threshold* in this trust model.** The reviewer *detects* a missing
+  load-bearing standard, emits the `block` outcome (above), and **applies** the
+  reversibility × blast-radius calibration (one-way doors block; two-way doors proceed with a
+  flagged assumption) — but *that operational threshold + its worked examples live in
+  `agents/reviewer.md`* (*Calibrating the block*, NB-386), not here. This skill is the trust
+  model (why the outcome exists, why a wrongful block hurts a blank repo); the agent doc owns
+  *how* the reviewer calibrates each call.
 - **Routing a block.** Acting on a `block` — opening a "Define standard for X" sub-issue,
   marking the parent blocked-by it, asking the PO, deciding ADR-vs-answer-once — is the
   **scrum-master's** job (`commands/review.md` / `commands/solve.md` / `skills/scrum/`,
