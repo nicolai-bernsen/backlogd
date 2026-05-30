@@ -51,6 +51,10 @@ then `/backlogd:solve` dispatches a developer agent that owns the *how* and hand
 high-level solution brief at In Review (see [Try the walking skeleton](#try-the-walking-skeleton)).
 Expect rough edges and breaking changes as the agent roster and blocker-surfacing flow grow.
 
+What "1.0" will mean — the minimal end-to-end loop that must work before launch, what is
+explicitly out, and the gates still open — is spelled out in the
+[**roadmap**: docs/ROADMAP.md](docs/ROADMAP.md).
+
 ## For Product Owners
 
 The PO's daily job in backlogd is small: notice blockers, glance at what's in flight,
