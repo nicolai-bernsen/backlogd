@@ -89,6 +89,15 @@ Artifacts: {files/areas changed, links, or what the PO now has}
 {Needs your eyes: {anything for the PO to decide} — omit if nothing}
 ```
 
+**Surface `DONE_WITH_CONCERNS` concerns under *Needs your eyes*.** When any unit returned
+`STATUS: DONE_WITH_CONCERNS`, `skills/solve/dispatch.md` step 7 (via
+`skills/solve/capture.md`) carried that unit's `Concerns:` text forward. List each concern
+here as a *Needs your eyes* bullet (alongside any `untestable:` items the gate carried
+forward) so the PO sees the caveat without reading the work log. The increment still
+landed — these are flags, not blockers. (`BLOCKED` / `NEEDS_CONTEXT` units never reach
+handoff: the run stops before In Review when any unit returns a non-terminal STATUS — see
+`skills/solve/capture.md`.)
+
 (On a single-issue problem it sits alongside the developer's `**[backlogd developer]**`
 work-log comment — a PO summary plus the work log, not a duplicate.)
 

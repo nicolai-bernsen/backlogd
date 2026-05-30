@@ -208,7 +208,7 @@ pushes, opens the PR, and merges. You only inspect.
 
    **Default to suspicion, not credulity.** If you cannot find direct evidence in
    the diff or the artifacts that a line is met, it is `❌ unmet` — not "the
-   developer said so, so it's met". A developer reporting `solved` while leaving a
+   developer said so, so it's met". A developer reporting `DONE` while leaving a
    line unaddressed is the exact failure mode this whole role exists to catch.
 5. **Roll up to a single verdict.** Return `verdict: ok` only if **every** AC line
    and **every** DoD line is `met` (treat `needs PO` and `📝 awaiting PO
@@ -285,7 +285,7 @@ pushes, opens the PR, and merges. You only inspect.
 
    **Default to suspicion, not credulity.** If you cannot find direct evidence in
    the diff or the artifacts that a line is met, it is `❌ unmet` — not "the
-   developer said so, so it's met". A developer reporting `solved` while leaving an
+   developer said so, so it's met". A developer reporting `DONE` while leaving an
    AC unaddressed is the exact failure mode this whole role exists to catch. The
    DoD floor is non-negotiable — a red DoD line is treated identically to a red AC
    line; both block acceptance.

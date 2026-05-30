@@ -31,4 +31,4 @@ problem it solves, and where to look.}
 
 ## Follow-ups
 
-- {Optional — known gaps, deferred work, or anything the PO should track next. Omit the section entirely if there is nothing.}
+- {Optional — known gaps, deferred work, or anything the PO should track next. Include any `DONE_WITH_CONCERNS` concerns a unit flagged (carried forward by `skills/solve/capture.md`) and any `untestable:` items the gate surfaced. Omit the section entirely if there is nothing.}

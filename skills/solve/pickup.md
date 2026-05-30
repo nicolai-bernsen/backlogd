@@ -46,5 +46,6 @@ subagent — see `commands/scope.md` step 3.) If it is already shaped, continue.
 
 Interrupt the run for the product owner here when you cannot write acceptance criteria
 without a product decision. Surface it as a clear question, leave the issue in its state,
-and **stop**. Do not guess past a genuine ambiguity. (A `blocked` / `partial` developer
-report is handled later — see `skills/solve/dispatch.md`.)
+and **stop**. Do not guess past a genuine ambiguity. (A `BLOCKED` / `NEEDS_CONTEXT`
+developer `STATUS` is handled later — see `skills/solve/dispatch.md` step 7 and
+`skills/solve/capture.md`.)
