@@ -116,6 +116,109 @@ DEFAULT_DELETABLE_LABELS: frozenset[str] = frozenset({"Feature", "Bug", "Improve
 TEMPLATE_TYPES: tuple[str, ...] = ("issue", "project", "document")
 
 
+# --- Canonical templates (ADR-003 — the single source of truth) -----------
+#
+# ADR-003 (Accepted) fixes the *content* of backlogd's three canonical templates;
+# this module is the one place those bodies live, so ``/backlogd:init`` (``init.md``
+# §4) drives these constants instead of improvising the ``templateData`` inline.
+# The bodies below are ADR-003's designed bodies verbatim
+# (``docs/standards/adrs/ADR-003-canonical-linear-workspace-configuration.md`` §3,
+# "Templates"); the test suite asserts each body's load-bearing content against the
+# ADR. Mirrors the ``CANONICAL_LABELS`` pattern above.
+#
+# **Project-label gap (ADR-003, deliberate non-build).** ADR-003 ships **no project
+# label** — nothing in the loop reads one — and the engine has **no project-label
+# write verb** (writes go through ``issueLabelCreate``/``issueLabelUpdate`` only;
+# Linear project labels are a separate GraphQL type). That is a deliberate "ship
+# nothing" decision, not an oversight: a future project label would require adding a
+# new write verb *first*. So there is intentionally no ``CANONICAL_PROJECT_LABELS``
+# constant here and ``ensure-template`` is the only template surface — see ADR-003 §2
+# and "Consequences", and the six-verb ``CliSurfaceTest`` that guards against a 7th.
+
+# Issue template ``Problem`` — body verbatim from ADR-003 §3 (Issue template).
+CANONICAL_ISSUE_TEMPLATE_BODY = """## Problem
+
+<!-- One paragraph: what outcome the product owner wants, and why. State the
+problem, not a solution. -->
+
+## Acceptance Criteria
+
+- [ ] [review] <criterion — a verifiable "done" statement>
+- [ ] [manual] <a check only a human can confirm, if any>"""
+
+# Project template ``backlogd problem`` — the one-line pointer description ADR-003 §3
+# specifies (the milestones are encoded separately, in order, below).
+CANONICAL_PROJECT_TEMPLATE_DESCRIPTION = (
+    "backlogd problem project — phases as milestones; see the Spec document for the "
+    "shaped spec + Acceptance Criteria."
+)
+
+# The three project milestones, in order (ADR-003 §3 — Project template table).
+CANONICAL_PROJECT_MILESTONES: tuple[str, ...] = ("Investigate", "Implement", "Verify")
+
+# Document template ``Spec`` — body verbatim from ADR-003 §3 (Document template).
+CANONICAL_DOCUMENT_TEMPLATE_BODY = """## Problem
+
+<!-- The shaped problem statement (intent). For a promoted Project this replaces
+the issue description's spec. -->
+
+## Approach
+
+<!-- How the work is decomposed — units, phases (milestones), dependencies. -->
+
+## Acceptance Criteria
+
+- [ ] [review] <criterion>"""
+
+# The canonical templates ``/backlogd:init`` seeds, keyed by template name. Each entry
+# carries everything a single ``ensure-template`` call needs — ``type`` (one of
+# ``TEMPLATE_TYPES``), the human ``description`` shown in Linear's template picker, and
+# the designed ``templateData`` payload. ``templateData`` mirrors the proven create
+# key-shapes NB-371 used for live ``templateCreate`` (issue/project) extended to the
+# ``document`` type:
+#   * issue    — ``{description, labels}``; the ``problem`` label is encoded **by name**,
+#                exactly the way the proven ``save_issue`` create encodes ``labels``
+#                (Linear matches/auto-creates the named label). A templated issue is
+#                therefore pickup-eligible by construction.
+#   * project  — ``{description, projectMilestones}``; milestones are name+sortOrder
+#                pairs in ADR-003's order (Investigate → Implement → Verify).
+#   * document — ``{title, content, icon}``; the proven ``save_document`` shape
+#                (``documents-and-updates.md`` → Spec role), icon ``:memo:``.
+CANONICAL_TEMPLATES: dict[str, dict[str, Any]] = {
+    "Problem": {
+        "type": "issue",
+        "description": "A backlogd problem — states the outcome the PO wants, with typed Acceptance Criteria.",
+        "templateData": {
+            "description": CANONICAL_ISSUE_TEMPLATE_BODY,
+            # Encode the applied label the same way the proven save_issue create does:
+            # by name (Linear resolves/auto-creates it). Keeps a templated issue
+            # pickup-eligible without hardcoding a per-workspace label id.
+            "labels": ["problem"],
+        },
+    },
+    "backlogd problem": {
+        "type": "project",
+        "description": CANONICAL_PROJECT_TEMPLATE_DESCRIPTION,
+        "templateData": {
+            "description": CANONICAL_PROJECT_TEMPLATE_DESCRIPTION,
+            "projectMilestones": [
+                {"name": name, "sortOrder": i}
+                for i, name in enumerate(CANONICAL_PROJECT_MILESTONES)
+            ],
+        },
+    },
+    "Spec": {
+        "type": "document",
+        "description": "A backlogd Spec document — shaped Problem, Approach, and Acceptance Criteria.",
+        "templateData": {
+            "title": "Spec",
+            "content": CANONICAL_DOCUMENT_TEMPLATE_BODY,
+            "icon": ":memo:",
+        },
+    },
+}
+
+
 # --- Key handling (the single chokepoint) ---------------------------------
 
 def _parse_credentials_env(text: str) -> dict[str, str]:
@@ -592,6 +695,37 @@ def plan_ensure_template(
     }
 
 
+def plan_canonical_templates(
+    templates: list[dict],
+    *,
+    team_id: Optional[str] = None,
+) -> list[dict[str, Any]]:
+    """Build the create-or-update plan for **every** canonical template (ADR-003).
+
+    Iterates :data:`CANONICAL_TEMPLATES` — the single source of truth — and returns
+    one :func:`plan_ensure_template` plan per entry, in registry order (``Problem``
+    issue · ``backlogd problem`` project · ``Spec`` document). This is the surface
+    ``/backlogd:init`` §4 drives so the designed ``templateData`` is never improvised
+    in command prose; idempotency is inherited from :func:`plan_ensure_template`
+    (a live template matching ``(name, type)`` becomes an ``update``).
+
+    Pure — no I/O. ``team_id`` (when given) scopes any *create* to the team.
+    """
+    plans: list[dict[str, Any]] = []
+    for name, spec in CANONICAL_TEMPLATES.items():
+        plans.append(
+            plan_ensure_template(
+                name,
+                spec["type"],
+                spec["templateData"],
+                templates,
+                team_id=team_id,
+                description=spec.get("description"),
+            )
+        )
+    return plans
+
+
 # --- GraphQL documents ----------------------------------------------------
 
 # Read query for ``audit``. ``issues(first: 1)`` is the cheapest signal for the
@@ -903,9 +1037,14 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 
 __all__ = [
+    "CANONICAL_DOCUMENT_TEMPLATE_BODY",
+    "CANONICAL_ISSUE_TEMPLATE_BODY",
     "CANONICAL_LABELS",
+    "CANONICAL_PROJECT_MILESTONES",
+    "CANONICAL_PROJECT_TEMPLATE_DESCRIPTION",
     "CANONICAL_RECASE",
     "CANONICAL_STATE_CATEGORIES",
+    "CANONICAL_TEMPLATES",
     "GraphQLError",
     "build_parser",
     "fetch_workspace_state",
@@ -914,6 +1053,7 @@ __all__ = [
     "main",
     "normalize_label_name",
     "plan_audit",
+    "plan_canonical_templates",
     "plan_delete_label",
     "plan_ensure_label",
     "plan_ensure_state",

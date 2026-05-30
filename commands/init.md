@@ -153,10 +153,12 @@ obvious before anything runs:
   and therefore its existing applications. *Safe.*
 - **State gaps** — categories in `state_gaps` with no live workflow state; the engine can
   fill each additively (never rename/reorder/delete an existing state). *Safe / additive.*
-- **Templates** — the canonical `problem` issue template and the project template
-  (Investigate → Implement → Verify milestones) that §3 will **ensure** (idempotent
-  create-or-update). The engine's `audit` plan does not diff templates, so present these as
-  "will ensure (idempotent)" rather than as a computed diff. *Safe / additive.*
+- **Templates** — the **three** canonical templates (ADR-003) §3 will **ensure** (idempotent
+  create-or-update): the `Problem` **issue** template (applies the `problem` label), the
+  `backlogd problem` **project** template (Investigate → Implement → Verify milestones), and
+  the `Spec` **document** template (`:memo:`). The engine's `audit` plan does not diff
+  templates, so present these as "will ensure (idempotent)" rather than as a computed diff.
+  *Safe / additive.*
 - **Cruft to review** — `cruft` (the conservative recommend-delete set: `priority:*` labels
   that duplicate Linear's native Priority field, and unused default labels) plus `review`
   (other non-canonical labels the engine flags but does **not** recommend touching).
@@ -164,7 +166,7 @@ obvious before anything runs:
 
 If `plan.ok` is `true`, the workspace is already canonical for labels + states — say so
 ("Workspace already canonical — no label/state changes needed") and note that §3 will still
-re-ensure the two templates idempotently (a no-op when they already match) unless this is a
+re-ensure the three templates idempotently (a no-op when they already match) unless this is a
 `--dryrun`.
 
 **`--dryrun` stops here.** Print the grouped plan, state explicitly that no verbs were run
@@ -176,7 +178,7 @@ Decide what will run. The split mirrors the engine's own safety model:
 
 - **Safe / additive set — apply by default, no prompt:** every `missing` label (via
   `ensure-label`), every `recase` rename (via `recase-label`), every `state_gaps` fill (via
-  `ensure-state`), and the two canonical templates (via `ensure-template`). These are
+  `ensure-state`), and the three canonical templates (via `ensure-template`). These are
   idempotent and non-destructive; running them on an already-canonical workspace is a no-op.
 
 - **Destructive set — ask per group, default NO:** the `cruft` deletions (and never the
@@ -227,19 +229,39 @@ and report the outcome; `action: "noop"` is a success, not a failure.
   display states and `duplicate` are not auto-created here, so flag any of those that are
   genuinely absent for the product owner to add in the UI rather than failing the run.)
 
-- **Ensure templates** — create-or-update the canonical templates (idempotent on
-  `name`+`type`). Pass `--data` as a JSON string of the template's pre-filled attributes —
-  this is the `templateData` Linear stores. Build the JSON inline (no key, no secret); for
-  example a minimal `problem` issue template that applies the `problem` label and pre-fills
-  the `## Problem` + `## Acceptance Criteria` headings, and a project template carrying the
-  Investigate → Implement → Verify milestones:
+- **Ensure templates** — create-or-update the **three canonical templates** (idempotent on
+  `name`+`type`). The designed `templateData` bodies are **fixed by ADR-003** and encoded
+  **once, in the engine** (`CANONICAL_TEMPLATES` in `scripts/linear_setup.py`) — the single
+  source of truth. **Do not improvise the JSON inline here**: read each template's `type`
+  and `templateData` from `CANONICAL_TEMPLATES` and pass that payload through verbatim, so
+  the command and the engine never drift. The three are:
+
+  | Name | `--type` | What it seeds (ADR-003 §3) |
+  |---|---|---|
+  | `Problem` | `issue` | `## Problem` + `## Acceptance Criteria` body (typed-AC bullets); **applies the `problem` label** (encoded by name) so a templated issue is pickup-eligible by construction |
+  | `backlogd problem` | `project` | Milestones **Investigate → Implement → Verify** (in order) + the one-line pointer description |
+  | `Spec` | `document` | The `## Problem` / `## Approach` / `## Acceptance Criteria` body with the `:memo:` icon |
+
   ```
-  python "$ENGINE" ensure-template --team-id "$TEAM" --name "problem" --type issue --data "<json>"
-  python "$ENGINE" ensure-template --team-id "$TEAM" --name "backlogd problem" --type project --data "<json>"
+  python "$ENGINE" ensure-template --team-id "$TEAM" --name "Problem"          --type issue    --data "<CANONICAL_TEMPLATES['Problem'].templateData>"
+  python "$ENGINE" ensure-template --team-id "$TEAM" --name "backlogd problem" --type project  --data "<CANONICAL_TEMPLATES['backlogd problem'].templateData>"
+  python "$ENGINE" ensure-template --team-id "$TEAM" --name "Spec"             --type document --data "<CANONICAL_TEMPLATES['Spec'].templateData>"
   ```
-  Result `action` is `created` or `updated`. (Confirm the live `templateData` shape against
-  the engine's docstring / `docs/guides/workspace-bootstrap.md`; if a template payload is
-  rejected, report it and continue with the rest — do not abort the whole apply.)
+
+  Result `action` is `created` or `updated`. (`--type document` is a valid template type
+  and needs **no new verb** — `ensure-template` already forwards the freeform `templateData:
+  JSON!`. If a template payload is rejected, report it and continue with the rest — do not
+  abort the whole apply.)
+
+  > **Created ≠ renders.** Whether Linear actually *renders* the stored `templateData` is the
+  > freeform-`JSON!` gap ADR-003 names — a `[manual]` fact only a human observing the Linear
+  > UI can confirm (issue body + applied label; project milestones; document body + icon).
+  > Verify each template visually in the Linear UI after this run.
+  >
+  > **No project label is seeded (ADR-003, deliberate).** Nothing in the loop reads a project
+  > label, and the engine has no project-label write verb — so `init` ships none. A future
+  > project label would require **adding a write verb to the engine first**; it is not a
+  > silent omission. (See ADR-003 §2 + Consequences.)
 
 - **Delete cruft** — **only** for groups the product owner affirmatively approved in §3:
   ```
@@ -269,7 +291,7 @@ Bootstrapped: {team} workspace
   preflight  -> key OK (Admin scope) | stopped: {missing key | under-scoped} → see docs/guides/workspace-bootstrap.md
   labels     -> {c} created, {r} recased, {d} deleted ({n} cruft groups declined)
   states     -> {s} created | all categories present
-  templates  -> {t} ensured (problem issue + project)
+  templates  -> {t} ensured (Problem issue + backlogd problem project + Spec document)
   cruft      -> {x} deleted on explicit yes | none (declined / none offered)
   cache      -> .backlogd/identity.json invalidated (next run re-resolves the recased label)
 Runtime stays key-free — only /backlogd:init touched the key (via the engine). Next: /backlogd:scope
