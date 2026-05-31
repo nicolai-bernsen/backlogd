@@ -54,9 +54,13 @@ caller of it. **Do not copy-paste the merge logic; reuse it:**
    reviewer's rollup, **gated on the independent reviewer's `accepted` rollup** (not the
    in-session pre-commit gate from `skills/solve/gate.md`, which is a *distinct, earlier*
    pass). The happy-path merge condition and the **base-race guard** (re-confirm CI green on
-   the live PR head + PR mergeable into the integration branch immediately before merging;
-   bail to a surfaced blocker if stale/conflicted; **never auto-rebase**) live in
-   `commands/review.md` step 5 — apply them there, do not restate them.
+   the live PR head + PR mergeable into the integration branch + **this session still holds
+   the claim-lock** — `skills/linear/claim-lock.md` — immediately before merging; bail to a
+   surfaced blocker if stale/conflicted/claim-taken; **never auto-rebase**) live in
+   `commands/review.md` step 5 — apply them there, do not restate them. The claim-lock
+   re-check is the live-claim half of that **one** guard (added, not a second guard); on a
+   clean merge the same step `release`s the claim after the merge succeeds, and on *sent
+   back* it `release`s on the handback.
 
 The only thing this phase adds over a manual `/backlogd:review` is the **trigger**: the PO
 did not have to run the command, and on green does not have to click merge.
@@ -95,6 +99,14 @@ one happened:
 
 In short: on a **clean green merge the PO is never interrupted**; the PO is surfaced to
 **only** on *sent back*, *needs you*, a *block* (`standard:` gap), or a *blocker*.
+
+**Claim-lock release on terminal outcomes.** Every terminal outcome of this phase is a
+clean exit for the solve run, so it **`release`s the claim-lock** (`skills/linear/claim-lock.md`)
+— merged + Done and *sent back* release in `commands/review.md` step 5 (above); the
+*needs you* / *block* / *base-race blocker* cases hold the problem at In Review but the
+solve run is done, so release the claim there too, so the PO's follow-up `/backlogd:review`
+re-acquires it cleanly instead of standing off against this finished run's stale claim. An
+abandoned run that never reaches a terminal outcome relies on the 2-hour TTL, not release.
 
 > **Ops-only run (`kind:ops`).** There is no PR and no worktree (see `skills/solve/ops.md`).
 > The verdict still runs against the action logs + GitHub surfaces (as in `commands/review.md`

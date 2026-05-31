@@ -167,12 +167,54 @@ is **not** a substitute; it omits the work log.
   dispatch's problem identifier, and track your steps as a **checklist** inside the comment
   body. Tick items as you complete them and add a final outcome line at the end — mirror
   the `STATUS` you report (output 2) so the work log and the report agree.
+- **Render it for Linear.** This comment is Markdown the product owner reads **inside
+  Linear**, whose renderer has gotchas (bare code fences, em-dashes, tables, status emoji,
+  and deep nesting all render badly). Your comment **MUST** follow the constraints in
+  [`output-styles/linear-comment.md`](../output-styles/linear-comment.md) — the canonical
+  rule-set: language-tag every fence, no em-dashes (use commas or parentheses), **no
+  markdown tables** (use a bold-label list or short prose), **no status or checkmark
+  emoji** (use `- [x]` checkboxes or bold labels for state), nest lists no deeper than two
+  levels, no decorative emoji. That file is the source of truth for comment formatting;
+  this bullet just points at it. (It is a Claude Code Output Style file: if the main
+  session has it active via `/output-style`, the same rules apply session-wide; either way
+  you apply them to this comment.)
 - **First content line — the Problem Read.** Right after the badge (before the checklist),
   the comment's first content line is your one-line Problem Read (see
   `<Investigation_Protocol>`), in the fixed format:
 
   ```text
   Reading this as: <kind: bug | feature | refactor | docs | infra> in <area>, optimising for <constraint: correctness | speed | minimality | clarity>, leaning toward <approach in ≤8 words>.
+  ```
+
+- **Closing tail — Decided / Rejected / Risks / Remaining (omit-when-empty).** End the
+  comment with a lightweight structured **decision and risk record** so every increment
+  leaves a scannable account of *why* it looks the way it does, not just *what* changed.
+  Render it in the Linear-comment style (bold-label list, no tables, no status emoji) as
+  up to four sections:
+
+  - **Decided:** the choices you made, one line of rationale each (the design call you
+    took, the trade-off you accepted).
+  - **Rejected:** alternatives you weighed and why-not (the approach you considered and
+    dropped, so the reviewer and PO don't re-litigate it).
+  - **Risks:** the risks or partial coverage the PO should see. **This is the same content
+    as your `DONE_WITH_CONCERNS` `Concerns:` items — surface them here, not in a parallel
+    channel;** when you report `DONE_WITH_CONCERNS`, the `Concerns:` line and this section
+    say the same thing.
+  - **Remaining:** follow-ups, deferred edges, or unfinished work the next person should
+    pick up.
+
+  **Omit-when-empty is the rule, not a suggestion:** drop any section entirely when it has
+  nothing — do **not** write `Decided: none`. A trivial change may carry only **Decided**,
+  or no tail at all; that keeps a one-line fix terse. This tail **adds** to the comment, it
+  does **not** duplicate the `STATUS:` line (it lives in the report, output 2), the
+  Problem-Read head line, or the files-changed list already in the log — those stay where
+  they are; the tail records the reasoning around them. Example shape:
+
+  ```text
+  - **Decided:** schema lands as an omit-when-empty tail in `<Output_Format>` — no new file.
+  - **Rejected:** a separate `HANDOFF.md` — `skills/solve/handoff.md` is taken and there is
+    no multi-specialist trigger.
+  - **Remaining:** extend the style to the other comment surfaces (follow-up).
   ```
 
 - **If you get stuck**, say so in that comment before reporting back.

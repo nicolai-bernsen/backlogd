@@ -111,6 +111,77 @@ while keeping the `<Output_Format>` envelope byte-for-byte — including the `ST
 first line ([The STATUS contract](#the-status-contract)), which every specialist emits
 unchanged so the orchestrator can branch on it the same way regardless of flavour.
 
+## Linear-comment output style
+
+Every specialist posts its `**[backlogd <suffix>]**` progress comment as **Markdown the
+product owner reads inside Linear**, whose renderer has gotchas (bare code fences,
+em-dashes, tables, status emoji, and deep list nesting all render badly). The canonical
+formatting rule-set is a Claude Code Output Style file —
+[`output-styles/linear-comment.md`](../output-styles/linear-comment.md) — and the generic
+developer's `<Output_Format>` points at it (the "Render it for Linear" bullet). The
+constraint set, in brief:
+
+| Constraint | Rule |
+| --- | --- |
+| Code fences | language-tag every fence (`bash`, `python`, `json`, `text`); never a bare fence |
+| Dashes | no em-dashes or en-dashes; use commas, colons, or parentheses |
+| Tables | no markdown tables (they render poorly in a Linear comment); use a bold-label list (`- **Label:** value`) or short prose instead |
+| List depth | nest no deeper than two levels |
+| Emoji | no decorative or sectioning emoji, and **no status or checkmark emoji**; use `- [x]` checkboxes or bold labels for state; the bold `**[backlogd …]**` badge stays literal text |
+
+**How a specialist inherits it.** Because the `<Output_Format>` envelope is cloned
+byte-for-byte (see [What a specialist may narrow vs must keep identical](#what-a-specialist-may-narrow-vs-must-keep-identical)),
+a specialist inherits the "Render it for Linear" pointer for free — keep that bullet, just
+swap the badge text to `**[backlogd <suffix>]**`. No specialist needs to restate the rules;
+they live once in `output-styles/linear-comment.md`.
+
+**How a specialist overrides it.** If a specialist's surface needs different formatting
+(say it posts to a target with richer table support, or it must emit raw logs verbatim),
+add a `<Constraints>` line in *that* specialist naming the deviation and why, and point at a
+sibling output-style file rather than editing the shared one. Keep the override narrow:
+the shared rule-set stays the default for every specialist that does not opt out.
+
+> **Why an Output Style and not just prose.** `output-styles/linear-comment.md` is a real
+> Claude Code Output Style: a maintainer can activate it session-wide with `/output-style`
+> while driving backlogd, so the same constraints apply to the orchestrator's own Linear
+> writes, not only the subagents' comments. The subagents additionally get the rules at the
+> prompt level (the `<Output_Format>` pointer), which is what makes the constraint apply
+> even when no session-level style is selected.
+
+## Work-log tail schema
+
+Every specialist's `**[backlogd <suffix>]**` progress comment closes with a lightweight,
+**omit-when-empty** structured tail so each increment leaves a scannable **decision and
+risk record**, not just a diff. ADR-004's transparency pillar wants that reasoning explicit.
+The schema is authored once in the generic developer's `<Output_Format>`
+(`agents/developer.md`) and is up to four bold-label sections, each dropped entirely when
+it has nothing:
+
+- **Decided:** the choices made, one line of rationale each.
+- **Rejected:** alternatives weighed and why-not.
+- **Risks:** the risks or partial coverage the PO should see — the **same content** as the
+  `DONE_WITH_CONCERNS` `Concerns:` line, surfaced here rather than in a parallel channel.
+- **Remaining:** follow-ups or unfinished edges for the next person.
+
+**Omit-when-empty is load-bearing:** a section with nothing to say is omitted (never
+`Decided: none`), so a trivial change stays terse — it may carry one section, or no tail at
+all. The tail **adds** to the comment; it does **not** duplicate the `STATUS:` line (that
+lives in the final report), the Problem-Read head line, or the files-changed list already
+in the log.
+
+**How a specialist inherits it.** Because the `<Output_Format>` envelope is cloned
+byte-for-byte (see [What a specialist may narrow vs must keep identical](#what-a-specialist-may-narrow-vs-must-keep-identical)),
+a specialist inherits this tail for free — keep the bullet, swap only the badge text. The
+four sections and the omit-when-empty default carry over unchanged; the same pattern as the
+Linear-comment style above.
+
+**How a specialist overrides it.** A specialist whose flavour of work needs a different
+record (say it must log raw command output verbatim, or its domain has a fifth recurring
+section) adds a `<Constraints>` or `<Output_Format>` line in *that* specialist naming the
+deviation and why, and keeps the four shared sections as the base. Keep the override
+narrow: the four-section omit-when-empty tail stays the default for every specialist that
+does not opt out.
+
 ## The STATUS contract
 
 Every specialist's final report — the single structured summary the scrum-master reads —

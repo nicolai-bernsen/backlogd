@@ -18,6 +18,32 @@ If there is nothing to solve, report exactly:
 
 and **stop**.
 
+## Check the claim-lock before going further
+
+Once you've picked a candidate, run the claim-lock `check` (**`skills/linear/claim-lock.md`**)
+on it **before any state mutation** (the In Progress transition happens later, in
+`skills/solve/dispatch.md` step 1). The claim-lock **reduces the concurrent-pickup race
+window** on a problem — it stops a `/backlogd:solve` (or a `solve` racing a
+`/backlogd:review`) session that starts after another's claim has landed from picking up the
+same problem and duplicating work / racing to merge (NB-414). It is **not** an atomic mutex:
+two near-simultaneous launches can still both acquire (last-writer-wins) — the **merge-time
+re-check is the decisive guard** against the double-merge (see `skills/linear/claim-lock.md`
+§ "Honest scope").
+
+- **A *different* live session holds an unexpired claim** → **stand off** (do not transition
+  state, do not dispatch). On an **auto-pick**, skip this candidate and take the next
+  `problem`-labelled one. On an **explicitly-named** problem, surface the claim-lock's
+  held-by message and **stop** — unless `--steal` (parsed in `commands/solve.md` step 1)
+  force-takes a known-dead claim before its TTL.
+- **No claim, a stale claim (older than the TTL), or your own session's claim** →
+  **`acquire`** (or `refresh`) the claim under `$SESSION` and continue. This is the normal
+  first-ever path and the resume path; it never stands off against itself.
+
+> **Dry run:** in `--dryrun` mode, `check` is read-only and may run, but do **not**
+> `acquire` (acquiring writes a comment — forbidden under `--dryrun`, see
+> `skills/solve/dryrun.md`). Record the would-be claim decision for the plan output and
+> continue.
+
 ## Triage if it is not yet shaped
 
 A problem is *shaped* when the canonical spec carries a `## Acceptance Criteria`
