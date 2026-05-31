@@ -259,6 +259,17 @@ the team's `blocked` label exists (idempotent) and attaches/detaches it on each
 `problem`-labelled issue per its open `blocked-by` relations — it is a no-op when the
 desired state already matches the current labels.
 
+At the **same insertion point**, also load **`skills/linear/manual-pending-label.md`** and
+run it against the shaped problem and those same sub-issues. That helper ensures the team's
+`manual-pending` label exists (idempotent) and attaches it to each `problem`-labelled unit
+whose own `## Acceptance Criteria` carries at least one `[manual]` bullet — the PO's
+"waiting on me" signal. It determines "has a `[manual]` AC" with the **`extract_kind`
+normalize-then-match rule** from `skills/ac/SKILL.md` (`scripts/ac_parse.py`), which
+normalizes Linear's stored form — `\[manual\]` (escaped) and `` `[manual]` `` (code-span) —
+**before** matching, so it is **not** fooled by a naive `[manual]` substring scan against
+Linear's escaped storage form. It labels the unit that carries the `[manual]` AC (not a
+decomposed container), and is a no-op when the label already matches the unit's AC state.
+
 Then **stop**. Do **not** move the problem to a started state, and do **not** dispatch a
 developer. Shaping is complete; solving is a separate, deliberate step the product owner
 triggers with `/backlogd:solve`.

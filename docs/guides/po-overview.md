@@ -67,6 +67,47 @@ Completed at, descending
 
 No grouping needed — the chronological list is the point.
 
+## View 3 — Waiting on me
+
+The "I need a human" surface. The agent team runs to *needs you* whenever a problem carries
+a `[manual]` acceptance criterion — a check only you can confirm (a UI render, on-brand-ness,
+an external service actually receiving something). This view is the board-level signal for
+exactly those problems, so a human-only check is first-class instead of buried in description
+prose.
+
+**Filter**
+
+```text
+Label is problem
+Label is manual-pending
+Status is in: Todo, In Progress, In Review
+```
+
+**Group by**
+
+```text
+Status
+```
+
+**Sort**
+
+```text
+Priority
+```
+
+The `manual-pending` label is auto-managed by backlogd — `/backlogd:scope` attaches it to any
+problem whose acceptance criteria carry a `[manual]` item, `/backlogd:status` keeps it in sync
+read-only, and `/backlogd:review` clears it once you've confirmed every `[manual]` check at
+the verdict (the `accepted` close). You never tag it by hand. See
+[skills/linear/manual-pending-label.md](../../skills/linear/manual-pending-label.md) for the
+mechanics.
+
+**Display options**
+
+Open **Display options → Identifier** and toggle it **off** (same reasoning as View 1 —
+titles lead the scan). Keep Priority, Assignee, and Labels visible so the `manual-pending`
+label is unmistakable. An empty list means nothing is waiting on you — the happy state.
+
 ## Forecast
 
 backlogd writes a `## 📊 Forecast` block to your engagement Project's **description** every
@@ -111,7 +152,7 @@ re-run `/backlogd:status`, the number returns.
 
 ## What to do daily
 
-Three steps, ~60 seconds total.
+Four steps, ~60 seconds total.
 
 1. **Scan View 1's blockers section** — the `blocked` rows at the top. Each one is waiting
    on something. Resolve, re-prioritise, or comment "still blocked, here's why" so the
@@ -121,7 +162,11 @@ Three steps, ~60 seconds total.
    increment to Done (ship-on-green), so a problem sitting in *In Review* usually means it
    needs you: a `❔`/`[manual]` judgement call, or it was run with `--no-ship`. Open it,
    answer the question, or run `/backlogd:review` to re-verify and merge once it is clear.
-3. **Glance at the Project's forecast block** — velocity, queue, ETA. If "insufficient
+3. **Check View 3 — Waiting on me** — the `manual-pending` rows. Each one is gated on a
+   human-only `[manual]` check you owe the team. Open it, confirm the check at
+   `/backlogd:review`, and the label clears itself on the accepted close. An empty View 3 is
+   the happy state.
+4. **Glance at the Project's forecast block** — velocity, queue, ETA. If "insufficient
    data" persists past a couple of days, close or cancel something to break the silence.
 
 If all three are calm, you're done. File the next problem when it occurs to you and let the
