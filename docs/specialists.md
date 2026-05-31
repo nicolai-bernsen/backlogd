@@ -277,9 +277,12 @@ scope picks the generic `developer` and says so explicitly in its report.
 Scope records the picked specialist in two places:
 
 - **Linear label `agent:<suffix>`** — the canonical, machine-readable surface.
-  `/backlogd:solve` reads this label to decide which subagent to dispatch. The label is
-  created on first use (Linear's MCP auto-creates labels passed to `save_issue.labels`).
-  See `skills/linear/references/linear-mcp.md` for the `agent:*` label family.
+  `/backlogd:solve` reads this label to decide which subagent to dispatch. Scope **ensures
+  the label exists** (`create_issue_label`, idempotent) before applying it — `save_issue`
+  does **not** auto-create labels; an unknown name passed in `save_issue.labels` is silently
+  dropped, which would silently no-op specialist routing. This mirrors the `blocked` /
+  `manual-pending` ensure-label pattern. See `skills/linear/references/linear-mcp.md` for
+  the `agent:*` label family.
 - **`**Specialist:** developer-<suffix> — <one-line because>` line** in the issue
   description, just above the `## Acceptance Criteria` heading — the PO-readable
   explanation of *why* this specialist.

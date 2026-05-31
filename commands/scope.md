@@ -234,10 +234,26 @@ nothing is a clear match, pick generic `developer` and say so explicitly in §6 
 - **Label (machine-readable).** Apply an `agent:<suffix>` label to the issue — this is
   what `/backlogd:solve` reads. For `developer-docs`, the label is `agent:docs`. The
   `agent:*` family is backlogd-owned (see
-  `skills/linear/references/linear-mcp.md`). The label is **created on first use** —
-  pass the new label name in `save_issue`'s `labels: [...]`; Linear's MCP auto-creates
-  unknown labels on write. **No label** = generic developer (less noise) — so skip the
-  label when the picker fell back to generic.
+  `skills/linear/references/linear-mcp.md`). **Ensure the label exists first, then apply
+  it** — `save_issue` does **not** auto-create labels: an unknown label name passed in
+  `labels: [...]` is **silently dropped** (the call succeeds and returns the issue with
+  only its pre-existing labels — no error, no label created), so a brand-new `agent:*`
+  routing label would silently no-op and the dispatch would fall back to generic developer
+  unnoticed. So mirror the proven ensure-label pattern (`skills/linear/blocked-label.md` /
+  `skills/linear/manual-pending-label.md`):
+  1. **Ensure (idempotent).** If `agent:<suffix>` is not already in the cached identity
+     (`.backlogd/identity.json` → `labels[]`), `list_issue_labels({ team, name:
+     "agent:<suffix>" })` to confirm absence (the cache may be stale), and if still absent
+     `create_issue_label({ team, name: "agent:<suffix>", color: "#5E6AD2",
+     description: "backlogd specialist routing — /backlogd:solve dispatches
+     developer-<suffix>." })`. If the label is already in the cache, skip these calls. (`color`
+     is suggested indigo; if the MCP rejects a specific shade, omit it and let Linear assign the
+     default — the name is what matters.)
+  2. **Apply.** `save_issue({ id, labels: [...existingLabels, "agent:<suffix>"] })` — pass
+     the issue's existing labels back verbatim so the upsert doesn't drop `problem` / `kind:*`.
+
+  **No label** = generic developer (less noise) — so skip both steps when the picker fell
+  back to generic.
 - **Description line (PO-readable).** Write a `**Specialist:** developer-<suffix> —
   <one-line because>` line in the issue **description**, positioned **just above** the
   `## Acceptance Criteria` heading. This explains *why* this specialist; the PO can flip
