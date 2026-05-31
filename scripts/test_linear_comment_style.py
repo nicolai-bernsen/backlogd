@@ -2,17 +2,23 @@
 
 NB-359 adds a Claude Code Output Style, ``output-styles/linear-comment.md``, that
 constrains the developer subagent's ``**[backlogd developer]**`` Linear comment so it
-renders cleanly on Linear: language-tagged code fences, no em-dashes, simple pipe tables
-only, list nesting no deeper than two levels, no decorative emoji. ``agents/developer.md``
-is wired to adopt the style at the PROMPT level (pointing at the style file as the
-canonical rule-set), and ``docs/specialists.md`` documents the constraint set so future
-specialists know how to inherit or override it.
+renders cleanly on Linear: language-tagged code fences, no em-dashes, NO markdown tables
+(use a bold-label list or short prose), NO status / checkmark emoji, list nesting no
+deeper than two levels, no decorative emoji. ``agents/developer.md`` is wired to adopt the
+style at the PROMPT level (pointing at the style file as the canonical rule-set), and
+``docs/specialists.md`` documents the constraint set so future specialists know how to
+inherit or override it.
+
+(PO rework on AC3's live render: the original cut allowed "simple pipe tables only" and
+plain status markers; the PO judged both render poorly in Linear, so tables are now banned
+outright and status / checkmark emoji are explicitly forbidden. The table/emoji anchors
+below assert the BAN and guard against the pre-rework affirmative wording.)
 
 The acceptance criteria:
 
 - AC1 ``output-styles/linear-comment.md`` exists with explicit formatting constraints
-  (no em-dashes; language-tagged fences; max 2-level nesting; no Linear-unsupported
-  tables).
+  (no em-dashes; language-tagged fences; max 2-level nesting; NO markdown tables; NO
+  status / checkmark emoji).
 - AC2 ``agents/developer.md`` declares / adopts the output style.
 - AC3 on a controlled run the developer's comment renders cleanly on Linear (verified
   VISUALLY — REVIEW-scope, not assertable here without becoming a tautology).
@@ -147,11 +153,66 @@ class StyleFileConstraintsTest(unittest.TestCase):
             "the style must cap nesting at TWO levels (AC1)",
         )
 
-    def test_constraint_simple_tables_only(self):
-        """Tables limited to Linear-supported simple ones — the 'table' constraint."""
+    def test_constraint_no_markdown_tables(self):
+        """Tables are BANNED outright (PO rework: pipe tables render poorly in a
+        Linear comment). The style must (a) state a "no markdown tables" rule and
+        (b) NOT carry any of the pre-rework AFFIRMATIVE table-allowance phrases
+        (`simple tables`, `basic pipe tables`, `plain pipe table`, `prefer a
+        concise table`). Both halves go red against the pre-rework style file and
+        green after the rework, so this is a genuine pre/post anchor, not a
+        tautology on the bare word "table"."""
         self.assertIn(
             "table", self.lower,
-            "the style must constrain TABLE use (no Linear-unsupported tables) (AC1)",
+            "the style must constrain TABLE use (AC1)",
+        )
+        self.assertIn(
+            "no markdown table", self.lower,
+            "the style must BAN markdown tables outright with a 'no markdown "
+            "tables' rule (PO rework) — not the old 'simple tables only' (AC1)",
+        )
+        # Guard against the pre-rework affirmative wording surviving anywhere
+        # (description, rule body, or quick reference). Any of these means tables
+        # are still being PERMITTED, which the rework forbids.
+        for forbidden in (
+            r"simple\s+tables",
+            r"basic\s+pipe\s+tables",
+            r"plain\s+pipe\s+table",
+            r"prefer\s+a\s+concise\s+table",
+        ):
+            self.assertNotRegex(
+                self.lower,
+                forbidden,
+                f"the style must NOT permit tables (matched pre-rework phrase "
+                f"/{forbidden}/) — the PO rework replaced 'simple/pipe tables' "
+                f"with a hard no-tables ban (AC1)",
+            )
+
+    def test_constraint_no_status_emoji(self):
+        """Status / checkmark emoji are FORBIDDEN (PO rework: the PO disliked the
+        green-check / cross / question-mark / memo style). The style must (a) name
+        a status-emoji ban (the 'status' + 'emoji' vocabulary in a no-/never
+        clause) and (b) NOT carry the pre-rework permissive 'status markers are
+        fine' wording. Both halves discriminate pre vs post the rework, so this is
+        not a tautology on the bare word 'emoji'."""
+        self.assertIn(
+            "emoji", self.lower,
+            "the style must constrain EMOJI use (AC1)",
+        )
+        self.assertTrue(
+            re.search(r"(no|never)[\w\s,]*status[\w\s,/-]*emoji"
+                      r"|status[\w\s,/-]*emoji[\w\s,/-]*(never|forbidden|noise)",
+                      self.lower),
+            "the style must explicitly FORBID status / checkmark emoji (PO "
+            "rework) — name the status-emoji ban, not just 'no decorative "
+            "emoji' (AC1)",
+        )
+        # Guard against the pre-rework permissive wording (status markers were
+        # previously allowed "in moderation").
+        self.assertNotRegex(
+            self.lower,
+            r"status\s+markers?\s+are\s+fine",
+            "the style must NOT say 'status markers are fine' — the PO rework "
+            "forbids status / checkmark emoji outright (AC1)",
         )
 
 
@@ -367,6 +428,54 @@ class StyleFileDogfoodsNoDashesTest(unittest.TestCase):
             "output-styles/linear-comment.md must contain no en-dash (U+2013) "
             "character — rule 2 bans the en-dash alongside the em-dash (AC3 proxy "
             "/ AC1 self-consistency)",
+        )
+
+
+# --- AC3 (tester, proxy, PO-rework widening): the style file DOGFOODS its own ---
+# new no-table rule.
+#
+# Added by the backlogd tester for the PO-rework round. The rework's headline
+# change is that markdown tables are now BANNED outright (rule 3). The canonical
+# style file is the artifact every specialist copies from, so — exactly as with the
+# no-dash dogfood above — it must itself practise the no-table rule. Before the
+# rework the file's own "Quick reference" section WAS a pipe table, so this proxy
+# is non-tautological: it goes red against the pre-rework style file (the
+# quick-reference table trips it) and green after the rework converted that section
+# to a bold-label list. It is a proxy for AC3, not a substitute (it does not prove
+# the Linear render); it complements the developer's text-level
+# ``test_constraint_no_markdown_tables`` (which asserts the RULE is stated) by
+# asserting the file OBEYS the rule it states.
+
+# A markdown pipe table = a header row of `| ... |` immediately followed by a
+# separator row whose cells are runs of dashes (`| --- | --- |`). Matching the
+# header+separator pair (not a lone `|`) avoids flagging inline code like ` ``` `
+# or prose that merely contains a pipe character.
+_TABLE_SEPARATOR = re.compile(r"^\s*\|(?:\s*:?-{1,}:?\s*\|)+\s*$", re.MULTILINE)
+
+
+class StyleFileDogfoodsNoTableTest(unittest.TestCase):
+    """AC3 (tester, proxy) — the style file obeys its own new no-table rule: it
+    contains no markdown pipe table (header + `|---|` separator) anywhere."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.text = _read(STYLE)
+
+    def test_style_file_contains_no_pipe_table(self):
+        lines = self.text.splitlines()
+        offending = []
+        for i in range(len(lines) - 1):
+            header = lines[i]
+            separator = lines[i + 1]
+            if re.match(r"\s*\|.*\|", header) and _TABLE_SEPARATOR.match(separator):
+                offending.append(i + 1)  # 1-based line number of the header row
+        self.assertEqual(
+            offending,
+            [],
+            "output-styles/linear-comment.md must contain no markdown pipe table "
+            "(header row + `|---|` separator) — it must dogfood its own rule 3 "
+            f"no-tables ban (PO rework). Found a table header at line(s): "
+            f"{offending} (AC3 proxy / AC1 self-consistency)",
         )
 
 

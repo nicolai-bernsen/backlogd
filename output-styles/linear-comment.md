@@ -1,6 +1,6 @@
 ---
 name: Linear comment
-description: Constrains agent-authored Markdown so it renders cleanly on Linear (language-tagged fences, simple tables, no em-dashes, shallow nesting). Used by backlogd's developer subagent for its progress comments.
+description: Constrains agent-authored Markdown so it renders cleanly on Linear (language-tagged fences, no tables, no em-dashes, no status emoji, shallow nesting). Used by backlogd's developer subagent for its progress comments.
 ---
 
 # Linear comment output style
@@ -24,18 +24,22 @@ These are not stylistic preferences; breaking one produces visibly wrong output 
 2. **No em-dashes.** The em-dash character is an LLM tell and reads as visual noise in a
    short Linear comment. Use a comma, a colon, parentheses, or two sentences instead. This
    applies to the em-dash and the en-dash alike; a plain hyphen between words is fine.
-3. **Simple tables only, or no table.** Linear supports only basic pipe tables: a header
-   row, a separator row, and body rows. No merged cells, no nested block content inside a
-   cell, no alignment tricks, no tables wider than about four columns. If the data does not
-   fit a plain grid, use a short bullet list instead. Prefer a concise table over a long
-   bullet list when the data *is* tabular.
+3. **No markdown tables.** Pipe tables render poorly in a Linear comment (cramped columns,
+   broken separators), so do not use one at all. Present tabular data as a **bold-label
+   list** instead, one item per row, with the label in bold and the value after a colon
+   (`- **Suite:** 424 OK`). For two or three related facts, a short sentence of prose is
+   even better. This is a hard rule: no ` | ` header-plus-separator table anywhere in the
+   comment.
 4. **Nest lists no deeper than two levels.** A top-level item and one level of sub-items is
    the limit. Linear flattens or mis-indents deeper nesting. If you need a third level,
    restructure: split into separate lists, promote to a sub-heading, or inline the detail.
-5. **No exotic or decorative emoji.** Plain status markers are fine in moderation (a
-   checkbox list, a single leading marker). Do not use emoji to section content or as
-   bullets; certain emoji sequences break Linear's section parsing. The visible
-   `**[backlogd developer]**` badge stays as literal bold text, not an emoji.
+5. **No decorative, sectioning, or status emoji.** Do not use emoji to section content,
+   as bullets, or as status markers. In particular, **no status or checkmark emoji** (the
+   green-check, the cross, the question mark, the memo, and the like): they read as noise
+   in a Linear comment and certain emoji sequences break Linear's section parsing. To show
+   state, use a `- [x]` / `- [ ]` checkbox list or a plain bold label (`**Result:** done`),
+   never an emoji. The visible `**[backlogd developer]**` badge stays as literal bold text,
+   not an emoji.
 
 ## Soft preferences
 
@@ -54,10 +58,12 @@ These keep the comment scannable. Follow them unless a rule above forces otherwi
 
 ## Quick reference
 
-| Construct | Do | Avoid |
-| --- | --- | --- |
-| Code fence | tagged ` ```bash ` / ` ```text ` | bare ` ``` ` |
-| Dash | comma, colon, parentheses | em-dash, en-dash |
-| Tabular data | plain pipe table (header, separator, rows) | merged or nested cells |
-| List depth | two levels max | three or more levels |
-| Markers | a checklist, one leading marker | decorative or sectioning emoji |
+This list is itself in the target shape: bold labels, no table.
+
+- **Code fence:** tag every fence (` ```bash ` / ` ```text `); never a bare ` ``` `.
+- **Dash:** use a comma, colon, or parentheses; never an em-dash or en-dash.
+- **Tabular data:** use a bold-label list (`- **Label:** value`) or short prose; never a
+  markdown / pipe table.
+- **List depth:** two levels max; never three or more.
+- **State / status:** use a `- [x]` checkbox or a bold label; never a status or checkmark
+  emoji, and no decorative or sectioning emoji.

@@ -115,7 +115,7 @@ unchanged so the orchestrator can branch on it the same way regardless of flavou
 
 Every specialist posts its `**[backlogd <suffix>]**` progress comment as **Markdown the
 product owner reads inside Linear**, whose renderer has gotchas (bare code fences,
-em-dashes, complex tables, and deep list nesting all render badly). The canonical
+em-dashes, tables, status emoji, and deep list nesting all render badly). The canonical
 formatting rule-set is a Claude Code Output Style file —
 [`output-styles/linear-comment.md`](../output-styles/linear-comment.md) — and the generic
 developer's `<Output_Format>` points at it (the "Render it for Linear" bullet). The
@@ -125,9 +125,9 @@ constraint set, in brief:
 | --- | --- |
 | Code fences | language-tag every fence (`bash`, `python`, `json`, `text`); never a bare fence |
 | Dashes | no em-dashes or en-dashes; use commas, colons, or parentheses |
-| Tables | simple pipe tables only (header, separator, rows); no merged or nested cells; prefer a concise table over a long bullet list |
+| Tables | no markdown tables (they render poorly in a Linear comment); use a bold-label list (`- **Label:** value`) or short prose instead |
 | List depth | nest no deeper than two levels |
-| Emoji | no decorative or sectioning emoji; the bold `**[backlogd …]**` badge stays literal text |
+| Emoji | no decorative or sectioning emoji, and **no status or checkmark emoji**; use `- [x]` checkboxes or bold labels for state; the bold `**[backlogd …]**` badge stays literal text |
 
 **How a specialist inherits it.** Because the `<Output_Format>` envelope is cloned
 byte-for-byte (see [What a specialist may narrow vs must keep identical](#what-a-specialist-may-narrow-vs-must-keep-identical)),

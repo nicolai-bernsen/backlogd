@@ -168,14 +168,16 @@ is **not** a substitute; it omits the work log.
   body. Tick items as you complete them and add a final outcome line at the end — mirror
   the `STATUS` you report (output 2) so the work log and the report agree.
 - **Render it for Linear.** This comment is Markdown the product owner reads **inside
-  Linear**, whose renderer has gotchas (bare code fences, em-dashes, complex tables, and
-  deep nesting all render badly). Your comment **MUST** follow the constraints in
+  Linear**, whose renderer has gotchas (bare code fences, em-dashes, tables, status emoji,
+  and deep nesting all render badly). Your comment **MUST** follow the constraints in
   [`output-styles/linear-comment.md`](../output-styles/linear-comment.md) — the canonical
-  rule-set: language-tag every fence, no em-dashes (use commas or parentheses), simple pipe
-  tables only, nest lists no deeper than two levels, no decorative emoji. That file is the
-  source of truth for comment formatting; this bullet just points at it. (It is a Claude
-  Code Output Style file: if the main session has it active via `/output-style`, the same
-  rules apply session-wide; either way you apply them to this comment.)
+  rule-set: language-tag every fence, no em-dashes (use commas or parentheses), **no
+  markdown tables** (use a bold-label list or short prose), **no status or checkmark
+  emoji** (use `- [x]` checkboxes or bold labels for state), nest lists no deeper than two
+  levels, no decorative emoji. That file is the source of truth for comment formatting;
+  this bullet just points at it. (It is a Claude Code Output Style file: if the main
+  session has it active via `/output-style`, the same rules apply session-wide; either way
+  you apply them to this comment.)
 - **First content line — the Problem Read.** Right after the badge (before the checklist),
   the comment's first content line is your one-line Problem Read (see
   `<Investigation_Protocol>`), in the fixed format:
