@@ -2,8 +2,9 @@
 
 A one-time, opt-in setup pass that brings a fresh Linear workspace into the canonical shape
 the backlogd loop expects: the `problem` / `kind:ops` / `blocked` labels, the workflow-state
-categories the forecast math reads, and the `problem` issue + project templates. After it
-runs, the runtime loop stays **key-free / MCP-only** — exactly as before.
+categories the forecast math reads, and three templates (a `Problem` issue, a `backlogd
+problem` project, and a `Spec` document). After it runs, the runtime loop stays **key-free /
+MCP-only** — exactly as before.
 
 This is the *only* place backlogd uses a Linear API key, and even here the key is read by a
 local setup engine, never by the orchestrator or any agent. The walkthrough below covers
@@ -70,6 +71,22 @@ When the plan looks right, run it for real:
 /backlogd:init
 ```
 
+### Approving the engine's writes
+
+`init` makes its Linear *settings* writes (labels · states · templates) by shelling out to
+the setup engine with your Admin key. In an **interactive** Claude Code session you'll be
+**prompted to approve** each engine command (`python … scripts/linear_setup.py …`) — approve
+them, or choose **"don't ask again"** to clear the rest of the run. That approval prompt is
+the consent step; the key itself never appears in the prompt or in agent context (the engine
+reads it internally).
+
+Running **unattended** — headless, CI, or an auto-approval mode — an agent can't
+self-authorize a live write to your shared workspace, by design. Pre-allow the engine once:
+add a rule like `Bash(python … scripts/linear_setup.py:*)` to your Claude Code settings
+(`/permissions` → **Allow** → Bash), or simply run `/backlogd:init` in a normal interactive
+session and approve the prompts. Either path applies **only** to this one-time setup — the
+runtime loop stays key-free and prompts you for nothing.
+
 ### What it configures
 
 - **Labels.** Ensures the three canonical labels exist, all lowercase: `problem` (the
@@ -85,10 +102,21 @@ When the plan looks right, run it for real:
   typical board carries seven states across those categories) and a `duplicate` cancellation
   state; `init` won't auto-create those two — if they're missing it flags them for you to add
   in the Linear UI rather than guessing.
-- **Templates.** Ensures the canonical `problem` issue template (pre-filling the `## Problem`
-  and `## Acceptance Criteria` headings and applying the `problem` label) and a project
-  template carrying backlogd's milestones. Both are idempotent — re-running when they already
-  match changes nothing.
+- **Templates.** Ensures the three canonical templates ADR-003 decides, all idempotent
+  (re-running when they already match changes nothing):
+  - a `Problem` **issue** template — pre-fills the `## Problem` and `## Acceptance Criteria`
+    headings (typed-AC bullets) and **applies the `problem` label**, so a templated issue is
+    pickup-eligible by construction;
+  - a `backlogd problem` **project** template — carries backlogd's three milestones in order
+    (Investigate → Implement → Verify) plus a one-line pointer to the Spec document;
+  - a `Spec` **document** template — pre-fills `## Problem` / `## Approach` /
+    `## Acceptance Criteria` with the `:memo:` icon, a scaffold for hand-authoring a spec.
+
+  The designed bodies live in one place — `CANONICAL_TEMPLATES` in
+  [`scripts/linear_setup.py`](../../scripts/linear_setup.py) — so the command never improvises
+  the `templateData` and the content stays consistent with ADR-003. (No **project label** is
+  seeded: nothing in the loop reads one and the engine has no project-label write verb, so
+  ADR-003 deliberately ships none — a future project label would need a new verb first.)
 
 ### The cleanup offer is conservative and confirmation-gated
 

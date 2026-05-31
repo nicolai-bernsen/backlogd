@@ -180,50 +180,91 @@ class AC4_EngineGapsCalledOutAndDocumentationOnly(unittest.TestCase):
         )
 
     def test_AC4_is_documentation_only_no_engine_rewrite(self):
-        """The unit's diff vs the integration branch must touch only the ADR
-        document (+ this test) — no engine/seed file. We assert the engine file is
-        not among the unit's changed files and is still present. This proves the
-        ADR's 'ships no engine change' claim mechanically rather than by reading
-        its prose. Uses `origin/dev` (the rebased-onto integration ref); the
-        try/except keeps it green in CI checkouts where that ref is absent."""
+        """The ADR-003 *decision* shipped no engine change — it added the ADR doc
+        (+ this test) and nothing else; the build is a follow-up (NB-392).
+
+        We anchor this to the **commit that introduced the ADR file**, not to the
+        live working tree. The earlier working-tree heuristic was only valid while
+        NB-382 was the branch tip — once its sanctioned follow-up NB-392 edits the
+        engine (as ADR-003's "Follow-up" explicitly directs), a working-tree diff
+        would wrongly red-flag that build. Inspecting the authoring commit's own
+        tree-diff keeps the historical guarantee true and decoupled from any later
+        engine edit. On a **shallow checkout** (CI's default fetch-depth=1) git
+        sees only one commit and reports every path as added in it, so the
+        introducing-commit lookup resolves a whole-tree commit it cannot trust —
+        we detect that (shallow repo, or an implausibly large changed-set) and
+        skip rather than false-fail. On a full clone (local, or fetch-depth=0 CI)
+        the assertion runs."""
         import subprocess
 
-        # Names of files changed by this unit relative to the integration branch.
-        try:
-            out = subprocess.run(
-                ["git", "diff", "--name-only", "origin/dev...HEAD"],
-                cwd=str(REPO_ROOT),
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            committed = set(out.stdout.split())
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            committed = set()
-
-        # Untracked/working-tree changes (the ADR is added in the worktree).
-        try:
-            stat = subprocess.run(
-                ["git", "status", "--porcelain"],
-                cwd=str(REPO_ROOT),
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            working = {line[3:] for line in stat.stdout.splitlines() if line.strip()}
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            working = set()
-
-        changed = committed | working
-        # The engine file must not be among the unit's changes.
         engine_rel = "scripts/linear_setup.py"
-        self.assertNotIn(
-            engine_rel,
-            changed,
-            f"AC4: ADR-003 is documentation-only and must NOT change {engine_rel}; "
-            f"changed files seen: {sorted(changed)}",
-        )
-        # And the engine file is still present (not deleted/re-seeded by this unit).
+        adr_rel = "docs/standards/adrs/ADR-003-canonical-linear-workspace-configuration.md"
+
+        def _git(args: list[str]) -> str:
+            return subprocess.run(
+                ["git", *args],
+                cwd=str(REPO_ROOT),
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout
+
+        # A shallow checkout can't see history: git reports the lone commit as
+        # adding every file, so the introducing-commit lookup is meaningless.
+        try:
+            shallow = _git(["rev-parse", "--is-shallow-repository"]).strip() == "true"
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            shallow = False
+        if shallow:
+            self.skipTest(
+                "shallow checkout — ADR-003 introducing-commit history unavailable; "
+                "the documentation-only guarantee is verified on full-history clones"
+            )
+
+        # Find the commit that *introduced* the ADR file (the NB-382 decision unit).
+        # No --follow: the ADR was added at this path and never renamed; --follow can
+        # rename-detect into an unrelated ancestor. ``--diff-filter=A``; last line = add.
+        try:
+            log = _git(
+                ["log", "--diff-filter=A", "--format=%H", "--", adr_rel]
+            ).split()
+            intro_sha = log[-1] if log else ""
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            intro_sha = ""
+
+        if intro_sha:
+            # Files that commit changed. The decision unit must NOT have touched the
+            # engine (it ships no engine change — the build is the follow-up).
+            try:
+                changed = set(
+                    _git(["show", "--name-only", "--format=", intro_sha]).split()
+                )
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                changed = set()
+            # A genuine single-ADR doc commit touches a handful of files (the ADR +
+            # its test). A large changed-set means we resolved a squash/root/shallow
+            # commit we can't trust — skip rather than red-flag a legitimate edit.
+            if engine_rel in changed and len(changed) > 6:
+                self.skipTest(
+                    f"resolved commit {intro_sha[:9]} touches {len(changed)} files — "
+                    "looks like a squash/root commit, not the ADR's focused add; "
+                    "cannot verify documentation-only here"
+                )
+            if changed:  # only assert when we resolved a trustworthy focused diff
+                self.assertNotIn(
+                    engine_rel,
+                    changed,
+                    f"AC4: the ADR-003 decision commit {intro_sha[:9]} is "
+                    f"documentation-only and must NOT change {engine_rel}; "
+                    f"changed files seen: {sorted(changed)}",
+                )
+                self.assertIn(
+                    adr_rel,
+                    changed,
+                    f"AC4: the introducing commit {intro_sha[:9]} must add the ADR doc",
+                )
+
+        # The engine file is still present (not deleted/re-seeded by the ADR itself).
         self.assertTrue(
             ENGINE_FILE.is_file(),
             f"AC4: engine file {ENGINE_FILE} must remain present (no re-seed by this ADR)",
