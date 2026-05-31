@@ -9,9 +9,11 @@ backlogd's identity is fixed by ADR-004: **problem-type-agnostic empirical Scrum
 agent team.** The framework is the Scrum scaffolding and never does the domain work; an
 instance's value is **specialists × standards**. "1.0" must be the *honest minimum* of
 that identity — the smallest set of capability where the core loop genuinely works
-end-to-end on a real problem — not a louder claim than the substance. This doc is written
-**now**, ahead of its last gates landing, and states them truthfully: 1.0 is not yet
-reachable (see [Preconditions](#preconditions-and-honest-status)).
+end-to-end on a real problem — not a louder claim than the substance. The two gates this
+doc was written ahead of have since **shipped in v0.17.0**: the **1.0 substance has
+shipped**, and what remains is **public-launch readiness** — the demo recording, this
+README, the announcement, and the 1.0.0 version bump (see
+[Preconditions](#preconditions-and-honest-status)).
 
 ## Definition of 1.0
 
@@ -126,7 +128,8 @@ names the issue or ADR that owns it:
 ## Preconditions and honest status
 
 The loop is theatre without all of these. Each precondition is stated with its current
-Linear state as of 2026-05-30:
+Linear state as of 2026-05-31 — **all of them now hold; both former gates shipped in
+v0.17.0**:
 
 - **Agents can write to Linear** — [NB-368](https://linear.app/nicolai-bernsen/issue/NB-368):
   **Done** ([PR #82](https://github.com/nicolai-bernsen/backlogd/pull/82)). The reviewer,
@@ -138,24 +141,30 @@ Linear state as of 2026-05-30:
   - [NB-380](https://linear.app/nicolai-bernsen/issue/NB-380) — agent-readable, index-first
     standards index: **Done** ([PR #94](https://github.com/nicolai-bernsen/backlogd/pull/94)).
   - [NB-378](https://linear.app/nicolai-bernsen/issue/NB-378) — the reviewer enforces the
-    corpus and **blocks on missing standards**: **In Progress** (no PR yet).
+    corpus and **blocks on missing standards**: **shipped in v0.17.0**.
 - **The adaptation loop** — [NB-381](https://linear.app/nicolai-bernsen/issue/NB-381):
   the retrospective that reads the graph and files improvements — `/backlogd:retro` +
-  `skills/retro/`: **In Progress** (mechanism in flight; closing proof is the dogfood).
+  `skills/retro/`: **shipped in v0.17.0**, and **dogfooded** — a real retro run read the
+  execution graph and filed [NB-413](https://linear.app/nicolai-bernsen/issue/NB-413), a
+  genuine improvement, so the pillar is fully closed (not merely shipped).
 
-### The two unmet gates before 1.0
+### The two gates before 1.0 — both shipped
 
-Two preconditions are still pending, and **both must ship before 1.0 can be declared**:
+The two gates that had to ship before 1.0 could be declared **both landed in v0.17.0**:
 
 1. **[NB-378](https://linear.app/nicolai-bernsen/issue/NB-378)** — the reviewer enforces the
-   standards corpus and blocks on a missing load-bearing standard (**In Progress**).
+   standards corpus and blocks on a missing load-bearing standard (**shipped**).
 2. **[NB-381](https://linear.app/nicolai-bernsen/issue/NB-381)** — the retrospective /
-   adaptation loop that closes the empirical loop (**In Progress** — `/backlogd:retro`
-   shipped; pending the dogfood + merge).
+   adaptation loop that closes the empirical loop (**shipped and dogfooded** — a real retro
+   run filed [NB-413](https://linear.app/nicolai-bernsen/issue/NB-413)).
 
-Until both land, **1.0 is not yet reachable.** This doc states the gate honestly rather
-than declaring a milestone the substance has not earned — the same discipline ADR-004
-demands of every "Scrum" claim backlogd makes.
+With both landed, the **1.0 substance has shipped**. What remains before the milestone is
+*declared* is public-launch readiness — the demo recording
+([NB-396](https://linear.app/nicolai-bernsen/issue/NB-396)), the rewritten README
+([NB-395](https://linear.app/nicolai-bernsen/issue/NB-395)), and the announcement — plus
+the 1.0.0 version bump. This doc states the status honestly — substance shipped,
+launch-readiness remaining — the same discipline ADR-004 demands of every "Scrum" claim
+backlogd makes.
 
 ## Demo run-of-show
 
