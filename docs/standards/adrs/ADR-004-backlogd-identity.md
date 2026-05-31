@@ -117,15 +117,18 @@ backlogd is judged honest only if all three are real, not ceremony:
 | --- | --- | --- |
 | **Transparency** | Linear is the system of record (problems, states, results); **visible agent identity** ([NB-370](https://linear.app/nicolai-bernsen/issue/NB-370) / [ADR-001](ADR-001-visible-agent-identity-in-linear.md)) makes _which agent did what_ legible. | Yes — Linear + comment-badge identity ship today; richer agent presence is the gated NB-370 work. |
 | **Inspection** | The **execution graph** ([NB-320](https://linear.app/nicolai-bernsen/issue/NB-320), `scripts/graph.py`) records dispatch outcomes/latency; the **independent verdict review** inspects each increment against its AC + the DoD. | Yes — review ships today; the graph join (NB-320) is the named v2. |
-| **Adaptation** | **Standards growth** (the ADR corpus expands as decisions are made) + **ADR supersession** (a decision is revised by a _new_ ADR, never an in-place edit) + the **retrospective** that feeds process change back into `/docs` and the commands. | Partly — standards growth + supersession are live (this ADR is an instance). The retrospective is **not yet a command** (see the honesty note below). |
+| **Adaptation** | **Standards growth** (the ADR corpus expands as decisions are made) + **ADR supersession** (a decision is revised by a _new_ ADR, never an in-place edit) + the **`/backlogd:retro`** retrospective that reads the execution graph and files candidate improvements for the PO to prioritize. | Yes — standards growth + supersession are live (this ADR is an instance), and the retrospective ships as `/backlogd:retro` (see the honesty note below for what "fully closed" requires). |
 
-**Honesty note on adaptation.** The Sprint Retrospective is, today, **out of scope as an
-automated event** — [`docs/scrum/mapping.md`](../../scrum/mapping.md) records that v1 has no
-retrospective command and process improvement happens out-of-band (the human PO updates
-`/docs` and the commands). Adaptation is therefore **real but incomplete**: the
-standards-growth + supersession half is mechanised; the periodic-retrospective half is
-manual until [NB-381](https://linear.app/nicolai-bernsen/issue/NB-381) closes it. This ADR
-does **not** claim a retro command exists.
+**Honesty note on adaptation.** The Sprint Retrospective ships as
+**`/backlogd:retro`** — [`docs/scrum/mapping.md`](../../scrum/mapping.md) now maps it as a
+milestone-scoped, graph-grounded look-back that detects cross-issue patterns and files
+candidate `kind:improvement` issues the PO prioritizes (the retro proposes; it does not
+auto-fix). [NB-381](https://linear.app/nicolai-bernsen/issue/NB-381) lands the mechanism;
+the pillar is **fully** closed once a retro run on a real backlogd milestone has produced a
+genuinely useful, filed improvement traceable to graph evidence (the dogfood). So
+adaptation is now mechanised across both halves — standards-growth + supersession **and**
+the periodic retrospective — with the dogfood as the closing empirical proof rather than a
+claim.
 
 ### Differentiator (vs Cyrus)
 
@@ -194,10 +197,12 @@ The **risk** this commitment carries: a **Scrum-literate audience will judge bac
 against the Guide.** Claiming "Scrum" and then shipping ceremony — roles in name only, an
 empirical loop that doesn't actually inspect-and-adapt — would be read as cargo-culting and
 would cost credibility. The mitigation is to keep the mapping honest about what is real vs
-deliberately omitted (the [mapping](../../scrum/mapping.md) already names continuous-flow
-instead of fixed sprints, and the retrospective as out-of-scope-today). The **empirical loop
-especially must be real, not ceremony** — which is why the adaptation pillar above is
-flagged as only _partly_ mechanised rather than overclaimed.
+deliberately reshaped (the [mapping](../../scrum/mapping.md) names continuous-flow instead
+of fixed sprints, and the retrospective as the milestone-scoped `/backlogd:retro` rather
+than a fixed-cadence meeting). The **empirical loop especially must be real, not
+ceremony** — which is why the retrospective ships as a data-grounded command that reads the
+execution graph, and why the adaptation pillar is held to the dogfood (a real filed
+improvement traceable to evidence) rather than to the mere existence of the command.
 
 ## Consequences
 
@@ -222,10 +227,11 @@ flagged as only _partly_ mechanised rather than overclaimed.
    credential-agnostic" an explicit, checkable section in the specialist template
    (`docs/specialists.md` / the specialist agent files), so a gap is caught at authoring
    time. _(builds on NB-337.)_
-2. **Close the adaptation pillar** — land a retrospective/self-improvement loop
-   ([NB-381](https://linear.app/nicolai-bernsen/issue/NB-381)) so "adaptation" is fully
-   mechanised, then update [`docs/scrum/mapping.md`](../../scrum/mapping.md) (which currently
-   marks the retrospective out-of-scope).
+2. **Close the adaptation pillar** — _shipped_ via the retrospective/self-improvement loop
+   ([NB-381](https://linear.app/nicolai-bernsen/issue/NB-381)): `/backlogd:retro` +
+   `skills/retro/`, with [`docs/scrum/mapping.md`](../../scrum/mapping.md) now mapping the
+   retrospective to that command. The pillar is fully closed once a dogfood run files a real
+   improvement traceable to graph evidence.
 3. **Always-on runtime spike** — [NB-379](https://linear.app/nicolai-bernsen/issue/NB-379),
    now unblocked, under the keyless flip condition above.
 

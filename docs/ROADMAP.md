@@ -140,7 +140,8 @@ Linear state as of 2026-05-30:
   - [NB-378](https://linear.app/nicolai-bernsen/issue/NB-378) — the reviewer enforces the
     corpus and **blocks on missing standards**: **In Progress** (no PR yet).
 - **The adaptation loop** — [NB-381](https://linear.app/nicolai-bernsen/issue/NB-381):
-  the retrospective that reads the graph and files improvements: **Backlog** (no PR yet).
+  the retrospective that reads the graph and files improvements — `/backlogd:retro` +
+  `skills/retro/`: **In Progress** (mechanism in flight; closing proof is the dogfood).
 
 ### The two unmet gates before 1.0
 
@@ -149,7 +150,8 @@ Two preconditions are still pending, and **both must ship before 1.0 can be decl
 1. **[NB-378](https://linear.app/nicolai-bernsen/issue/NB-378)** — the reviewer enforces the
    standards corpus and blocks on a missing load-bearing standard (**In Progress**).
 2. **[NB-381](https://linear.app/nicolai-bernsen/issue/NB-381)** — the retrospective /
-   adaptation loop that closes the empirical loop (**Backlog**).
+   adaptation loop that closes the empirical loop (**In Progress** — `/backlogd:retro`
+   shipped; pending the dogfood + merge).
 
 Until both land, **1.0 is not yet reachable.** This doc states the gate honestly rather
 than declaring a milestone the substance has not earned — the same discipline ADR-004

@@ -13,8 +13,8 @@ backlogd agent follows when it reasons about Scrum: which primitive applies, who
 it in backlogd, and what is and is not in scope.
 
 It is **runtime guidance** for backlogd's own agents — the `/backlogd:scope`,
-`/backlogd:solve`, `/backlogd:status`, `/backlogd:review`, and `/backlogd:release`
-scrum-master commands, and the `backlogd:developer`.
+`/backlogd:solve`, `/backlogd:status`, `/backlogd:review`, `/backlogd:retro`, and
+`/backlogd:release` scrum-master commands, and the `backlogd:developer`.
 
 > **Read this file first; reach for a reference when you act:**
 >
@@ -23,8 +23,8 @@ scrum-master commands, and the `backlogd:developer`.
 >   what each does not. Read it when you are about to write *as* a role and want to be
 >   sure you are not crossing a boundary.
 > - **[`references/events.md`](references/events.md)** — the five Scrum events mapped
->   to backlogd's five commands (`scope` / `solve` / `status` / `review` / `release`),
->   plus the explicit out-of-scope on the Sprint Retrospective.
+>   to backlogd's commands (`scope` / `solve` / `status` / `review` / `retro` /
+>   `release`), including the Sprint Retrospective as `/backlogd:retro`.
 > - **[`references/values.md`](references/values.md)** — Commitment · Focus ·
 >   Openness · Respect · Courage, with one-line backlogd interpretations.
 > - **[`../../docs/scrum/scrum-guide.md`](../../docs/scrum/scrum-guide.md)** — the
@@ -65,9 +65,10 @@ Scrum gives backlogd three load-bearing moves that everything else hangs off.
 2. **Events map to commands, not meetings** — backlogd runs in **continuous flow**
    (one problem per loop), so there is no fixed-length Sprint. Sprint Planning →
    `/backlogd:scope`. Daily Scrum → `/backlogd:status` (read-only). Sprint Review →
-   `/backlogd:review`. The Sprint itself is the single problem's loop. The **Sprint
-   Retrospective is out of scope today** — process improvement happens out-of-band by
-   the PO updating `/docs`. See [`references/events.md`](references/events.md).
+   `/backlogd:review`. Sprint Retrospective → **`/backlogd:retro`** (milestone-scoped:
+   reads the execution graph, detects cross-issue patterns, files candidate
+   improvements). The Sprint itself is the single problem's loop. See
+   [`references/events.md`](references/events.md).
 
 3. **Artifacts live in Linear and git** — the Product Backlog is the Linear queue of
    `problem`-labelled issues; the Sprint Backlog is the shaped problem's `##
@@ -150,7 +151,8 @@ At a glance:
 - **Interpretation, not certification.** backlogd is not "officially Scrum-compliant"
   and does not claim to be. It runs on Scrum's *concepts* — accountabilities,
   artifacts, commitments, values — but replaces the Sprint with continuous flow and
-  skips the Sprint Retrospective today. If you need strict 2020-edition adherence,
+  runs the Sprint Retrospective as a milestone-scoped command (`/backlogd:retro`)
+  rather than a fixed-cadence meeting. If you need strict 2020-edition adherence,
   read the Guide and decide whether backlogd's interpretation is fit for your
   context.
 - **Pair with the Linear skill.** Most Scrum decisions land *as* a Linear write
@@ -158,6 +160,7 @@ At a glance:
   surfaces a blocker", the *how* is in [`../linear/SKILL.md`](../linear/SKILL.md) and
   [`../linear/references/linear-mcp.md`](../linear/references/linear-mcp.md). Read
   both for any write that touches state or structure.
-- **Do not invent ceremonies.** If you find yourself wanting a status meeting, a
-  planning poker, or a retrospective command — stop and report it. v1 has the five
-  commands above and no others. New ceremonies are PO decisions, not agent decisions.
+- **Do not invent ceremonies.** If you find yourself wanting a status meeting or
+  planning poker — stop and report it. backlogd has six commands — `scope`, `solve`,
+  `status`, `review`, `retro`, and `release` — and no others. New ceremonies are PO
+  decisions, not agent decisions.
