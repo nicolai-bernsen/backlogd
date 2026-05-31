@@ -144,15 +144,17 @@ class AC4_HonestStatus(unittest.TestCase):
             "AC#4: a '## Status'-style heading must exist",
         )
 
-    def test_AC4_status_names_current_version(self):
-        """Honest status pins the shipped version so installers know what's real.
-        v0.17.0 is the current main at the time of this rewrite."""
-        text = _read(README_PATH)
-        self.assertIn(
-            "v0.17.0",
-            text,
-            "AC#4: status must name the current shipped version (v0.17.0)",
-        )
+    def test_AC4_status_conveys_shipped_state_version_agnostic(self):
+        """Honest status must convey what has shipped — version-agnostic, so a
+        release bump never makes the README (or this test) go stale. The exact
+        version lives in GitHub Releases + plugin.json, not pinned in prose."""
+        text = _read(README_PATH).lower()
+        for token in ("dogfooded", "gates", "shipped"):
+            self.assertIn(
+                token,
+                text,
+                f"AC#4: status must convey shipped state (missing '{token}')",
+            )
 
     def test_AC4_links_roadmap(self):
         text = _read(README_PATH)
