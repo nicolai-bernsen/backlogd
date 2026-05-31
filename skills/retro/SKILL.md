@@ -150,8 +150,9 @@ official-MCP filing path (`save_issue` with **no `id`** → create — see
   retro-sourced self-improvement so the PO can filter the improvement backlog. **Create the
   `kind:improvement` label on first use** — `create_issue_label({ team, name:
   "kind:improvement" })` if `list_issue_labels` shows it missing (it does not exist in the
-  workspace yet). Linear's MCP also auto-creates an unknown label passed in
-  `save_issue.labels`, but create it explicitly so its existence is unambiguous.
+  workspace yet). This ensure-first step is **required**, not cosmetic: `save_issue` does
+  **not** auto-create labels — an unknown name passed in `save_issue.labels` is silently
+  dropped (no error, no label), so the label must exist before it can be applied.
 - **Title:** names the *pattern*, not one problem — e.g. "Add an ADR for X — three problems
   this milestone hit the missing standard".
 - **Description:** states the pattern, **cites the evidence** (the graph metric and/or the

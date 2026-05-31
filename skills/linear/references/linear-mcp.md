@@ -50,7 +50,7 @@ workspace labels.
 | Family | Owner | Meaning |
 | --- | --- | --- |
 | `problem` | PO files / backlogd reads | The opt-in pickup signal — backlogd only picks up issues carrying this label. |
-| `agent:<suffix>` | `/backlogd:scope` writes / `/backlogd:solve` reads | The picked specialist developer for an issue (`agent:docs` → `developer-docs`). PO can flip the label to override. Created on first use (Linear's MCP auto-creates labels passed in `save_issue.labels`). See `docs/specialists.md`. |
+| `agent:<suffix>` | `/backlogd:scope` writes / `/backlogd:solve` reads | The picked specialist developer for an issue (`agent:docs` → `developer-docs`). PO can flip the label to override. **Ensure-first, then apply** — `save_issue` does **not** auto-create labels: an unknown name passed in `save_issue.labels` is silently dropped (no error, no label), so `/backlogd:scope` `create_issue_label`s the `agent:<suffix>` label before applying it, mirroring `blocked` / `manual-pending`. See `docs/specialists.md`. |
 
 ## Load-bearing rules
 
@@ -196,6 +196,10 @@ do not implement or depend on it.
 ## Pitfalls checklist
 
 - ❌ `save_issue` with no `id` to "update" → **duplicate issue**. ✅ Read first, pass `id`.
+- ❌ Passing a **not-yet-existing** label name in `save_issue.labels` expecting it to be
+  created → the name is **silently dropped** (call succeeds, returns only pre-existing
+  labels — no error, no label). ✅ `create_issue_label` (ensure, idempotent) **first**, then
+  `save_issue.labels`, as `blocked` / `manual-pending` / `agent:*` do.
 - ❌ Transition by display name (`state: "In Progress"`) hardcoded → breaks if renamed.
   ✅ Resolve by `type`.
 - ❌ Modelling a dependency as `relatedTo` → invisible to stall detection. ✅ Use
