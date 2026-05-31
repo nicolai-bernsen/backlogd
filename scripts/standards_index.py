@@ -1,19 +1,31 @@
-"""backlogd standards index — make the ADR corpus agent-readable & selectively loadable.
+"""backlogd standards index — make the standards corpus agent-readable & selectively loadable.
 
 Why this exists
 ---------------
-A reviewer must enforce the standards corpus (``docs/standards/adrs/``) on every
-change. Loading the full prose ADR set into context each time is the failure this
-script prevents: it is slow, it burns the context/token budget (the NB-379 quota
-pressure), and a reviewer swimming in N prose ADRs misses the one that applies.
+A reviewer must enforce the standards corpus on every change. Loading the full prose
+standards set into context each time is the failure this script prevents: it is slow, it
+burns the context/token budget (the NB-379 quota pressure), and a reviewer swimming in N
+prose standards misses the one that applies.
 
 The win is mostly in the **authoring format**, not the storage backend (NB-380): each
-ADR carries machine-readable front-matter — a crisp **checkable assertion**, an
+standard carries machine-readable front-matter — a crisp **checkable assertion**, an
 **applies-to** scope (domains / file-patterns / decision-types), and a lifecycle
 **status**. From that this script generates a single small **committed** artifact,
 ``docs/standards/index.json`` (id · title · assertion · applies-to · status), that a
-reviewer reads *first* — cheap — then filters by scope and opens only the full ADRs
+reviewer reads *first* — cheap — then filters by scope and opens only the full standards
 whose rationale it actually needs. Bounded context regardless of corpus size.
+
+Two kinds of standard live in the corpus, both indexed by the same machinery:
+
+* **Framework ADRs** — ``docs/standards/adrs/ADR-*.md`` — durable architectural decisions
+  for backlogd itself. One ``assertion`` per ADR.
+* **Per-engagement standards** — ``docs/standards/engagement/STD-*.md`` (NB-400) — the
+  domain rules for *this instance's* problem (e.g. a webshop's compliance rules). These are
+  the "domain DoD" half of ADR-004's *value = specialists × standards*. A per-engagement
+  standard often carries **many numbered rules** (R1, R2, …), each with its own MUST/SHOULD
+  level and a concrete *fix*, via an optional ``rules:`` front-matter block. The index
+  carries those rules so the reviewer can **cite the specific rule ID and its fix** when a
+  change trips one — not just "non-compliant".
 
 v1 is **index/files only — no graph DB, no server** (keyless/serverless principle;
 zero third-party deps, same as ``scripts/graph.py``). The Neo4j corpus⨝execution-graph
@@ -55,14 +67,19 @@ from pathlib import Path
 
 __all__ = [
     "ADRS_DIR",
+    "ENGAGEMENT_DIR",
+    "STANDARDS_GLOBS",
     "INDEX_PATH",
     "REQUIRED_KEYS",
     "APPLIES_TO_SUBKEYS",
+    "RULE_LEVELS",
     "FrontMatterError",
     "split_front_matter",
     "parse_front_matter",
     "read_adr",
+    "read_standard",
     "load_adrs",
+    "load_standards",
     "validate",
     "build_index",
     "render_index",
@@ -74,14 +91,26 @@ __all__ = [
 # Resolve relative to this file so the script works from any cwd (CI runs it
 # from the repo root, but tests and ad-hoc callers may not).
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-ADRS_DIR = _REPO_ROOT / "docs" / "standards" / "adrs"
-INDEX_PATH = _REPO_ROOT / "docs" / "standards" / "index.json"
+_STANDARDS_ROOT = _REPO_ROOT / "docs" / "standards"
+ADRS_DIR = _STANDARDS_ROOT / "adrs"
+# Per-engagement standards (NB-400) — the domain rules for *this* instance's problem,
+# distinct from the framework ADRs. Indexed by the same machinery; named ``STD-*.md``.
+ENGAGEMENT_DIR = _STANDARDS_ROOT / "engagement"
+INDEX_PATH = _STANDARDS_ROOT / "index.json"
+
+# The corpus is the union of these (directory, glob) sources. Adding a new kind of
+# standard means adding a (dir, glob) pair here — every loader/validator iterates this
+# list so the two sources never drift apart.
+STANDARDS_GLOBS = (
+    (ADRS_DIR, "ADR-*.md"),
+    (ENGAGEMENT_DIR, "STD-*.md"),
+)
 
 # The schema version stamped onto the generated index so a future reader can
 # detect format changes. Bump when the index shape changes.
 INDEX_VERSION = "backlogd-standards/v1"
 
-# Front-matter keys every ADR must carry. `assertion` + `applies-to` are the
+# Front-matter keys every standard must carry. `assertion` + `applies-to` are the
 # machine-readable keys NB-380 adds on top of NB-377's id/title/status/date.
 REQUIRED_KEYS = ("id", "title", "status", "date", "assertion", "applies-to")
 
@@ -96,7 +125,16 @@ SCALAR_REQUIRED_KEYS = ("id", "title", "status", "date", "assertion")
 # that applies to nothing is dead weight).
 APPLIES_TO_SUBKEYS = ("domains", "file-patterns", "decision-types")
 
-# Files under the ADR dir that are not ADRs and must be skipped by the index.
+# An **optional** ``rules:`` front-matter block (NB-400) lets a single standard carry many
+# numbered rules — R1, R2, … — each a one-line ``LEVEL | assertion | fix`` triple. The
+# block is a nested mapping (rule-id -> triple string), parsed by the existing front-matter
+# reader exactly like ``applies-to``. Only these levels are valid; ``MUST`` is the
+# blocking tripwire a reviewer cites by id + fix.
+RULES_KEY = "rules"
+RULE_FIELD_SEP = "|"
+RULE_LEVELS = ("MUST", "SHOULD")
+
+# Files under a standards dir that are not standards and must be skipped by the index.
 _NON_ADR_FILES = {"TEMPLATE.md"}
 
 
@@ -255,10 +293,10 @@ def _coerce_scalar_or_list(rest: str):
     return _unquote(rest)
 
 
-# --- ADR loading -----------------------------------------------------------
+# --- standard loading ------------------------------------------------------
 
-def read_adr(path: Path) -> dict:
-    """Read one ADR file and return its parsed front-matter dict.
+def read_standard(path: Path) -> dict:
+    """Read one standard file (ADR or STD) and return its parsed front-matter dict.
 
     Raises ``FrontMatterError`` (with the file name) if the header is missing or
     malformed.
@@ -271,50 +309,117 @@ def read_adr(path: Path) -> dict:
         raise FrontMatterError(f"{path.name}: {exc}") from exc
 
 
-def load_adrs(adrs_dir: Path = None) -> list:
-    """Load every ADR's front-matter from ``adrs_dir``, sorted by ``id``.
+# Back-compat alias: the corpus reader was originally ADR-only. Keep the old name so
+# external callers and the existing test-suite continue to work unchanged.
+read_adr = read_standard
 
-    Skips non-ADR files (``TEMPLATE.md``). Returns a list of ``(path, front_matter)``
-    tuples. Does **not** validate — call ``validate`` for that.
+
+def _glob_dir(directory: Path, pattern: str) -> list:
+    """Load ``(path, front_matter)`` for every ``pattern`` file in ``directory``.
+
+    A missing directory is **not** an error — it just contributes nothing (the
+    engagement dir may not exist in a framework-only checkout). Skips non-standard files
+    (``TEMPLATE.md``). Does **not** validate — call ``validate`` for that.
     """
-    adrs_dir = ADRS_DIR if adrs_dir is None else Path(adrs_dir)
     out = []
-    for path in sorted(adrs_dir.glob("ADR-*.md")):
+    if not directory.is_dir():
+        return out
+    for path in sorted(directory.glob(pattern)):
         if path.name in _NON_ADR_FILES:
             continue
-        out.append((path, read_adr(path)))
+        out.append((path, read_standard(path)))
+    return out
+
+
+def load_adrs(adrs_dir: Path = None) -> list:
+    """Load ADR front-matter from ``adrs_dir`` (``ADR-*.md`` only), sorted by ``id``.
+
+    Kept for callers that want the ADR source specifically, and for tests that point a
+    synthetic ADR-only corpus at it via ``adrs_dir``. When ``adrs_dir`` is given, only
+    that directory's ``ADR-*.md`` files are read — the engagement source is *not* mixed
+    in, so a synthetic corpus stays isolated. Returns ``(path, front_matter)`` tuples.
+    """
+    adrs_dir = ADRS_DIR if adrs_dir is None else Path(adrs_dir)
+    out = _glob_dir(adrs_dir, "ADR-*.md")
+    out.sort(key=lambda pf: str(pf[1].get("id") or pf[0].name))
+    return out
+
+
+def load_standards(adrs_dir: Path = None) -> list:
+    """Load the **whole corpus** — every (dir, glob) in ``STANDARDS_GLOBS`` — by ``id``.
+
+    This is what ``build_index`` / ``validate`` use by default. The two kinds of standard
+    (framework ``ADR-*.md`` and per-engagement ``STD-*.md``) are unioned and sorted by
+    ``id`` into one diff-friendly list.
+
+    ``adrs_dir`` is an **override hook for tests**: when given, the corpus is *only* that
+    directory's ``ADR-*.md`` files (the engagement source is skipped) so a synthetic
+    fixture corpus stays fully isolated from the real tree. When ``None`` (the real run),
+    both the real ADR dir and the real engagement dir are loaded.
+    """
+    if adrs_dir is not None:
+        return load_adrs(adrs_dir)
+    out = []
+    for directory, pattern in STANDARDS_GLOBS:
+        out.extend(_glob_dir(directory, pattern))
     out.sort(key=lambda pf: str(pf[1].get("id") or pf[0].name))
     return out
 
 
 # --- validation ------------------------------------------------------------
 
+def _corpus_paths(adrs_dir: Path = None) -> list:
+    """The list of standard file paths to validate/index.
+
+    Mirrors the ``load_standards`` override semantics: an explicit ``adrs_dir`` means the
+    ADR-only synthetic-corpus path (tests); ``None`` means the real union of every
+    ``STANDARDS_GLOBS`` source. Skips ``TEMPLATE.md``. Sorted by path for stable errors.
+    """
+    if adrs_dir is not None:
+        sources = [(Path(adrs_dir), "ADR-*.md")]
+    else:
+        sources = list(STANDARDS_GLOBS)
+    paths = []
+    for directory, pattern in sources:
+        if not directory.is_dir():
+            continue
+        paths.extend(p for p in directory.glob(pattern)
+                     if p.name not in _NON_ADR_FILES)
+    return sorted(paths)
+
+
 def validate(adrs_dir: Path = None) -> list:
-    """Validate every ADR's front-matter. Return a list of human-readable errors.
+    """Validate every standard's front-matter. Return a list of human-readable errors.
 
     An empty list means the corpus is valid. Each error names the offending file
-    and what is wrong. Checks, per ADR:
+    and what is wrong. Checks, per standard:
 
     * the front-matter block parses,
     * every key in ``REQUIRED_KEYS`` is present and non-empty,
     * ``applies-to`` is a mapping with the three known sub-keys, each a list, and
-      at least one of them non-empty.
+      at least one of them non-empty,
+    * the optional ``rules:`` block (if present) is well-formed — each rule is a
+      ``LEVEL | assertion | fix`` triple with a known level (NB-400).
+
+    With ``adrs_dir`` omitted the whole corpus (ADRs + per-engagement STDs) is validated;
+    with it given, only that directory's ``ADR-*.md`` (the test-isolation path).
     """
-    adrs_dir = ADRS_DIR if adrs_dir is None else Path(adrs_dir)
     errors: list = []
 
-    if not adrs_dir.is_dir():
-        return [f"ADR directory not found: {adrs_dir}"]
-
-    paths = [p for p in sorted(adrs_dir.glob("ADR-*.md"))
-             if p.name not in _NON_ADR_FILES]
+    paths = _corpus_paths(adrs_dir)
     if not paths:
-        return [f"no ADR files (ADR-*.md) found under {adrs_dir}"]
+        # Preserve the historical, dir-specific messages the CLI/tests expect.
+        if adrs_dir is not None:
+            target = Path(adrs_dir)
+            if not target.is_dir():
+                return [f"ADR directory not found: {target}"]
+            return [f"no ADR files (ADR-*.md) found under {target}"]
+        return [f"no standard files found under {_STANDARDS_ROOT}"]
 
     for path in paths:
         name = path.name
         try:
-            fm = read_adr(path)
+            fm = read_standard(path)
         except FrontMatterError as exc:
             errors.append(str(exc))
             continue
@@ -337,6 +442,10 @@ def validate(adrs_dir: Path = None) -> list:
         # applies-to shape (only if present — a missing key is already reported).
         if "applies-to" in fm:
             errors.extend(_validate_applies_to(name, fm["applies-to"]))
+
+        # rules block shape (optional — absent is fine; present must be well-formed).
+        if RULES_KEY in fm:
+            errors.extend(_validate_rules(name, fm[RULES_KEY]))
 
     return errors
 
@@ -367,6 +476,49 @@ def _validate_applies_to(name: str, applies_to) -> list:
     return errors
 
 
+def _split_rule(triple: str):
+    """Split a ``LEVEL | assertion | fix`` rule string into its three fields.
+
+    Returns ``(level, assertion, fix)`` (each stripped). Raises ``ValueError`` if the
+    string does not have exactly three ``|``-separated, non-empty fields.
+    """
+    parts = [p.strip() for p in triple.split(RULE_FIELD_SEP)]
+    if len(parts) != 3 or any(not p for p in parts):
+        raise ValueError(
+            f"expected exactly three non-empty `level {RULE_FIELD_SEP} assertion "
+            f"{RULE_FIELD_SEP} fix` fields")
+    return parts[0], parts[1], parts[2]
+
+
+def _validate_rules(name: str, rules) -> list:
+    """Validate the optional ``rules:`` block — a mapping of rule-id -> triple string.
+
+    Each value must be a ``LEVEL | assertion | fix`` string with a known ``LEVEL`` (see
+    ``RULE_LEVELS``). An empty mapping (a bare ``rules:`` with no entries) is rejected —
+    a standard that declares a rules block but lists none is an authoring slip.
+    """
+    errors = []
+    if not isinstance(rules, dict):
+        return [f"{name}: '{RULES_KEY}' must be a mapping of rule-id -> "
+                f"'LEVEL {RULE_FIELD_SEP} assertion {RULE_FIELD_SEP} fix'"]
+    if not rules:
+        return [f"{name}: '{RULES_KEY}' is present but lists no rules"]
+    for rule_id, triple in rules.items():
+        if not isinstance(triple, str) or not triple.strip():
+            errors.append(f"{name}: rule {rule_id!r} is empty or not a string "
+                          f"(want 'LEVEL {RULE_FIELD_SEP} assertion {RULE_FIELD_SEP} fix')")
+            continue
+        try:
+            level, _assertion, _fix = _split_rule(triple)
+        except ValueError as exc:
+            errors.append(f"{name}: rule {rule_id!r} is malformed — {exc}")
+            continue
+        if level not in RULE_LEVELS:
+            errors.append(f"{name}: rule {rule_id!r} has unknown level {level!r} "
+                          f"(allowed: {', '.join(RULE_LEVELS)})")
+    return errors
+
+
 # --- index build -----------------------------------------------------------
 
 def _normalise_applies_to(applies_to) -> dict:
@@ -379,6 +531,27 @@ def _normalise_applies_to(applies_to) -> dict:
     return {sub: list(applies_to.get(sub) or []) for sub in APPLIES_TO_SUBKEYS}
 
 
+def _index_rules(rules) -> list:
+    """Render a ``rules:`` mapping into the index's ordered list of rule records.
+
+    Each entry becomes ``{"id", "level", "assertion", "fix"}`` — the rule id, its
+    MUST/SHOULD level, the checkable assertion, and the concrete fix the reviewer cites
+    when the rule is tripped (NB-400). A malformed triple here would already have been
+    caught by ``validate``; this keeps the explode best-effort and never raises.
+    """
+    out = []
+    if not isinstance(rules, dict):
+        return out
+    for rule_id, triple in rules.items():
+        try:
+            level, assertion, fix = _split_rule(triple)
+        except (ValueError, AttributeError):
+            continue
+        out.append({"id": rule_id, "level": level,
+                    "assertion": assertion, "fix": fix})
+    return out
+
+
 def build_index(adrs_dir: Path = None) -> dict:
     """Build the compact index dict from the corpus front-matter.
 
@@ -388,22 +561,32 @@ def build_index(adrs_dir: Path = None) -> dict:
           "version": "backlogd-standards/v1",
           "standards": [
             {"id", "title", "status", "assertion", "applies-to": {...}}, ...
+            # per-engagement standards additionally carry:
+            {..., "rules": [{"id", "level", "assertion", "fix"}, ...]}
           ]
         }
 
-    ``standards`` is sorted by ``id`` for a stable, diff-friendly artifact. This
-    is the payload a reviewer reads first (cheap) before opening any full ADR.
-    Raises ``FrontMatterError`` if an ADR's header is malformed.
+    ``standards`` is sorted by ``id`` for a stable, diff-friendly artifact, unioning the
+    framework ADRs and the per-engagement STDs. This is the payload a reviewer reads first
+    (cheap) before opening any full standard. The ``rules`` array is emitted **only** for
+    standards that declare a ``rules:`` block, so an ADR's entry is byte-identical to
+    before this change (NB-400 backwards-compat). Raises ``FrontMatterError`` if a header
+    is malformed.
     """
     entries = []
-    for _path, fm in load_adrs(adrs_dir):
-        entries.append({
+    for _path, fm in load_standards(adrs_dir):
+        entry = {
             "id": fm.get("id"),
             "title": fm.get("title"),
             "status": fm.get("status"),
             "assertion": fm.get("assertion"),
             "applies-to": _normalise_applies_to(fm.get("applies-to")),
-        })
+        }
+        # Optional, additive: only standards with a rules block gain the array. ADRs
+        # (no rules) keep their exact prior shape so the committed index never churns.
+        if RULES_KEY in fm:
+            entry["rules"] = _index_rules(fm[RULES_KEY])
+        entries.append(entry)
     entries.sort(key=lambda e: str(e.get("id") or ""))
     return {"version": INDEX_VERSION, "standards": entries}
 
@@ -418,11 +601,19 @@ def render_index(index: dict) -> str:
 
 
 def write_index(adrs_dir: Path = None, index_path: Path = None) -> Path:
-    """Build the index and write it to ``index_path``. Returns the path written."""
+    """Build the index and write it to ``index_path``. Returns the path written.
+
+    Writes with explicit **LF** newlines (``newline=""`` so Python performs no platform
+    translation of the ``\\n`` in the rendered string). This keeps the committed artifact
+    byte-identical across platforms — on Windows the default text mode would emit CRLF,
+    which the repo's ``eol=lf`` normalization + the pre-commit line-ending hook would then
+    rewrite, producing a noisy/inconsistent diff. The drift test compares newline-normalized
+    text, so this also keeps regeneration deterministic regardless of the author's OS.
+    """
     index_path = INDEX_PATH if index_path is None else Path(index_path)
     index = build_index(adrs_dir)
     index_path.parent.mkdir(parents=True, exist_ok=True)
-    index_path.write_text(render_index(index), encoding="utf-8")
+    index_path.write_text(render_index(index), encoding="utf-8", newline="")
     return index_path
 
 
@@ -453,15 +644,18 @@ def main(argv=None) -> int:
     _reconfigure_utf8()
     parser = argparse.ArgumentParser(
         prog="standards_index.py",
-        description="Generate / validate the backlogd standards index from ADR front-matter.",
+        description="Generate / validate the backlogd standards index from the standards "
+                    "corpus front-matter (framework ADRs + per-engagement STDs).",
     )
     parser.add_argument("--check", action="store_true",
-                        help="validate front-matter only; exit non-zero if any ADR is "
-                             "missing a required key (writes nothing)")
+                        help="validate front-matter only; exit non-zero if any standard is "
+                             "missing a required key or has a malformed rules block "
+                             "(writes nothing)")
     parser.add_argument("--print", dest="print_only", action="store_true",
                         help="print the freshly-built index JSON to stdout (writes nothing)")
     parser.add_argument("--adrs-dir", default=None,
-                        help="override the ADR directory (default: docs/standards/adrs)")
+                        help="override the corpus to ONLY this directory's ADR-*.md "
+                             "(test isolation; default: the full docs/standards corpus)")
     parser.add_argument("--index-path", default=None,
                         help="override the index output path (default: docs/standards/index.json)")
     args = parser.parse_args(argv)
@@ -477,8 +671,8 @@ def main(argv=None) -> int:
             print(f"\n{len(errors)} problem(s). Fix the front-matter (see "
                   f"docs/standards/adrs/TEMPLATE.md).", file=sys.stderr)
             return 1
-        n = len(load_adrs(adrs_dir))
-        print(f"OK: {n} ADR(s) carry all required front-matter keys "
+        n = len(load_standards(adrs_dir))
+        print(f"OK: {n} standard(s) carry all required front-matter keys "
               f"({', '.join(REQUIRED_KEYS)}).")
         return 0
 

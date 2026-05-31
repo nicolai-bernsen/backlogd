@@ -181,11 +181,50 @@ class AC1_AC13_DesignOnlyShipsNoRuntimeCode(unittest.TestCase):
         # Normalise to forward slashes for cross-platform comparison.
         return {p.replace("\\", "/") for p in (committed | working) if p}
 
+    # A path is attributable to the ADR-005 *unit* when its path identifies it as such:
+    # the ADR doc, the regenerated index (a shared deliverable, explicitly allowed), or a
+    # file whose path carries the ADR-005 / NB-379 marker (e.g. a hypothetical
+    # `src/bridge/adr-005-executor.ts` shipped under this issue, or this very test). A
+    # general framework file (skills/…, scripts/standards_index.py) that merely *mentions*
+    # ADR-005 in prose is NOT a unit deliverable — attribution is by path, not by mention,
+    # precisely so an unrelated problem's edits never inflate this unit's footprint.
+    _UNIT_PATH_MARKERS = ("adr-005", "adr_005", "nb-379", "nb379")
+
+    @classmethod
+    def _is_unit_path(cls, path: str) -> bool:
+        if path in cls._ALLOWED_EXACT:
+            return True
+        low = path.lower()
+        return any(marker in low for marker in cls._UNIT_PATH_MARKERS)
+
+    @classmethod
+    def _unit_footprint(cls) -> set:
+        """The ADR-005 *unit's* footprint — the changed set scoped (by path attribution,
+        see `_is_unit_path`) to files that belong to this unit, so an UNRELATED problem
+        sharing the same branch lineage cannot pollute it.
+
+        The original test policed the whole working/diff set, which only held while it ran
+        in isolation during the NB-379 unit. Once a later problem (e.g. NB-400) lands on the
+        same `dev` lineage, `origin/dev...HEAD` (and the live working tree) carry *that*
+        problem's files too, and an exhaustive allow-list wrongly flagged them. Scoping by
+        path attribution fixes that without going vacuous: a stray file *attributable to
+        ADR-005 by its path* (a bridge module under this issue) still lands in the footprint
+        and is then caught as non-allowed/non-test below; the extension-scan
+        (`test_AC13_no_runtime_code_artifact_shipped`) is the belt-and-braces that catches a
+        runtime artifact regardless of attribution."""
+        return {p for p in cls._changed_files() if cls._is_unit_path(p)}
+
     def test_AC13_no_runtime_code_artifact_shipped(self):
         """No runtime artifact may appear in the unit's footprint: no Node manifest
         (`package.json` / lockfile), no TypeScript/JS source, and no executable bridge
         module. (The ADR's own claim: 'no `package.json`, no executable — only this
-        ADR and the regenerated standards index'.)"""
+        ADR and the regenerated standards index'.)
+
+        Scanned across the whole changed set by **extension**, not by attribution: a Node
+        manifest or a `.ts`/`.js` file is a runtime artifact whoever added it, and a
+        design-only ADR spike must not introduce one. (Per-language *source* attribution to
+        this unit is the footprint test below; this one is the language-agnostic runtime
+        belt-and-braces.)"""
         changed = self._changed_files()
         # If git gave us nothing (detached/offline CI checkout with no diff base and a
         # clean tree), there is no footprint to police — the existence test above still
@@ -207,13 +246,14 @@ class AC1_AC13_DesignOnlyShipsNoRuntimeCode(unittest.TestCase):
         )
 
     def test_AC13_footprint_is_docs_plus_index_plus_tests_only(self):
-        """Every file the unit touches must be either the two allowed deliverables
-        (the ADR + the regenerated index) or a test. A stray source/runtime file
-        outside that set fails — proving 'design only' against the diff, not the
-        prose."""
-        changed = self._changed_files()
+        """Every file *this unit* touches (attributed by path — see `_unit_footprint`) must
+        be either the two allowed deliverables (the ADR + the regenerated index) or a test.
+        A stray source/runtime file attributable to this unit fails — proving 'design only'
+        against the diff, not the prose. Scoped to the ADR-005 unit so an unrelated problem
+        sharing the branch lineage cannot make this footprint look bloated."""
+        changed = self._unit_footprint()
         if not changed:
-            self.skipTest("no diff base and clean tree — footprint not observable here")
+            self.skipTest("no ADR-005 unit footprint observable here (clean tree / no diff base)")
         stray = []
         for path in changed:
             if path in self._ALLOWED_EXACT:

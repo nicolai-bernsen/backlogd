@@ -31,6 +31,14 @@ directory holds the **living** spec (how the system is built, and why).
   index (consulted **index-first**, full ADRs only when rationale is needed). Regenerate the
   index in the same change as any ADR edit; CI's drift test (`scripts/test_standards_index.py`)
   enforces they stay in sync.
+- **[Per-engagement standards](standards/engagement/)** — the *domain* rules for a specific
+  instance's product (`STD-*.md`), distinct from the framework ADRs above; the "domain DoD"
+  half of [ADR-004](standards/adrs/ADR-004-backlogd-identity.md)'s *value = specialists ×
+  standards*. Indexed by the **same** `standards_index.py` machinery and consulted index-first
+  by the reviewer. A per-engagement standard may bundle many numbered rules (`R1`, `R2`, …)
+  via an optional `rules:` front-matter block — each a `level | assertion | fix` triple — so
+  the reviewer blocks a change tripping a `MUST` rule and cites the **rule id + its fix**. So
+  far: [STD-001 — Danish e-commerce compliance](standards/engagement/STD-001-danish-ecommerce-compliance.md).
 
 ## Guides
 

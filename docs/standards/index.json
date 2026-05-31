@@ -148,6 +148,94 @@
           "executor"
         ]
       }
+    },
+    {
+      "id": "STD-001",
+      "title": "Danish e-commerce compliance (haekl.dk webshop)",
+      "status": "Accepted",
+      "assertion": "Every change touching payments, checkout, pricing, order state, file delivery, customer data, or invoicing for haekl.dk obeys rules R1-R9 below; a MUST tripwire (R1 business-agreement payments, R2 webhook-is-truth, R3 25% moms + invoice, R5 digital-content withdrawal consent, R6 signed expiring file URLs) is a hard block — cite the specific rule id and its fix, never just \"non-compliant\".",
+      "applies-to": {
+        "domains": [
+          "payments",
+          "checkout",
+          "pricing",
+          "order-state",
+          "file-delivery",
+          "customer-data",
+          "invoicing",
+          "compliance"
+        ],
+        "file-patterns": [
+          "**"
+        ],
+        "decision-types": [
+          "payments",
+          "payment-provider",
+          "order-state",
+          "vat",
+          "invoicing",
+          "file-delivery",
+          "pii",
+          "consumer-rights",
+          "pricing"
+        ]
+      },
+      "rules": [
+        {
+          "id": "R1",
+          "level": "MUST",
+          "assertion": "Card + MobilePay run only through MobilePay-via-Stripe or MobilePay MyShop; a personal/private MobilePay account is never used to receive shop payments.",
+          "fix": "Route payments through a Stripe account or a MyShop business agreement; remove any flow that tells a customer to transfer to a personal MobilePay number."
+        },
+        {
+          "id": "R2",
+          "level": "MUST",
+          "assertion": "An order becomes paid solely on a signature-verified, idempotent provider webhook (checkout.session.completed or equivalent); the browser redirect never grants fulfilment or downloads.",
+          "fix": "Set paid and issue downloads only from the verified webhook handler (verify the signature, dedupe on event id); never from the client-side return URL."
+        },
+        {
+          "id": "R3",
+          "level": "MUST",
+          "assertion": "Charge 25% Danish VAT on all B2C sales; each order persists net/VAT/gross per line and produces an invoice (seller name + CVR/VAT no., sequential invoice number, date, line items, total) retained per Bogforingsloven.",
+          "fix": "Model net/vat/gross per line on the order and generate + store an invoice artifact carrying the required fields and a sequential number."
+        },
+        {
+          "id": "R4",
+          "level": "SHOULD",
+          "assertion": "Below the EU 10,000 EUR/yr cross-border B2C threshold, charge Danish VAT and nothing else; do not pre-build OSS rate-by-destination logic.",
+          "fix": "Charge Danish VAT only; add OSS destination-rate logic later, when the threshold is actually in sight."
+        },
+        {
+          "id": "R5",
+          "level": "MUST",
+          "assertion": "Physical goods carry a 14-day fortrydelsesret; for digital content delivered immediately the right is lost only on express prior consent acknowledged before download, so checkout captures that consent on any cart containing a digital line.",
+          "fix": "Record an explicit consent flag + timestamp before generating a download grant for any digital-line purchase."
+        },
+        {
+          "id": "R6",
+          "level": "MUST",
+          "assertion": "Pattern files live in private object storage; access is via per-order, time-limited signed URLs with a download cap; no public/guessable paths, and raw object keys never reach the client.",
+          "fix": "Keep the bucket private and serve files via signed, expiring URLs scoped to a download grant; never expose a public path or a raw object key."
+        },
+        {
+          "id": "R7",
+          "level": "MUST",
+          "assertion": "Store only the PII needed to fulfil + invoice; per MobilePay terms a customer phone number tied to MobilePay is never stored beyond the transaction.",
+          "fix": "Remove any MobilePay msisdn column; justify each retained PII column by a fulfilment/invoicing need."
+        },
+        {
+          "id": "R8",
+          "level": "MUST",
+          "assertion": "Use a hosted payment surface (Stripe-hosted Checkout or Elements); the app never sees or stores PAN/CVC.",
+          "fix": "Move card entry onto Stripe-hosted Checkout/Elements so no raw card data reaches the app."
+        },
+        {
+          "id": "R9",
+          "level": "MUST",
+          "assertion": "All prices displayed to consumers are totals incl. 25% VAT.",
+          "fix": "Render consumer-facing prices as VAT-inclusive totals."
+        }
+      ]
     }
   ]
 }

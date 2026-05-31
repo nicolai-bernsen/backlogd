@@ -53,6 +53,34 @@ Body prose that the index must ignore.
 """
 
 
+# --- a valid synthetic per-engagement standard fixture (NB-400) ------------
+# Carries the optional `rules:` block — a mapping of rule-id -> "LEVEL | assertion | fix".
+
+VALID_STD = """\
+---
+id: STD-900
+title: A test engagement standard
+status: Accepted
+date: 2026-05-31
+problem: NB-900
+supersedes: ~
+superseded-by: ~
+assertion: Obey rules R1-R2; a MUST tripwire is a hard block cited by rule id + fix.
+applies-to:
+  domains: [payments]
+  file-patterns: ["src/**"]
+  decision-types: [payments]
+rules:
+  R1: "MUST | Payments run only through a business agreement. | Route via the provider."
+  R2: "SHOULD | Prefer the cheaper provider. | Switch providers when it saves fees."
+---
+
+# STD-900 — A test engagement standard
+
+Body prose that the index must ignore.
+"""
+
+
 def _write(dir_path: pathlib.Path, name: str, body: str) -> pathlib.Path:
     p = dir_path / name
     p.write_text(body, encoding="utf-8")
@@ -389,6 +417,104 @@ class IndexDriftTest(unittest.TestCase):
             committed, fresh,
             "drift guard failed to detect an edited ADR — a sync checker that "
             "cannot see drift proves nothing.")
+
+
+class RulesBlockTest(unittest.TestCase):
+    """NB-400 — the optional `rules:` block: parsing, validation, index inclusion, and
+    that an ADR (no rules block) is byte-identical to before (backwards-compat)."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.adrs = pathlib.Path(self._tmp.name)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_valid_std_with_rules_passes_validation(self):
+        _write(self.adrs, "ADR-900-test.md", VALID_ADR)
+        _write(self.adrs, "STD-900-test.md", VALID_STD)
+        # The synthetic dir is loaded ADR-only by validate(adrs_dir=...); validate the STD
+        # via the explicit rule validator + a real corpus pass below. Here, prove the STD's
+        # front-matter parses and its rules block validates.
+        fm = si.read_standard(self.adrs / "STD-900-test.md")
+        self.assertEqual(si._validate_rules("STD-900-test.md", fm["rules"]), [])
+
+    def test_rules_explode_into_index_records(self):
+        # build_index must turn each "LEVEL | assertion | fix" line into a structured record.
+        fm = si.parse_front_matter(
+            "id: STD-1\n"
+            "rules:\n"
+            '  R1: "MUST | a one | fix one"\n'
+            '  R2: "SHOULD | a two | fix two"\n'
+        )
+        records = si._index_rules(fm["rules"])
+        self.assertEqual(records, [
+            {"id": "R1", "level": "MUST", "assertion": "a one", "fix": "fix one"},
+            {"id": "R2", "level": "SHOULD", "assertion": "a two", "fix": "fix two"},
+        ])
+
+    def test_adr_without_rules_has_no_rules_key_in_index(self):
+        # Backwards-compat: an ADR (no rules block) must NOT gain a `rules` key — the
+        # committed index for the real ADRs must stay byte-identical to before this change.
+        _write(self.adrs, "ADR-900-test.md", VALID_ADR)
+        entry = si.build_index(self.adrs)["standards"][0]
+        self.assertNotIn("rules", entry,
+                         "an ADR with no rules block must not gain a `rules` index key")
+
+    def test_malformed_rule_triple_is_rejected(self):
+        # Two fields instead of three -> a malformed rule must be a validation error.
+        bad = VALID_STD.replace(
+            'R1: "MUST | Payments run only through a business agreement. | Route via the provider."\n',
+            'R1: "MUST | missing the fix field"\n')
+        _write(self.adrs, "STD-901-bad.md", bad)
+        fm = si.read_standard(self.adrs / "STD-901-bad.md")
+        errors = si._validate_rules("STD-901-bad.md", fm["rules"])
+        self.assertTrue(any("malformed" in e for e in errors), errors)
+
+    def test_unknown_rule_level_is_rejected(self):
+        bad = VALID_STD.replace("MUST | Payments", "MIGHT | Payments")
+        _write(self.adrs, "STD-902-lvl.md", bad)
+        fm = si.read_standard(self.adrs / "STD-902-lvl.md")
+        errors = si._validate_rules("STD-902-lvl.md", fm["rules"])
+        self.assertTrue(any("unknown level" in e for e in errors), errors)
+
+    def test_empty_rules_block_is_rejected(self):
+        # A bare `rules:` with no entries parses to {} — an authoring slip, must be flagged.
+        self.assertTrue(
+            any("lists no rules" in e for e in si._validate_rules("X", {})),
+            "an empty rules block must be rejected")
+
+    def test_rules_not_a_mapping_is_rejected(self):
+        errors = si._validate_rules("X", ["R1", "R2"])
+        self.assertTrue(any("must be a mapping" in e for e in errors), errors)
+
+
+class CorpusUnionTest(unittest.TestCase):
+    """NB-400 — load_standards / build_index union both sources by default, while an
+    explicit adrs_dir stays ADR-only (test isolation)."""
+
+    def test_load_standards_unions_adr_and_std_sources(self):
+        # The real corpus must contain both the ADRs and the new STD-001, sorted by id.
+        ids = [fm.get("id") for _p, fm in si.load_standards()]
+        self.assertIn("ADR-002", ids, "framework ADRs must be in the corpus")
+        self.assertIn("STD-001", ids, "per-engagement STDs must be in the corpus")
+        self.assertEqual(ids, sorted(ids), "corpus must be sorted by id")
+
+    def test_explicit_adrs_dir_stays_adr_only(self):
+        # An explicit adrs_dir must NOT mix in the real engagement source — synthetic
+        # corpora stay isolated (the property the existing fixtures rely on).
+        d = tempfile.TemporaryDirectory()
+        self.addCleanup(d.cleanup)
+        _write(pathlib.Path(d.name), "ADR-900-test.md", VALID_ADR)
+        _write(pathlib.Path(d.name), "STD-900-test.md", VALID_STD)
+        ids = [fm.get("id") for _p, fm in si.load_standards(pathlib.Path(d.name))]
+        self.assertEqual(ids, ["ADR-900"],
+                         "explicit adrs_dir must load only that dir's ADR-*.md")
+
+    def test_real_corpus_validates_clean(self):
+        # The real union (ADRs + STD-001) must pass validation with no errors.
+        self.assertEqual(si.validate(), [],
+                         "the real standards corpus must validate clean")
 
 
 if __name__ == "__main__":

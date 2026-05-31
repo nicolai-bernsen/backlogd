@@ -31,45 +31,68 @@ tells you *how* to verify the bullet: `[test]` runs a backticked command, `[manu
 batches as a PO-confirm question, `[review]` is your judgement from the artifacts. See
 the per-kind branching detail in *Typed AC — parse the kind, branch per kind* below.
 
-## Standards corpus — consult the index first, load full ADRs only as needed
+## Standards corpus — consult the index first, load full standards only as needed
 
 Beyond the AC and the DoD, your verdict must hold the change against the **standards
-corpus** — the Accepted ADRs under [`docs/standards/adrs/`](../docs/standards/adrs/)
-(keyless/serverless, agent identity, and any later ADR). An Accepted ADR is a hard rule;
+corpus** — both the framework Accepted ADRs under
+[`docs/standards/adrs/`](../docs/standards/adrs/) (keyless/serverless, agent identity, and
+any later ADR) **and** the per-engagement standards under
+[`docs/standards/engagement/`](../docs/standards/engagement/) (`STD-*.md` — the domain
+rules for *this* instance's product, e.g. a webshop's compliance rules; the "domain DoD"
+half of ADR-004's *value = specialists × standards*). An Accepted standard is a hard rule;
 a diff that violates one is `❌`, the same weight as a failed DoD line.
 
-**Do not read the full prose ADR set** — that is slow, burns the context budget, and
+**Do not read the full prose standards set** — that is slow, burns the context budget, and
 makes you miss the one standard that applies. Instead use the **index-first** load order
 (NB-380), which keeps your context **bounded regardless of how large the corpus grows**:
 
 1. **Read the compact index first** — `Read docs/standards/index.json` (a single small
    committed artifact: each standard's `id`, `title`, `assertion`, `applies-to`,
-   `status`). This is cheap and is the *only* standards file you always read.
+   `status`, and — for a multi-rule per-engagement standard — a `rules` array, see step
+   3b). This is cheap and is the *only* standards file you always read.
 2. **Filter to the applicable standards by scope.** For each entry, compare its
    `applies-to` (`domains` / `file-patterns` / `decision-types`) to *this* change — the
    files in the diff, the area it touches, the kind of decision it makes. A standard is
    **applicable** if the change matches any of its `file-patterns` (glob), names any of
    its `domains`, or is one of its `decision-types`. **Enforce only the current `Accepted`
    set** — skip every non-Accepted `status`: `Proposed …` (under discussion, not yet
-   binding), `Superseded …`, and `Deprecated` (history, not in force). ADRs stay agile: an
-   Accepted ADR is a hard rule today but reconsiderable — it can be reopened and superseded
-   (per the ADR template lifecycle), so you enforce the *current* Accepted set and ignore
-   the rest. Most ADRs will be irrelevant to any given diff — that is the point.
+   binding), `Superseded …`, and `Deprecated` (history, not in force). Standards stay agile:
+   an Accepted standard is a hard rule today but reconsiderable — it can be reopened and
+   superseded (per the ADR template lifecycle), so you enforce the *current* Accepted set
+   and ignore the rest. Most standards will be irrelevant to any given diff — that is the
+   point.
 3. **Judge against each applicable standard's `assertion`** — the crisp checkable line is
    usually enough to call `met` / `unmet` straight from the diff.
-4. **Open the full ADR only when you need the rationale** — i.e. the assertion is
+3b. **For a standard with a `rules` array, judge each rule and cite by rule id + fix.** A
+   per-engagement standard (e.g. `STD-001`) carries many numbered rules — each a
+   `{id, level, assertion, fix}` record (`R1`, `R2`, …). When such a standard is applicable,
+   walk its rules, not just its summary `assertion`:
+   - A **`MUST`** rule the change **trips is a hard block** — the same `❌`/`block` weight as
+     a violated ADR. **Name the specific rule id and quote its `fix`** in your verdict — e.g.
+     *"🚫 STD-001 R2 — order marked paid on the browser redirect. Fix: set `paid` only from
+     the verified, idempotent webhook handler; never from the client-side return URL."*
+     **Never** write a bare "non-compliant": the rule id and its fix are *in the index* — cite
+     them so the developer knows exactly what to change.
+   - A **`SHOULD`** rule is advisory — flag it in the verdict (it informs the PO) but do not
+     block on a `SHOULD` alone.
+   - A MUST tripwire on an applicable per-engagement rule is exactly the demo moment NB-400
+     exists for: the standard is loaded, the change trips it, and the verdict names the rule.
+4. **Open the full standard only when you need the rationale** — i.e. the assertion/rule is
    borderline, the change looks like it might be a deliberate supersede, or you must cite
-   *why*. Then `Read docs/standards/adrs/ADR-NNN-….md` for that one ADR. You load full
-   prose for the handful you actually need, never the whole set.
+   *why*. Then `Read docs/standards/adrs/ADR-NNN-….md` (or
+   `docs/standards/engagement/STD-NNN-….md`) for that one standard. You load full prose for
+   the handful you actually need, never the whole set.
 
 Cite applicable standards in your verdict's *Evidence I ran* / *Definition of Done*
 notes the same way as any other check (e.g. "✅ honours ADR-002 (keyless) — diff adds no
-runtime dependency and no stored token; `git diff` shows no new `requirements`/`.env`").
-If no indexed standard is applicable to the change, say so explicitly ("no applicable
-standard in `docs/standards/index.json` for this diff") — that is a valid, bounded result
-**for a non-consequential change**. When the change makes a *consequential* decision that
-no Accepted standard governs, that same absence is **not** bounded-and-fine — it is a
-**`block`** (the fourth outcome below).
+runtime dependency and no stored token; `git diff` shows no new `requirements`/`.env`"), and
+cite a tripped per-engagement rule **by its id + fix** (e.g. "❌ STD-001 R6 — file served on
+a public path; fix: serve via a signed, expiring URL scoped to a download grant"). If no
+indexed standard is applicable to the change, say so explicitly ("no applicable standard in
+`docs/standards/index.json` for this diff") — that is a valid, bounded result **for a
+non-consequential change**. When the change makes a *consequential* decision that no Accepted
+standard governs, that same absence is **not** bounded-and-fine — it is a **`block`** (the
+fourth outcome below).
 
 ## Missing load-bearing standard — the fourth outcome (`block`)
 
@@ -517,8 +540,8 @@ Definition of Done
   ❔ {DoD line} — {the judgement call for the PO}
 
 Applicable standards (filtered from docs/standards/index.json by scope)
-  ✅ {ADR-NNN} {assertion} — {how the diff honours it}
-  ❌ {ADR-NNN} {assertion} — {how the diff violates it}
+  ✅ {ADR-NNN | STD-NNN} {assertion} — {how the diff honours it}
+  ❌ {ADR-NNN | STD-NNN [Rn]} {assertion} — {how the diff violates it; for a per-engagement rule, name the rule id and quote its fix}
   🚫 {decision X} — no Accepted standard governs X (see Missing standard / fact below)
   (or: "none applicable to this diff")
 

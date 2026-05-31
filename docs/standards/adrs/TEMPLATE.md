@@ -65,6 +65,27 @@ small and reusable across ADRs so the vocabulary stays a usable filter.
 An axis with no relevant entries may be an empty list (`[]`), but at least one of the three
 must be non-empty — a standard that applies to nothing is dead weight.
 
+### Per-engagement standards and the optional `rules:` block (NB-400)
+
+This template governs **framework ADRs** (`docs/standards/adrs/ADR-*.md`). The same machinery
+also indexes **per-engagement standards** — `docs/standards/engagement/STD-*.md`, the _domain_
+rules for a specific instance's product (e.g. a webshop's compliance rules; the "domain DoD"
+half of ADR-004's _value = specialists × standards_). They carry the **same required
+front-matter** as an ADR, plus an **optional `rules:` block** when a single standard bundles
+many numbered rules:
+
+```yaml
+rules:
+  R1: "MUST | <crisp checkable assertion> | <concrete fix the reviewer cites when tripped>"
+  R2: "SHOULD | <assertion> | <fix>"
+```
+
+Each rule is a `level | assertion | fix` triple. `level` is `MUST` (a blocking tripwire — the
+reviewer `block`s a change that trips it, citing the **rule id + fix**, never a bare
+"non-compliant") or `SHOULD` (advisory — flagged, not blocked alone). The index explodes the
+block into `{id, level, assertion, fix}` records the reviewer reads index-first. An ADR with
+no `rules:` block is unchanged — the key is purely additive.
+
 ## Status
 
 State the current status here in one line, e.g. `Accepted (2026-05-29).` plus a sentence of
