@@ -144,3 +144,13 @@ runs the verdict but **holds the problem at In Review with the PR open** — and
 to merge: the verdict (auto-chained, or via a manual `/backlogd:review`) verifies the AC
 against the action logs on the units and the GitHub surfaces they changed, and on accept the
 problem moves straight to *Done*.
+
+> **Claim-lock at handoff.** The claim-lock (**`skills/linear/claim-lock.md`**) is **not**
+> released here on the happy path — ship-on-green's verdict + base-race guard + merge run
+> next and the base-race guard **re-checks the live claim immediately before merge**, so the
+> claim must still be ours through the merge (which `release`s it). Release at this In Review
+> handback **only when the run will actually stop here** — i.e. under `--no-ship` /
+> `BACKLOGD_SHIP_ON_GREEN=0`, where the problem is deliberately held at In Review and nothing
+> further merges in this run. In that opted-out case, `release` the claim now so a later
+> `/backlogd:review` (or another solve) re-acquires cleanly. On the ship-on-green path,
+> `skills/solve/ship.md` owns the release (at merge, or on sent-back / blocker).

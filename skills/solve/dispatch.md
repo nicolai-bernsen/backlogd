@@ -72,7 +72,15 @@ each unit in `blocked-by` order):
      6/7/8 stay valid where they are referenced in-file and from gate.md and
      commands/solve.md. Do not renumber this list. -->
 
-1. **Claim it** — move the unit to the *In Progress* state (from `skills/solve/identity.md`).
+1. **Claim it.** First ensure the **claim-lock** is held under `$SESSION`
+   (**`skills/linear/claim-lock.md`**): `skills/solve/pickup.md` already `check`ed it and
+   `acquire`d on first pickup, so here just confirm/`refresh` it — and if a *different* live
+   session has taken it since pickup (e.g. a parallel run started in the gap), **stand off**
+   per the claim-lock skill (stop, surface held-by) rather than transitioning. This claim
+   `check`/`acquire` is **before the first state mutation below** — the cross-session lock
+   (NB-414) guards the Linear work item one layer above the worktree/git isolation.
+
+   Then move the unit to the *In Progress* state (from `skills/solve/identity.md`).
    On a **Project-form** run, post a project-thread health update immediately after the
    claim with marker `claim` — the body shape, dedupe-by-marker procedure, and health
    derivation rules live in

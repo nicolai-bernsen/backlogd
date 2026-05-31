@@ -41,6 +41,15 @@ prose-heuristic parsing of the body.
 | `BLOCKED` | **stay** in the unit's started (In Progress) state | `blocked` | Surface the developer's `Next:` blocker to the PO as a clear question — a genuine blocker, do not guess past it. **Stop the run** (sequential) or finish the parallel group then stop (see walk.md). |
 | `NEEDS_CONTEXT` | **stay** in the unit's started (In Progress) state | `blocked` | Post the developer's `Next:` context gap as a **Linear comment** on the unit for the PO to fill. **Do not re-dispatch** the specialist — the spec must change first. **Stop the run** (or finish the parallel group then stop). |
 
+> **Claim-lock release on a stop.** `BLOCKED` and `NEEDS_CONTEXT` (and a malformed STATUS,
+> treated as `BLOCKED`) **stop the run** — a clean exit with a surfaced blocker. Before
+> stopping, **`release` the claim-lock** (`skills/linear/claim-lock.md`) so the next
+> `/backlogd:solve` (after the PO unblocks or sharpens the spec) re-acquires it cleanly
+> rather than standing off against this finished run's stale claim. In a **parallel group**,
+> release once after the whole group has been captured and the run is stopping (not per
+> sibling). `DONE` / `DONE_WITH_CONCERNS` do **not** release here — the run continues to
+> handoff and (on the happy path) ship-on-green, which own the release.
+
 ### Why the graph outcome is coarser than STATUS
 
 `scripts/graph.py dispatch-end` accepts only `{solved, partial, blocked}` (a deliberately

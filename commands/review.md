@@ -75,6 +75,11 @@ the `completed` state (Done).
 
 ## 2. Pick a problem to review
 
+**Parse flags first.** Scan the arguments for **`--steal`** in any position (the only flag
+this command takes) and strip it; the remaining token, if any, is the named issue.
+`--steal` force-takes a known-dead claim-lock on an explicitly-named problem before its TTL
+(see step 3 and **`skills/linear/claim-lock.md`**).
+
 If the user named an issue (`/backlogd:review NB-123`), take it. Otherwise pick a problem in the
 **In Review** state (oldest first). If none is awaiting review, report exactly:
 
@@ -82,7 +87,23 @@ If the user named an issue (`/backlogd:review NB-123`), take it. Otherwise pick 
 
 and **stop**.
 
+Mint a reviewer session id for this run and remember it as `$SESSION` (e.g.
+`review-{identifier}-$(date -u +%Y%m%dT%H%M%SZ)`) — the claim-lock check/acquire/release in
+steps 3 and 5 stamp the claim under it, the same way the graph `rework` write in step 5
+already uses a reviewer session id.
+
 ## 3. Gather the evidence + dispatch the reviewer
+
+**Claim-lock check — before the reviewer dispatch.** Run the claim-lock `check`
+(**`skills/linear/claim-lock.md`**) on the problem **before** dispatching the reviewer (the
+first action this command takes that overlaps a concurrent session's work). If a *different*
+live session holds an unexpired claim — e.g. the `/backlogd:solve` run that produced this In
+Review problem is still mid-flight on its own ship-on-green verdict + merge — **stand off**:
+surface the held-by message and stop (this is the NB-414 / NB-346 concurrent-review race),
+unless `--steal` (step 2) force-takes a known-dead claim. Uniform stand-off applies
+regardless of who holds it. Otherwise **`acquire`** the claim under `$SESSION` so a
+*third* session (or the original solve session) sees this review in progress and stands off
+in turn. Then gather the evidence.
 
 You do **not** walk the AC inline — **dispatch the `backlogd:reviewer` subagent** in
 **`verdict`** mode to walk both the **Acceptance Criteria** and the
@@ -259,21 +280,34 @@ the problem blocked-by a new sub-issue until the gap is governed.
   gh pr view {pr} --json mergeable,mergeStateStatus   # mergeable into the integration branch?
   ```
 
-  Proceed to merge **only** if CI is still green **and** `mergeable` is `MERGEABLE` (and
-  `mergeStateStatus` is not `BEHIND` / `DIRTY` / `BLOCKED`). If the head went red or the PR
-  is no longer cleanly mergeable, **bail to a surfaced blocker** (surface to the PO, leave
+  **Re-check the claim-lock as part of this same guard** (`skills/linear/claim-lock.md` →
+  `check`): confirm **this session still holds the claim** (`session == $SESSION`, unexpired).
+  If another session has taken it — meaning a concurrent solve/review grabbed this problem
+  while the verdict ran — **bail to a surfaced blocker without merging**, the same
+  bail-don't-guess discipline the CI/mergeability half uses. This is the live-claim half of
+  the **one** base-race guard, not a second guard.
+
+  Proceed to merge **only** if CI is still green, `mergeable` is `MERGEABLE` (and
+  `mergeStateStatus` is not `BEHIND` / `DIRTY` / `BLOCKED`), **and the claim is still
+  ours**. If the head went red, the PR is no longer cleanly mergeable, **or the claim was
+  taken by another session**, **bail to a surfaced blocker** (surface to the PO, leave
   the problem In Review, PR open) — **do not auto-rebase and do not merge on a stale or
   conflicted state** (PO decision). Otherwise find the problem's open PR (via its linked PR
   / branch name) and **squash-merge** it into the integration branch (`gh pr merge {pr}
-  --squash --delete-branch`), then move the problem to the `completed` state (Done) and
-  remove the problem's worktree if one remains (`git worktree remove`). **Never merge red.**
-  *(Ops-only run — `kind:ops`: there is no PR to merge. Skip the merge + base-race guard +
-  worktree cleanup and just move the problem to Done.)*
+  --squash --delete-branch`), then move the problem to the `completed` state (Done),
+  **`release` the claim-lock** (`skills/linear/claim-lock.md` → `release`, after the merge
+  succeeds), and remove the problem's worktree if one remains (`git worktree remove`).
+  **Never merge red.**
+  *(Ops-only run — `kind:ops`: there is no PR to merge. Skip the merge + base-race guard's
+  CI/mergeability checks + worktree cleanup, but still re-check + `release` the claim-lock
+  and just move the problem to Done.)*
 - **`sent back`** (any AC `❌` OR any DoD `❌` OR CI red) → move the problem back to
   the *In Progress* state, with the reviewer's `❌` notes (AC and DoD alike) carried
   into your rollup comment as **actionable rework notes**. Leave the PR open — a fresh
-  `/backlogd:solve` adds commits to the same branch. Do **not** re-dispatch a developer
-  yourself.
+  `/backlogd:solve` adds commits to the same branch. **`release` the claim-lock** here too
+  (`skills/linear/claim-lock.md` → `release`) — sending back is a clean exit for this review,
+  so the next `/backlogd:solve` re-acquires the claim cleanly rather than colliding with a
+  stale one. Do **not** re-dispatch a developer yourself.
   *(Ops-only run — `kind:ops`: there is no PR. A fresh `/backlogd:solve` re-dispatches
   ops units with the rework notes; the ops developer logs the new actions on the unit.)*
 
