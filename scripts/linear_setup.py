@@ -35,7 +35,11 @@ Verbs (argparse subcommands; each idempotent; structured JSON to stdout)
 * ``delete-label``   — ``issueLabelDelete`` a named label (the only destructive verb).
 * ``ensure-state``   — additive only: create a workflow state in a missing
   category; never rename / reorder / delete an existing state.
-* ``ensure-template``— create or update an issue/project template.
+* ``ensure-template``— create or update an issue/project/document template. The supplied
+  ``templateData`` is Linear's *draft-entity* shape (the entity a template pre-fills), not
+  the MCP create-args — a wrong/partial shape is accepted by the ``JSON!`` scalar but does
+  **not render** in the UI (NB-392). Applied labels are carried **by name** and resolved to
+  a ``labelIds`` array against the live team labels at seed time (no hardcoded id).
 
 GraphQL field/mutation shapes below were confirmed against Linear's live schema
 (``packages/sdk/src/schema.graphql``): ``issueLabelCreate``/``issueLabelUpdate`` →
@@ -114,6 +118,172 @@ DEFAULT_DELETABLE_LABELS: frozenset[str] = frozenset({"Feature", "Bug", "Improve
 # Valid template entity types (``TemplateCreateInput.type``). Used to validate the
 # ``ensure-template`` argument before we build a payload.
 TEMPLATE_TYPES: tuple[str, ...] = ("issue", "project", "document")
+
+
+# --- Canonical templates (ADR-003 — the single source of truth) -----------
+#
+# ADR-003 (Accepted) fixes the *content* of backlogd's three canonical templates;
+# this module is the one place those bodies live, so ``/backlogd:init`` (``init.md``
+# §4) drives these constants instead of improvising the ``templateData`` inline.
+# The bodies below are ADR-003's designed bodies verbatim
+# (``docs/standards/adrs/ADR-003-canonical-linear-workspace-configuration.md`` §3,
+# "Templates"); the test suite asserts each body's load-bearing content against the
+# ADR. Mirrors the ``CANONICAL_LABELS`` pattern above.
+#
+# **Project-label gap (ADR-003, deliberate non-build).** ADR-003 ships **no project
+# label** — nothing in the loop reads one — and the engine has **no project-label
+# write verb** (writes go through ``issueLabelCreate``/``issueLabelUpdate`` only;
+# Linear project labels are a separate GraphQL type). That is a deliberate "ship
+# nothing" decision, not an oversight: a future project label would require adding a
+# new write verb *first*. So there is intentionally no ``CANONICAL_PROJECT_LABELS``
+# constant here and ``ensure-template`` is the only template surface — see ADR-003 §2
+# and "Consequences", and the six-verb ``CliSurfaceTest`` that guards against a 7th.
+
+# Issue template ``Problem`` — body verbatim from ADR-003 §3 (Issue template).
+CANONICAL_ISSUE_TEMPLATE_BODY = """## Problem
+
+<!-- One paragraph: what outcome the product owner wants, and why. State the
+problem, not a solution. -->
+
+## Acceptance Criteria
+
+- [ ] [review] <criterion — a verifiable "done" statement>
+- [ ] [manual] <a check only a human can confirm, if any>"""
+
+# Project template ``backlogd problem`` — the one-line pointer description ADR-003 §3
+# specifies (the milestones are encoded separately, in order, below).
+CANONICAL_PROJECT_TEMPLATE_DESCRIPTION = (
+    "backlogd problem project — phases as milestones; see the Spec document for the "
+    "shaped spec + Acceptance Criteria."
+)
+
+# The three project milestones, in order (ADR-003 §3 — Project template table).
+CANONICAL_PROJECT_MILESTONES: tuple[str, ...] = ("Investigate", "Implement", "Verify")
+
+# Document template ``Spec`` — body verbatim from ADR-003 §3 (Document template).
+CANONICAL_DOCUMENT_TEMPLATE_BODY = """## Problem
+
+<!-- The shaped problem statement (intent). For a promoted Project this replaces
+the issue description's spec. -->
+
+## Approach
+
+<!-- How the work is decomposed — units, phases (milestones), dependencies. -->
+
+## Acceptance Criteria
+
+- [ ] [review] <criterion>"""
+
+# The canonical templates ``/backlogd:init`` seeds, keyed by template name. Each entry
+# carries everything a single ``ensure-template`` call needs — ``type`` (one of
+# ``TEMPLATE_TYPES``), the human ``description`` shown in Linear's template picker, and
+# the designed ``templateData`` payload.
+#
+# **``templateData`` is Linear's draft-entity shape, not the MCP create-args.** Linear's
+# ``templateData: JSON!`` is the *draft entity* the template pre-fills, and the API accepts
+# any JSON — so a wrong/partial shape is "created" but **does not render** in the Linear UI.
+# These shapes were introspected from hand-made templates that DO render (NB-392 live
+# re-seed; the earlier NB-371 issue/project shape was rejected by the UI):
+#   * issue    — ``{title, description, priority, labels}``. ``title`` (empty — the PO names
+#                the problem) and ``priority`` (0 — no preset; ADR-003 §3) are **required for
+#                the draft to render**. ``description`` is markdown — Linear auto-converts it
+#                to ``descriptionData`` on create (proven live). The ``problem`` label is
+#                carried **by name** in ``labels`` and resolved to a ``labelIds`` array
+#                against the live team labels **at seed time** by
+#                :func:`resolve_template_label_ids` (no hardcoded per-workspace id) — see
+#                ``LABEL_NAMES_KEY`` below.
+#   * project  — the working project draft shape: ``title`` (empty), ``priority`` (0),
+#                ``description`` (the one-line pointer) **and** a minimal ``descriptionData``
+#                Prosemirror doc (projects do **not** auto-convert ``description``), the
+#                ordered ``projectMilestones`` (name+sortOrder), plus the empty collection
+#                arrays the working draft carries — ``labelIds``, ``initiativeIds``,
+#                ``memberIds``, ``teamIds``, ``initialIssues``. ``statusId`` is omitted
+#                (workspace-specific — a create defaults it).
+#   * document — ``{title, content, icon}``; this shape already renders (DO NOT change) —
+#                the proven ``save_document`` shape (``documents-and-updates.md`` → Spec
+#                role), icon ``:memo:``.
+
+# The marker key under which a template carries applied labels **by name** in
+# ``CANONICAL_TEMPLATES``. ``ensure-template`` resolves these names to ``labelIds`` against
+# the live team labels at seed time (:func:`resolve_template_label_ids`) and drops this key
+# before sending — so no per-workspace label id is ever hardcoded in the engine.
+LABEL_NAMES_KEY = "labels"
+# The Linear draft-entity key the resolved ids are written under.
+LABEL_IDS_KEY = "labelIds"
+
+
+def _minimal_prosemirror_doc(text: str) -> dict[str, Any]:
+    """A minimal Prosemirror ``descriptionData`` doc carrying a single paragraph.
+
+    Linear's rich-text fields (``descriptionData``) are Prosemirror JSON. The issue
+    draft auto-converts a markdown ``description`` string, but the **project** draft does
+    not — so the project template carries this explicit minimal doc for its one-line
+    pointer. The shape (``doc`` → ``paragraph`` → ``text``) matches the working template
+    introspected live.
+    """
+    return {
+        "type": "doc",
+        "content": [
+            {"type": "paragraph", "content": [{"type": "text", "text": text}]},
+        ],
+    }
+
+
+CANONICAL_TEMPLATES: dict[str, dict[str, Any]] = {
+    "Problem": {
+        "type": "issue",
+        "description": "A backlogd problem — states the outcome the PO wants, with typed Acceptance Criteria.",
+        "templateData": {
+            # Empty title (the PO names the problem) + no priority preset (0). Both are
+            # required for the issue draft to render in the Linear UI (NB-392).
+            "title": "",
+            "priority": 0,
+            # Markdown body — Linear auto-converts it to descriptionData on create.
+            "description": CANONICAL_ISSUE_TEMPLATE_BODY,
+            # Applied label carried BY NAME; resolved to labelIds against the live team
+            # labels at seed time (resolve_template_label_ids), never a hardcoded id. Keeps
+            # a templated issue pickup-eligible and the engine workspace-portable.
+            LABEL_NAMES_KEY: ["problem"],
+        },
+    },
+    "backlogd problem": {
+        "type": "project",
+        "description": CANONICAL_PROJECT_TEMPLATE_DESCRIPTION,
+        "templateData": {
+            # Empty title + no priority preset (0) — required for the project draft to
+            # render. statusId is deliberately omitted (workspace-specific; a create
+            # defaults it).
+            "title": "",
+            "priority": 0,
+            "description": CANONICAL_PROJECT_TEMPLATE_DESCRIPTION,
+            # Projects do NOT auto-convert description → descriptionData, so carry a minimal
+            # Prosemirror doc for the one-line pointer body.
+            "descriptionData": _minimal_prosemirror_doc(
+                CANONICAL_PROJECT_TEMPLATE_DESCRIPTION
+            ),
+            "projectMilestones": [
+                {"name": name, "sortOrder": i}
+                for i, name in enumerate(CANONICAL_PROJECT_MILESTONES)
+            ],
+            # The empty collection arrays the working project draft carries.
+            LABEL_IDS_KEY: [],
+            "initiativeIds": [],
+            "memberIds": [],
+            "teamIds": [],
+            "initialIssues": [],
+        },
+    },
+    "Spec": {
+        "type": "document",
+        "description": "A backlogd Spec document — shaped Problem, Approach, and Acceptance Criteria.",
+        # Document draft shape already renders — DO NOT change (NB-392).
+        "templateData": {
+            "title": "Spec",
+            "content": CANONICAL_DOCUMENT_TEMPLATE_BODY,
+            "icon": ":memo:",
+        },
+    },
+}
 
 
 # --- Key handling (the single chokepoint) ---------------------------------
@@ -592,6 +762,93 @@ def plan_ensure_template(
     }
 
 
+def plan_canonical_templates(
+    templates: list[dict],
+    *,
+    team_id: Optional[str] = None,
+) -> list[dict[str, Any]]:
+    """Build the create-or-update plan for **every** canonical template (ADR-003).
+
+    Iterates :data:`CANONICAL_TEMPLATES` — the single source of truth — and returns
+    one :func:`plan_ensure_template` plan per entry, in registry order (``Problem``
+    issue · ``backlogd problem`` project · ``Spec`` document). This is the surface
+    ``/backlogd:init`` §4 drives so the designed ``templateData`` is never improvised
+    in command prose; idempotency is inherited from :func:`plan_ensure_template`
+    (a live template matching ``(name, type)`` becomes an ``update``).
+
+    Pure — no I/O. ``team_id`` (when given) scopes any *create* to the team.
+    """
+    plans: list[dict[str, Any]] = []
+    for name, spec in CANONICAL_TEMPLATES.items():
+        plans.append(
+            plan_ensure_template(
+                name,
+                spec["type"],
+                spec["templateData"],
+                templates,
+                team_id=team_id,
+                description=spec.get("description"),
+            )
+        )
+    return plans
+
+
+# --- Pure: resolve template labels by name → labelIds at seed time --------
+
+def resolve_template_label_ids(
+    template_data: dict[str, Any],
+    labels: list[dict],
+) -> dict[str, Any]:
+    """Resolve a template's ``labels`` (by name) to a ``labelIds`` array.
+
+    Linear's draft-entity ``templateData`` for an issue carries applied labels as a
+    ``labelIds`` array of ids, **not** label names — but :data:`CANONICAL_TEMPLATES`
+    deliberately encodes the ``problem`` label **by name** (under :data:`LABEL_NAMES_KEY`)
+    so the engine hardcodes **no per-workspace label id** and stays portable. This pure
+    transformer is the seed-time bridge: given the template's ``templateData`` and the
+    live team labels (the same list the audit query already fetches), it returns a **new**
+    ``templateData`` dict with the ``labels`` names mapped to a ``labelIds`` array and the
+    ``labels`` key dropped.
+
+    Matching is case-insensitive on the normalized label name (so ``Problem`` resolves
+    ``problem``). If the data carries no ``labels`` key, the input is returned unchanged
+    (defensively copied). Any ``labelIds`` already present (e.g. the project template's
+    empty array) is preserved and extended.
+
+    Raises :class:`ValueError` naming the unresolved label name(s) if any name has no live
+    label — so the caller surfaces a clear error and skips that template rather than
+    sending a payload with a missing id.
+    """
+    out = dict(template_data)
+    names = out.pop(LABEL_NAMES_KEY, None)
+    if not names:
+        return out
+
+    by_norm = _index_labels_by_normalized(labels)
+    resolved: list[str] = list(out.get(LABEL_IDS_KEY, []))
+    missing: list[str] = []
+    for name in names:
+        candidates = by_norm.get(normalize_label_name(name), [])
+        # Prefer an exact-name match; fall back to the first normalized collision.
+        match = next((c for c in candidates if c.get("name") == name), None)
+        if match is None and candidates:
+            match = candidates[0]
+        if match is None or not match.get("id"):
+            missing.append(name)
+            continue
+        resolved.append(match["id"])
+
+    if missing:
+        raise ValueError(
+            "cannot resolve template label name(s) to a live label id: "
+            + ", ".join(repr(n) for n in missing)
+            + " — create the label first (e.g. via ensure-label) and re-run"
+        )
+
+    out[LABEL_IDS_KEY] = resolved
+    return out
+
+
 # --- GraphQL documents ----------------------------------------------------
 
 # Read query for ``audit``. ``issues(first: 1)`` is the cheapest signal for the
@@ -754,12 +1011,22 @@ def _cmd_ensure_state(args: argparse.Namespace) -> int:
 
 
 def _cmd_ensure_template(args: argparse.Namespace) -> int:
-    """``ensure-template`` — create or update an issue/project template."""
+    """``ensure-template`` — create or update an issue/project template.
+
+    If the supplied ``templateData`` carries applied labels **by name** (the
+    :data:`LABEL_NAMES_KEY` marker that :data:`CANONICAL_TEMPLATES` uses), those names are
+    resolved to a ``labelIds`` array against the live team labels here — at seed time, with
+    the team context already in hand — so no per-workspace label id is hardcoded. An
+    unresolved name raises (caught by :func:`main`) so the verb fails loudly rather than
+    sending a draft with a missing id.
+    """
     try:
         template_data = json.loads(args.data)
     except json.JSONDecodeError as exc:
         raise SystemExit(f"--data is not valid JSON: {exc}") from None
     state = fetch_workspace_state(args.team_id)
+    # Resolve any by-name labels to ids against the freshly-fetched team labels.
+    template_data = resolve_template_label_ids(template_data, state["labels"])
     plan = plan_ensure_template(
         args.name, args.type, template_data, state["templates"],
         team_id=args.team_id if args.scope_team else None,
@@ -903,10 +1170,17 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 
 __all__ = [
+    "CANONICAL_DOCUMENT_TEMPLATE_BODY",
+    "CANONICAL_ISSUE_TEMPLATE_BODY",
     "CANONICAL_LABELS",
+    "CANONICAL_PROJECT_MILESTONES",
+    "CANONICAL_PROJECT_TEMPLATE_DESCRIPTION",
     "CANONICAL_RECASE",
     "CANONICAL_STATE_CATEGORIES",
+    "CANONICAL_TEMPLATES",
     "GraphQLError",
+    "LABEL_IDS_KEY",
+    "LABEL_NAMES_KEY",
     "build_parser",
     "fetch_workspace_state",
     "graphql",
@@ -914,11 +1188,13 @@ __all__ = [
     "main",
     "normalize_label_name",
     "plan_audit",
+    "plan_canonical_templates",
     "plan_delete_label",
     "plan_ensure_label",
     "plan_ensure_state",
     "plan_ensure_template",
     "plan_recase_label",
+    "resolve_template_label_ids",
 ]
 
 

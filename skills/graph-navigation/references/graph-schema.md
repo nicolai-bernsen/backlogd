@@ -22,7 +22,7 @@ Every node is an opaque **string id** of the form `kind:backend:native_id`. The 
 segment is omitted for kinds that aren't owned by an external system.
 
 | Kind | Id form | Example | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | **session** | `session:<session id>` | `session:nicolaibernsen/nb-320-...` | The session id is the git branch name (or any session label). 2-part — a session is local, not backend-owned. |
 | **problem** | `problem:linear:<identifier>` | `problem:linear:NB-320` | The native id is the Linear issue identifier (`NB-N`). The graph references Linear by id only — never by copying Linear's data. |
 | **module** | `module:<file path>` | `module:scripts/graph.py` | The native id is the repo-relative file path; backslashes normalised to `/`. 2-part — a file isn't backend-owned. Used by *legacy* `touches` edges only. |
@@ -41,7 +41,7 @@ All point from a session to a problem. They capture the dimension Linear and git
 compute on their own.
 
 | Type | Carries | Recorded by |
-|---|---|---|
+| --- | --- | --- |
 | **`dispatch_started`** | `ts` | `skills/solve/dispatch.md` — when the orchestrator hands the unit to a developer subagent. |
 | **`dispatch_completed`** | `outcome` (`solved` / `partial` / `blocked`), `latency_ms` | `skills/solve/dispatch.md` — when the developer returns. `latency_ms` is derived from the matching `dispatch_started`. |
 | **`pr_opened`** | `ts` | `skills/solve/handoff.md` — immediately after `gh pr create`. |
@@ -52,7 +52,7 @@ compute on their own.
 ### Legacy edges — kept readable, no longer emitted on new runs
 
 | Type | Direction | Meaning |
-|---|---|---|
+| --- | --- | --- |
 | **`solves`** | session → problem | This session worked on / resolved this problem. **Superseded** by `dispatch_completed`. The `prior_work` query treats both as "solve evidence". |
 | **`touches`** | session → module | This session changed this file. **Low-signal** — `git log` already provides this. New runs do **not** emit it; the `emit` CLI is retained for back-compat. |
 
@@ -81,7 +81,7 @@ Some edge types carry **extra fields** beyond the base. They're added at the top
 (not nested) so old readers can ignore them and new readers see them directly:
 
 | Field | On edge types | Type | Meaning |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `outcome` | `dispatch_completed` | `"solved"` / `"partial"` / `"blocked"` | Developer's reported result. |
 | `latency_ms` | `dispatch_completed` | integer | Wall time from `dispatch_started` to completion. |
 | `wall_time_ms` | `run_completed` | integer | Total wall time from the earliest `dispatch_started` to the run end. |

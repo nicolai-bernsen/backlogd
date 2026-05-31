@@ -45,8 +45,8 @@ caller of it. **Do not copy-paste the merge logic; reuse it:**
    envelope (problem id, title, `## Acceptance Criteria`, every `**[backlogd developer]**`
    and `**[backlogd tester]**` comment, the solution brief, the open PR url, the `gh pr
    checks` CI signal, and the worktree path). The reviewer walks every AC + every DoD line
-   with a **fresh context** and returns its rollup (`accepted` / `sent back` / `needs PO`)
-   plus the drafted verdict body. The deferred-tool pre-load from `commands/solve.md` step 0
+   with a **fresh context** and returns its rollup (`accepted` / `sent back` / `needs PO` /
+   **`block`**) plus the drafted verdict body. The deferred-tool pre-load from `commands/solve.md` step 0
    already covers the reviewer's Linear tool grant — no extra pre-load is needed here.
 2. **Post the rollup verdict** exactly as **`commands/review.md` step 4** does — one
    `**[backlogd review]**` comment on the problem, the reviewer's drafted body verbatim.
@@ -79,12 +79,22 @@ one happened:
   *In Review* (PR open) and the judgement call / the "Manual checks for the PO" batch is
   surfaced to the PO — the `commands/review.md` step 5 *needs PO* path. **Interrupt the PO**
   with the question; do not guess past it and do not merge.
+- **`block` (a `🚫` — a consequential decision with no governing Accepted standard).** The
+  problem does **not** merge — it **parks blocked-by a new sub-issue** until the gap is
+  governed (the `commands/review.md` step 5 *block* path). Route by the reviewer's
+  classification, honouring the **non-delegable standards boundary** (`skills/scrum/references/accountabilities.md`):
+  a **`standard:`** gap opens a `Define standard for {X}` sub-issue, marks the parent
+  blocked-by it (Linear sub-issue + blocked-by primitives), holds the problem *In Review*
+  (PR open), and **surfaces the "what standard would you like for {X}?" question to the
+  PO** — the scrum-master never authors the standard itself; a **`fact:`** gap is answered
+  once from an existing ADR/precedent and the verdict re-runs (no PO, no merge yet).
+  **Interrupt the PO** on a `standard:` gap.
 - **Base-race blocker.** If the base-race guard in `commands/review.md` step 5 bails (head
   went red or PR no longer cleanly mergeable), **surface it as a blocker** — problem held at
   *In Review*, PR open, nothing merged, no auto-rebase. **Interrupt the PO.**
 
 In short: on a **clean green merge the PO is never interrupted**; the PO is surfaced to
-**only** on *sent back*, *needs you*, or a *blocker*.
+**only** on *sent back*, *needs you*, a *block* (`standard:` gap), or a *blocker*.
 
 > **Ops-only run (`kind:ops`).** There is no PR and no worktree (see `skills/solve/ops.md`).
 > The verdict still runs against the action logs + GitHub surfaces (as in `commands/review.md`

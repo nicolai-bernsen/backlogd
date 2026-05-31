@@ -1,0 +1,18 @@
+// markdownlint-cli2 configuration for backlogd.
+// Tuned for a docs-dense repo where the Markdown *is* the product (skills/agents/commands).
+// Rule reference: https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+{
+  "config": {
+    "default": true,
+    // MD013 line-length — prose/tables wrap naturally; line caps add noise, not value.
+    "MD013": false,
+    // MD033 inline HTML — agent docs use <details>, <kbd>, etc. deliberately.
+    "MD033": false,
+    // MD041 first-line-H1 — many fragments/partials don't open with a top-level heading.
+    "MD041": false,
+    // MD024 duplicate headings — allow repeats across sections, block only same-level siblings.
+    "MD024": { "siblings_only": true },
+    // MD036 emphasis-as-heading — bold lead-ins (e.g. **Note:**) are intentional, not headings.
+    "MD036": false
+  }
+}

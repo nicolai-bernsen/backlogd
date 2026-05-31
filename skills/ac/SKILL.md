@@ -45,7 +45,7 @@ Rules:
   round-trips verbatim. So **before** matching, normalize the *leading tag region* of
   the item text: unwrap a leading inline code span around the tag (`` `[test]` `` →
   `[test]`) and markdown-unescape a leading bracket escape (`\[`→`[`, `\]`→`]`). Then
-  apply the regex `^\[(test|manual|review)\] ` (case-sensitive, single trailing space):
+  apply the regex `^\[(test|manual|review)\] ` (case-sensitive, single trailing space): <!-- markdownlint-disable-line MD038 -->
   on a match, strip that prefix and the rest is the *body*; otherwise the whole
   **original** text is the body with kind=`review`. Normalization is surgical — only the
   leading tag region is rewritten, so backslashes or code spans elsewhere in the body
@@ -163,6 +163,30 @@ The reviewer reads the artifacts and judges `✅ met` / `❌ unmet` / `❔ needs
 judgement` (the last is for items that turn out to need a real product decision the
 reviewer can't make).
 
+## Standards are persistent, cross-issue AC
+
+A per-issue AC bullet binds **one** problem. An **Accepted standard** (an ADR under
+`docs/standards/adrs/`) binds **every** problem in its scope — it is a *persistent,
+cross-issue acceptance criterion* the reviewer enforces on **every** verdict, not just the
+issue that authored it. Same machinery, wider scope: each Accepted ADR carries a crisp
+checkable **`assertion`** — authored in the **same checkable spirit as a `[test]`/`[review]`
+bullet** (a single line the reviewer judges `met`/`unmet`) — so a standard is just an AC
+that never expires and isn't re-typed per issue.
+
+This is why the kinds and the corpus coordinate:
+
+- A `[review]` bullet is judged against the artifacts **and** the Accepted standards — an
+  Accepted ADR's `assertion` is a standing `[review]`-grade check folded into every walk.
+- Author each ADR `assertion` as **one crisp checkable line** (mirroring a `[test]`/`[review]`
+  bullet) so the reviewer can call it `met`/`unmet` straight from the diff — vague prose in
+  an `assertion` fails for the same reason a vague AC bullet does.
+- Only the **current `Accepted`** set is enforced (`Proposed`/`Superseded`/`Deprecated` are
+  ignored) — ADRs stay agile, reopenable, supersedable.
+
+The reviewer's **index-first load order** (read `docs/standards/index.json`, filter by
+`applies-to`, judge each applicable `assertion`, cite which it verified) lives in
+`agents/reviewer.md` and `skills/reviewer/SKILL.md` — not duplicated here.
+
 ## How `/backlogd:scope` writes AC
 
 When `/backlogd:scope` shapes a problem, it dispatches the **refiner subagent** to
@@ -262,7 +286,7 @@ kind):
 Reviewer's walk on the stored form (sketch — kinds resolve correctly *because* the
 escaping is normalized first):
 
-```
+```text
 Acceptance criteria
   ✅ [test] `bash hooks/install-git-hooks.sh …` — ran, exit 0, output matched.
   ❌ [test] `python -m pytest tests/scope/` — ran, exit 1 (3 failures).

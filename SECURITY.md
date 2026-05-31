@@ -5,7 +5,7 @@
 Please don't open a public issue for security problems.
 
 Instead, use GitHub's private vulnerability reporting ("Report a vulnerability" under
-the repository's Security tab), or email nicolai.bernsen@gmail.com directly.
+the repository's Security tab), or email <nicolai.bernsen@gmail.com> directly.
 
 Include enough detail to reproduce the issue. I'll acknowledge within a few days and
 keep you posted on a fix.
