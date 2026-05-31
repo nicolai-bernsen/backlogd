@@ -22,10 +22,13 @@ and **stop**.
 
 Once you've picked a candidate, run the claim-lock `check` (**`skills/linear/claim-lock.md`**)
 on it **before any state mutation** (the In Progress transition happens later, in
-`skills/solve/dispatch.md` step 1). The claim-lock is backlogd's cross-session
-mutual-exclusion on a problem — it stops two concurrent `/backlogd:solve` (or a
-`solve` racing a `/backlogd:review`) sessions from picking up the same problem and
-duplicating work / racing to merge (NB-414).
+`skills/solve/dispatch.md` step 1). The claim-lock **reduces the concurrent-pickup race
+window** on a problem — it stops a `/backlogd:solve` (or a `solve` racing a
+`/backlogd:review`) session that starts after another's claim has landed from picking up the
+same problem and duplicating work / racing to merge (NB-414). It is **not** an atomic mutex:
+two near-simultaneous launches can still both acquire (last-writer-wins) — the **merge-time
+re-check is the decisive guard** against the double-merge (see `skills/linear/claim-lock.md`
+§ "Honest scope").
 
 - **A *different* live session holds an unexpired claim** → **stand off** (do not transition
   state, do not dispatch). On an **auto-pick**, skip this candidate and take the next

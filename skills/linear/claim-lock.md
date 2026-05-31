@@ -1,23 +1,27 @@
 ---
 name: linear-claim-lock
-description: Mutual-exclusion on a problem across concurrent /backlogd:solve and /backlogd:review sessions. A session-stamped marker comment is the source of truth — checked before the first state mutation (solve pickup, review pick) and re-checked immediately before merge, released at every clean exit, and aged out by a 2-hour TTL so a crashed session never deadlocks. Key-free and Linear-native (official mcp__linear__* only). Loaded by /backlogd:solve and /backlogd:review at the points they already pick up or merge a problem.
+description: Reduces the concurrent-pickup race on a problem across concurrent /backlogd:solve and /backlogd:review sessions; the merge-time re-check is the decisive guard. A session-stamped marker comment is the signal — checked before the first state mutation (solve pickup, review pick) and re-checked immediately before merge, released at every clean exit, and aged out by a 2-hour TTL so a crashed session never deadlocks. The check→acquire over comment upserts is not atomic (see "Honest scope" below). Key-free and Linear-native (official mcp__linear__* only). Loaded by /backlogd:solve and /backlogd:review at the points they already pick up or merge a problem.
 ---
 
-# Linear — claim-lock (cross-session mutual exclusion)
+# Linear — claim-lock (cross-session race reduction + merge-time backstop)
 
 `/backlogd:solve` and `/backlogd:review` never **claim** a problem on their own — moving it
 to *In Progress* / *In Review* is a state *change*, not a *lock*, so two concurrent Claude
 Code sessions can both pick up the same problem and do overlapping work: duplicate reviews,
 duplicate retro/dogfood filings, overwritten reviewer rollups, near-or-actual
-double-merges (observed live ≥3× — NB-414, NB-381, NB-346/NB-362). This skill is the
-**work-item lock** that closes that race: when one session is actively working a problem, a
-second session that runs `solve`/`review` on the same problem **sees the active claim and
-stands off** instead of racing.
+double-merges (observed live ≥3× — NB-414, NB-381, NB-346/NB-362). This skill
+**reduces the concurrent-pickup race window** to near-simultaneous launches and makes the
+**merge-time re-check the decisive guard**: when one session is actively working a problem,
+a second session that runs `solve`/`review` on the same problem and sees the active claim
+**stands off** instead of racing — and even when two near-simultaneous launches slip past
+the pickup check, the merge-time live-claim re-check (below) still prevents the
+double-merge.
 
 It is the layer **above** NB-301's filesystem/git isolation (`skills/worktree-isolation/`):
 NB-301 guards the worktree + git HEAD; this guards the *Linear work item + its PR*, so two
-sessions never pick up the same problem at once. It **composes with** — does not duplicate —
-the two mechanisms already in place:
+sessions are far less likely to pick up the same problem at once (near-simultaneous launches
+are the residual window — see "Honest scope" below). It **composes with** — does not
+duplicate — the two mechanisms already in place:
 
 - **solve's resume/reconcile** (`skills/solve/resume.md`) — the claim becomes a **fifth
   source of truth** alongside Linear / git-remote / local-git / graph; it does **not** add a
@@ -34,7 +38,26 @@ the two mechanisms already in place:
 > never display name; `save_*` is upsert (read → capture `id` → write); identity is cached
 > in `.backlogd/identity.json`.
 
-## The carrier — a session-stamped marker comment (the source of truth)
+## Honest scope — this is not an atomic mutex
+
+Be precise about what this buys: the claim is built on Linear **comment upserts**, so
+`check` → `acquire` is **two MCP round-trips, not one atomic compare-and-swap**. There is an
+inherent **TOCTOU window** between them: two sessions launched within the same few-second
+window can both `check` and see "unclaimed", and both `acquire` — **last-writer-wins** on the
+single claim comment, so they both proceed. This skill **dramatically narrows** that
+window (any session that starts after another's claim comment has landed sees it and stands
+off) but it **does not eliminate** the simultaneous-pickup race. Do not describe it as a hard
+mutex.
+
+The **decisive backstop** is the **merge-time live-claim re-check** — the base-race-guard
+half wired into `commands/review.md` step 5 (reused by ship-on-green via
+`skills/solve/ship.md`). That re-check happens immediately before the squash-merge, *after*
+both racing sessions have run their full verdict, so by then exactly one claim comment has
+won (last-writer-wins) and the other session's re-check sees `session != $SESSION` and
+**bails without merging**. That is what actually prevents the **double-merge** — the most
+damaging outcome of the race. The pickup-time `check` reduces wasted duplicate work; the
+merge-time re-check is the guarantee against the irreversible failure. When the two seem to
+promise different things, the merge-time re-check is the one that holds.
 
 The claim lives in **one** `**[backlogd]** Claim` comment per problem, upserted in place
 (never a second claim comment) following the marker-dedupe precedent in
