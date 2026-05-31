@@ -1,11 +1,11 @@
 ---
 id: ADR-005
 title: Tokenless bridge drives the local claude CLI; SDK is the swap-only fallback
-status: Proposed
-date: 2026-05-30
+status: Superseded by ADR-006
+date: 2026-05-31
 problem: NB-379
 supersedes: ~
-superseded-by: ~
+superseded-by: ADR-006
 assertion: An always-on backlogd runtime is a tokenless bridge (plain TS/Python, zero Claude inference) that drives the official local `claude` CLI under subscription OAuth and writes transparency via the Linear MCP — never the Agent SDK / `claude -p`; the executor is a one-line config swap to an API-key backend so a ToS shift survives without a rewrite; the human stays trigger/cadence-setter (bounded batches, no 24/7 swarm) and this remains a GO-to-explore design that ships no runtime code and does not proceed to a build until NB-376/ADR-004 is honoured and the keyless constraint of ADR-002 holds.
 applies-to:
   domains: [runtime, auth, dependencies, linear, agent-identity, scrum]
@@ -15,7 +15,7 @@ applies-to:
 
 **ADR-005 — Tokenless bridge drives the local `claude` CLI; SDK is the swap-only fallback**
 
-- **Status:** Proposed _(2026-05-30)_ · **Problem:** NB-379
+- **Status:** Superseded by [ADR-006](ADR-006-tier2-locally-hosted-agent-identity.md) _(2026-05-31; proposed 2026-05-30)_ · **Problem:** NB-379
 - **Decision (TL;DR):** an always-on backlogd loop is a **tokenless bridge** — plain
   TS/Python that holds **no key and calls no model** — which polls Linear for ready
   problems, owns git/worktree, and **dispatches the official local `claude` CLI** running
@@ -32,6 +32,18 @@ applies-to:
 > Consequences**. ADRs are immutable once Accepted — supersede, don't rewrite.
 
 ## Status
+
+**Superseded by [ADR-006](ADR-006-tier2-locally-hosted-agent-identity.md)** (2026-05-31).
+ADR-006 lifts this ADR's **Tier-1.5 transparency ceiling** ("explicitly **not** Tier-2"):
+the NB-419 PO/colleague diagnostic shows the `actor=app` listener runs **locally** (a local
+daemon + tunnel, not a cloud server), so Tier-2 **run locally** — which this ADR's Option C
+rejected only as a _hosted_ webhook service — is now the sanctioned identity. The
+still-binding parts of this ADR — the **local-CLI executor**, the **executor-swap seam**
+(one config line; `api-sdk` ⇒ ADR-002 supersession), the **subscription-legitimacy** framing
+and the honest **"ordinary individual usage" / no-beach-mode-on-subscription** ceiling, and
+deference to **ADR-002** — are **carried forward** into ADR-006, which is the local listener +
+identity layer _on top of_ this bridge. Option C (the **hosted** webhook service) stays
+rejected. Body retained unchanged for history per the TEMPLATE lifecycle.
 
 **Proposed** (2026-05-30). This is a **design-only** spike awaiting PO accept; it ships **no
 runtime code** (no bridge implementation, no `package.json`, no executable — only this ADR

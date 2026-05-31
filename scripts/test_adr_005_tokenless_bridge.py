@@ -100,11 +100,18 @@ class AC1_AdrArtifactLands(unittest.TestCase):
             "AC1: ADR-005 must reference its problem NB-379",
         )
 
-    def test_AC1_carries_adr005_frontmatter_proposed(self):
+    def test_AC1_carries_adr005_frontmatter_identity(self):
         """TEMPLATE.md mandates a `---`-fenced YAML front-matter block. Assert it
         exists, is closed, and carries this ADR's identity: id ADR-005, a non-empty
-        title, status Proposed (this is a design-only spike awaiting PO accept), and
-        the problem ref."""
+        title, the problem ref, and a non-empty status.
+
+        NOTE: this previously pinned `status: Proposed`. ADR-005 was superseded by
+        ADR-006 (NB-419), which per the TEMPLATE lifecycle flipped its status to
+        `Superseded by ADR-006` — a supersession is additive history, not a rewrite,
+        and the byte-for-byte index status is already guarded by
+        test_standards_index.py::IndexDriftTest. So this asserts a non-empty status
+        (still a real shape check) rather than a hard-coded lifecycle value that goes
+        stale the moment the ADR is legitimately superseded."""
         body = _read(ADR)
         self.assertTrue(
             body.startswith("---\n"),
@@ -116,8 +123,8 @@ class AC1_AdrArtifactLands(unittest.TestCase):
         )
         front = parts[1]
         self.assertIn("id: ADR-005", front, "AC1: front-matter `id` must be `ADR-005`")
-        self.assertRegex(front, r"status:\s*Proposed",
-                         "AC1: a design-only spike awaiting accept must be `status: Proposed`")
+        self.assertRegex(front, r"status:\s*\S",
+                         "AC1: front-matter must carry a non-empty `status`")
         self.assertRegex(front, r"problem:\s*NB-379",
                          "AC1: front-matter must carry `problem: NB-379`")
         self.assertRegex(front, r"title:\s*\S",

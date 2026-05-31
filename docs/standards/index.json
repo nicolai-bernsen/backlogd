@@ -4,7 +4,7 @@
     {
       "id": "ADR-001",
       "title": "Visible agent identity in Linear",
-      "status": "Accepted",
+      "status": "Superseded by ADR-006",
       "assertion": "Agent identity in Linear stays comment-badge based (Tier 0); Tier 1 (MCP delegate, no server) is a gated experiment only; Tier 2 (held actor=app token + webhook server) is rejected and may not be built without superseding this ADR.",
       "applies-to": {
         "domains": [
@@ -101,7 +101,7 @@
     {
       "id": "ADR-005",
       "title": "Tokenless bridge drives the local claude CLI; SDK is the swap-only fallback",
-      "status": "Proposed",
+      "status": "Superseded by ADR-006",
       "assertion": "An always-on backlogd runtime is a tokenless bridge (plain TS/Python, zero Claude inference) that drives the official local `claude` CLI under subscription OAuth and writes transparency via the Linear MCP — never the Agent SDK / `claude -p`; the executor is a one-line config swap to an API-key backend so a ToS shift survives without a rewrite; the human stays trigger/cadence-setter (bounded batches, no 24/7 swarm) and this remains a GO-to-explore design that ships no runtime code and does not proceed to a build until NB-376/ADR-004 is honoured and the keyless constraint of ADR-002 holds.",
       "applies-to": {
         "domains": [
@@ -119,6 +119,31 @@
           "runtime-loop",
           "hosting",
           "dependency",
+          "secret-custody",
+          "executor"
+        ]
+      }
+    },
+    {
+      "id": "ADR-006",
+      "title": "Tier-2 locally-hosted agent identity — actor=app via a local listener spawning the local CLI",
+      "status": "Accepted",
+      "assertion": "backlogd's sanctioned always-on identity is Tier-2 run LOCALLY — a local listener daemon (launchd/systemd, never a cloud server) registered as an `actor=app` agent that acks each AgentSession within 10s with an immediate `thought` activity then async-spawns the local `claude` CLI; `actor=app` is a Linear-auth identity that requires NO Anthropic API key, so attended/individual + local CLI stays subscription-legitimate while only fully-unattended 24/7 use draws the API-key executor (a one-line config swap, default ships subscription/attended); the Tier-1 delegate work (NB-390/391/388) REMAINS the shippable-now first rung (identity without autonomy, no daemon); and no daemon is built until ONE spawned local CLI session is proven to auth as the actor=app identity, post an AgentActivity inside the 10s ack window, and run on subscription.",
+      "applies-to": {
+        "domains": [
+          "agent-identity",
+          "linear",
+          "runtime",
+          "auth",
+          "hosting"
+        ],
+        "file-patterns": [
+          "**"
+        ],
+        "decision-types": [
+          "agent-identity",
+          "runtime-loop",
+          "hosting",
           "secret-custody",
           "executor"
         ]
