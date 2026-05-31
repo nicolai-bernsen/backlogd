@@ -47,8 +47,9 @@ loop. After setup, backlogd stays key-free and MCP-only. This is the keyless pri
 
 Until the cast lands, the exact beats it records against — file a problem, the team picks
 it up, the reviewer **blocks on a missing standard**, the PO defines it, the team resolves
-it, the PR merges — are written out as the **Demo run-of-show** in
-[docs/ROADMAP.md](docs/ROADMAP.md#demo-run-of-show). The strongest framing: it is backlogd
+it, the PR merges — are scripted in the **[demo runbook](docs/demo-runbook.md)** (and
+summarised as the **Demo run-of-show** in
+[docs/ROADMAP.md](docs/ROADMAP.md#demo-run-of-show)). The strongest framing: it is backlogd
 solving a backlogd problem.
 
 <!-- NB-396: embed the asciinema cast / GIF here once recorded. Drop it directly under the
@@ -89,8 +90,9 @@ and the outcome, not the process.
 
 ## Status — honest, and on purpose
 
-**`main` is v0.17.0.** The core loop works end to end, and backlogd is built by running it
-on itself (dogfooded) — that is the strongest proof it works.
+**backlogd is released and self-hosting.** The core loop works end to end, and backlogd is
+built by running it on itself (dogfooded) — that is the strongest proof it works. (For the
+exact current version, see the [releases](https://github.com/nicolai-bernsen/backlogd/releases).)
 
 **Both 1.0 gates have shipped:**
 
