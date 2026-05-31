@@ -15,12 +15,14 @@ All Linear access goes through the **Linear MCP server** (configured in `.mcp.js
 scrum-master reads"** and **"Blockers & stall detection"** sections. If the Linear MCP is not
 connected, stop and ask the user to enable it (see the README "Setup" section).
 
-> **Reads + two narrow, deliberate writes.** Use `list_*` / `get_*` to gather the standup —
+> **Reads + narrow, deliberate writes.** Use `list_*` / `get_*` to gather the standup —
 > never write issues, comments, or state. The **only** `save_*` writes this command performs
-> are: (a) `save_issue(labels: […])` to keep the auto-managed `blocked` label in sync (via
-> `skills/linear/blocked-label.md` — step 3 below), and (b) `save_project(description: …)` in
-> step 4 that refreshes the `## 📊 Forecast` block in place on the engagement Project. Both
-> are idempotent; the console standup output stays exactly as it is today. Resolve workflow
+> are: (a) `save_issue(labels: […])` to keep the auto-managed signal labels in sync — the
+> `blocked` label (via `skills/linear/blocked-label.md`) and the `manual-pending` label (via
+> `skills/linear/manual-pending-label.md`), both in step 3 below; and (b)
+> `save_project(description: …)` in step 4 that refreshes the `## 📊 Forecast` block in place
+> on the engagement Project. All are idempotent; the console standup output stays exactly as
+> it is today. Resolve workflow
 > states by `type`, never by display name (see `skills/linear/references/linear-mcp.md`). Page
 > narrowly (filter by `label` / `state` / `parentId`, keep `limit` modest).
 >
@@ -104,6 +106,15 @@ deliberate carve-out (a) from the front-matter banner: the helper attaches the `
 label when any open blocker is not yet `completed`/`canceled` and detaches it otherwise;
 it is a no-op when the labels already match. The console standup output below is unchanged
 by this step.
+
+At the same point — on each `problem`-labelled unit you already read — also load
+**`skills/linear/manual-pending-label.md`** and re-evaluate the `manual-pending` label
+read-only-except-for-the-signal: the helper attaches it when the unit's own
+`## Acceptance Criteria` carries at least one `[manual]` bullet (parsed by the `extract_kind`
+normalize-then-match rule, so Linear's escaped `\[manual\]` storage form is matched, not a
+naive substring) and detaches it otherwise; it is a no-op when the label already matches the
+unit's AC state. This is the same signal-layer carve-out (a) the `blocked` label has — the
+console standup output below is unchanged by this step.
 
 ## 4. Compute forecast and refresh the engagement Project's description
 

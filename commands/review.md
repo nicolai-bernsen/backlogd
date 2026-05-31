@@ -297,10 +297,16 @@ the problem blocked-by a new sub-issue until the gap is governed.
   --squash --delete-branch`), then move the problem to the `completed` state (Done),
   **`release` the claim-lock** (`skills/linear/claim-lock.md` → `release`, after the merge
   succeeds), and remove the problem's worktree if one remains (`git worktree remove`).
-  **Never merge red.**
+  **Never merge red.** On this `accepted` close, also **clear the `manual-pending` label**
+  (`skills/linear/manual-pending-label.md` → take the remove path on the unit): an
+  `accepted` verdict means every `[manual]` is confirmed `✅` and zero `📝` dangle, so the
+  unit is no longer "waiting on the PO". This is the one place the label comes off — the
+  skill's pure-AC parse keeps it attached for the life of the `[manual]` bullet, and the
+  bullet's tag isn't edited on confirmation, so the detach is owned here. No-op when the unit
+  never carried the label.
   *(Ops-only run — `kind:ops`: there is no PR to merge. Skip the merge + base-race guard's
-  CI/mergeability checks + worktree cleanup, but still re-check + `release` the claim-lock
-  and just move the problem to Done.)*
+  CI/mergeability checks + worktree cleanup, but still re-check + `release` the claim-lock,
+  clear the `manual-pending` label, and just move the problem to Done.)*
 - **`sent back`** (any AC `❌` OR any DoD `❌` OR CI red) → move the problem back to
   the *In Progress* state, with the reviewer's `❌` notes (AC and DoD alike) carried
   into your rollup comment as **actionable rework notes**. Leave the PR open — a fresh
@@ -330,7 +336,11 @@ the problem blocked-by a new sub-issue until the gap is governed.
   PO" section verbatim into the question you ask — each `📝` bullet needs a yes/no from
   the PO before the verdict can close. Treat unanswered manual checks as a blocker, not
   a silent pass: `accepted` requires every `📝` confirmed `✅`; an answered-no drops the
-  verdict to `sent back`; unanswered holds it at `needs you`.
+  verdict to `sent back`; unanswered holds it at `needs you`. **Leave the `manual-pending`
+  label attached** while any `[manual]` remains `📝 awaiting PO confirmation` — that *is* the
+  "waiting on me" state the PO's saved view surfaces; it only clears on the `accepted` close
+  above (`skills/linear/manual-pending-label.md`). No write here: the label is already
+  attached from scope, and this verdict leaves the unit's AC unchanged.
 - **`block`** (a `🚫` line — a consequential decision with **no governing Accepted
   standard**) → **the problem does NOT merge.** It **parks blocked-by a new sub-issue**
   until the gap is governed. Route it by the reviewer's classification — the
