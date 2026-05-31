@@ -14,7 +14,7 @@ clear question.
 > **Dry run:** in `--dryrun` mode this step still runs (all reads), but its
 > output goes into the plan instead of acting on it — see `skills/solve/dryrun.md`.
 
-## 1. Read all four sources of truth
+## 1. Read all five sources of truth
 
 For the problem you've just picked up (`{identifier}` / `gitBranchName` from
 `get_issue`):
@@ -42,6 +42,14 @@ For the problem you've just picked up (`{identifier}` / `gitBranchName` from
   The JSON returns `state` (`completed` / `in-progress` / `untouched`),
   `sessions`, `last_started`, `last_completed`, and the most recent
   `outcome`.
+- **Claim-lock** (the fifth source of truth — **`skills/linear/claim-lock.md`**) — `check`
+  the problem's `**[backlogd]** Claim` comment. It tells you whether *another live session*
+  is actively working this problem right now — the signal Linear state alone can't give you
+  (In Progress is a state, not a lock). Capture its `session` and `at`: a claim held by a
+  session **other than** this run's `$SESSION`, **unexpired** (within the 2-hour TTL), is the
+  decisive "a parallel session owns this" signal; a **stale** claim (older than the TTL) or
+  **own-session** claim is reclaimable. Read it on the **problem** (the claim is per-problem,
+  not per-unit).
 
 ## 2. Classify each unit (4-state decision table)
 
@@ -56,8 +64,17 @@ For every unit (in dependency order), reduce the four signals to **one** of:
 
 Cases that classify as `inconsistent` and must be surfaced (non-exhaustive):
 
+- **The claim-lock is held by another live session** (a `**[backlogd]** Claim` comment
+  with a `session` ≠ this run's `$SESSION`, within the 2-hour TTL) — a parallel session is
+  actively working this problem. This is the decisive cross-session signal: classify
+  `inconsistent`, **stand off**, and surface to the product owner per §4 (do not transition
+  state, do not dispatch, do not merge). A **stale** claim or this run's **own** claim is
+  *not* inconsistent — `refresh` it under `$SESSION` and continue (own/stale claims are
+  reclaimable; see `skills/linear/claim-lock.md`). `--steal` (from `commands/solve.md` step
+  1) overrides this for a known-dead claim on an explicitly-named problem.
 - Linear says **In Progress** but the graph has no `dispatch_started` for the
-  unit (a parallel session may have claimed it manually).
+  unit (a parallel session may have claimed it manually) — corroborated by the claim-lock
+  signal above when present.
 - The graph shows multiple sessions with `dispatch_started` and no
   `dispatch_completed` for the same unit (concurrent runs likely fighting).
 - A worktree exists at `backlogd-wt-{identifier}` but its HEAD is on a
@@ -149,8 +166,11 @@ After reconcile finishes without an `inconsistent`:
   every subsequent `untouched` exactly as today.
 
 A *first-ever* `/backlogd:solve` on a fresh problem still works unchanged —
-every unit is `untouched`, reconcile is a no-op, `walk.md` creates the
-worktree, `dispatch.md` runs through the units normally.
+every unit is `untouched`, the claim-lock holds this run's own `$SESSION`
+(acquired at pickup), reconcile is a no-op, `walk.md` creates the worktree,
+`dispatch.md` runs through the units normally. The claim is folded in as **one
+more source of truth**, not a separate reconcile pass: it only changes the
+outcome when *another* live session holds the problem.
 
 ## Manual test recipe (AC 5)
 

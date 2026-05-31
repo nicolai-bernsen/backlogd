@@ -44,6 +44,13 @@ enable it (see the README "Setup" section) — do not improvise another path.
   fully-green verdict is auto-merged to Done with no human gate (see step 8 and
   **`skills/solve/ship.md`**). `--no-ship` is **not** a dry run: the solve runs for real and
   opens the PR; it only declines the final merge.
+- **`--steal`** — force-take a **known-dead** claim-lock on an explicitly-named problem
+  before its TTL ages out (see **`skills/linear/claim-lock.md`**). Use it only when you know
+  the holding session crashed and you don't want to wait for the 2-hour TTL. Without it, a
+  problem actively claimed by another live session **stands off** (auto-pick skips it; an
+  explicitly-named one surfaces a held-by message and stops). `--steal` only applies to an
+  explicitly-named problem — it is meaningless during an auto-pick (which already skips a
+  claimed problem). Accepted in either position.
 
 ## The loop
 
@@ -98,28 +105,41 @@ get to the step. Sub-skills carry the dry-run carve-outs.
    > happened (or that the fallback nudge **would** happen on a real run) and
    > continue.
 
-1. **Parse flags.** Scan the arguments for `--dryrun` and `--no-ship` in either position.
-   If `--dryrun` is present, remember the run is a dry run and follow
+1. **Parse flags.** Scan the arguments for `--dryrun`, `--no-ship`, and `--steal` in any
+   position. If `--dryrun` is present, remember the run is a dry run and follow
    **`skills/solve/dryrun.md`** instead of the side-effecting steps below. If `--no-ship`
    is present (or `BACKLOGD_SHIP_ON_GREEN=0` in the environment), remember the run opts out
-   of ship-on-green and carry that decision to step 8. Strip both flags and treat the
-   remaining token (if any) as the identifier. (Ship-on-green is on by default — see the
-   Flags section and step 8.)
+   of ship-on-green and carry that decision to step 8. If `--steal` is present, remember it
+   and carry it into the claim-lock check at pickup (step 3 → **`skills/linear/claim-lock.md`**)
+   so a known-dead claim on an explicitly-named problem is force-taken rather than stood off.
+   Strip all three flags and treat the remaining token (if any) as the identifier.
+   (Ship-on-green is on by default — see the Flags section and step 8.)
 
 2. **Resolve identity** → **`skills/solve/identity.md`**. Read `.backlogd/identity.json`
    first; fall back to `list_*` + rewrite the cache. Resolve the two `started` states by
    role (pickup, review). Mint `$SESSION`.
 
 3. **Pick + triage** → **`skills/solve/pickup.md`**. Take the named issue or the top
-   `problem`-labelled candidate (state then priority). If unshaped, run `/backlogd:scope`'s
-   flow inline; pause for the product owner only on genuine ambiguity.
+   `problem`-labelled candidate (state then priority). **Before going further, run the
+   claim-lock `check`** (**`skills/linear/claim-lock.md`**) on the candidate: if a
+   *different* live session holds an unexpired claim, **stand off** — on an auto-pick skip
+   it and take the next candidate; on an explicitly-named problem surface the held-by
+   message and stop (unless `--steal` from step 1 force-takes a known-dead claim). Otherwise
+   **`acquire`** the claim under `$SESSION` — this happens **before** the first state
+   mutation (the In Progress transition in step 6 / `skills/solve/dispatch.md` step 1). If
+   unshaped, run `/backlogd:scope`'s flow inline; pause for the product owner only on genuine
+   ambiguity.
 
 4. **Resume / reconcile** → **`skills/solve/resume.md`**. Read Linear state, the
-   branch + worktree, and `python scripts/graph.py run-status --problem {unit}` for every
-   unit. Classify each as `completed` / `in-progress-mine` / `untouched` / `inconsistent`.
-   Skip already-`completed` units on re-dispatch; reuse an existing branch/worktree;
+   branch + worktree, `python scripts/graph.py run-status --problem {unit}` for every
+   unit, **and the claim-lock comment (the fifth source of truth —
+   `skills/linear/claim-lock.md`)**. Classify each as `completed` / `in-progress-mine` /
+   `untouched` / `inconsistent` — a live claim held by *another* session is `inconsistent`
+   (surface + stand off); a stale or own-session claim is reclaimable (`refresh` and
+   continue). Skip already-`completed` units on re-dispatch; reuse an existing branch/worktree;
    pause and surface to the product owner on any `inconsistent` signal — do not guess. On
-   a first-ever invocation every unit is `untouched` and this step is a no-op.
+   a first-ever invocation every unit is `untouched`, the claim is the one this run just
+   acquired in step 3, and this step is a no-op.
 
 5. **Units + worktree (or ops route)** → **`skills/solve/walk.md`**. Determine units of
    work (single issue / sub-issues / Project form); a unit is ready only when its
