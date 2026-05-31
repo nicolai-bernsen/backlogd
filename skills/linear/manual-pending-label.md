@@ -77,12 +77,12 @@ Given a target unit (the issue / sub-issue you are already reading in the callin
    command's `get_issue` read — do not re-fetch. Take the `- [ ]` / `- [x]` bullets under
    the `## Acceptance Criteria` heading.
 3. **Decide the desired state — parse, don't substring-match.** For each AC bullet, take the
-   text *after* the `- [ ] ` / `- [x] ` checkbox and run it through the **`extract_kind`
+   text *after* the `- [ ]` / `- [x]` checkbox and run it through the **`extract_kind`
    normalize-then-match rule** from `skills/ac/SKILL.md` (reference impl
    `scripts/ac_parse.py` → `extract_kind` → `(kind, body)`). This **normalizes Linear's
    stored forms first** — unwrap a leading inline code span (`` `[manual]` `` → `[manual]`)
    and markdown-unescape a leading bracket escape (Linear stores an authored `[manual]` as
-   `\[manual\]`) — **then** matches `^\[(test|manual|review)\] `. The unit
+   `\[manual\]`) — **then** matches `^\[(test|manual|review)\] ` (single trailing space). The unit <!-- markdownlint-disable-line MD038 -->
    **has-a-`[manual]`-AC** iff at least one bullet's extracted `kind` is `manual`.
 
    > **Why not a naive `[manual]` substring scan?** Linear escapes the leading `[` when it
