@@ -234,10 +234,26 @@ nothing is a clear match, pick generic `developer` and say so explicitly in §6 
 - **Label (machine-readable).** Apply an `agent:<suffix>` label to the issue — this is
   what `/backlogd:solve` reads. For `developer-docs`, the label is `agent:docs`. The
   `agent:*` family is backlogd-owned (see
-  `skills/linear/references/linear-mcp.md`). The label is **created on first use** —
-  pass the new label name in `save_issue`'s `labels: [...]`; Linear's MCP auto-creates
-  unknown labels on write. **No label** = generic developer (less noise) — so skip the
-  label when the picker fell back to generic.
+  `skills/linear/references/linear-mcp.md`). **Ensure the label exists first, then apply
+  it** — `save_issue` does **not** auto-create labels: an unknown label name passed in
+  `labels: [...]` is **silently dropped** (the call succeeds and returns the issue with
+  only its pre-existing labels — no error, no label created), so a brand-new `agent:*`
+  routing label would silently no-op and the dispatch would fall back to generic developer
+  unnoticed. So mirror the proven ensure-label pattern (`skills/linear/blocked-label.md` /
+  `skills/linear/manual-pending-label.md`):
+  1. **Ensure (idempotent).** If `agent:<suffix>` is not already in the cached identity
+     (`.backlogd/identity.json` → `labels[]`), `list_issue_labels({ team, name:
+     "agent:<suffix>" })` to confirm absence (the cache may be stale), and if still absent
+     `create_issue_label({ team, name: "agent:<suffix>", color: "#5E6AD2",
+     description: "backlogd specialist routing — /backlogd:solve dispatches
+     developer-<suffix>." })`. If the label is already in the cache, skip these calls. (`color`
+     is suggested indigo; if the MCP rejects a specific shade, omit it and let Linear assign the
+     default — the name is what matters.)
+  2. **Apply.** `save_issue({ id, labels: [...existingLabels, "agent:<suffix>"] })` — pass
+     the issue's existing labels back verbatim so the upsert doesn't drop `problem` / `kind:*`.
+
+  **No label** = generic developer (less noise) — so skip both steps when the picker fell
+  back to generic.
 - **Description line (PO-readable).** Write a `**Specialist:** developer-<suffix> —
   <one-line because>` line in the issue **description**, positioned **just above** the
   `## Acceptance Criteria` heading. This explains *why* this specialist; the PO can flip
@@ -258,6 +274,17 @@ any sub-issues you just created with their own `blocked-by` edges). The helper e
 the team's `blocked` label exists (idempotent) and attaches/detaches it on each
 `problem`-labelled issue per its open `blocked-by` relations — it is a no-op when the
 desired state already matches the current labels.
+
+At the **same insertion point**, also load **`skills/linear/manual-pending-label.md`** and
+run it against the shaped problem and those same sub-issues. That helper ensures the team's
+`manual-pending` label exists (idempotent) and attaches it to each `problem`-labelled unit
+whose own `## Acceptance Criteria` carries at least one `[manual]` bullet — the PO's
+"waiting on me" signal. It determines "has a `[manual]` AC" with the **`extract_kind`
+normalize-then-match rule** from `skills/ac/SKILL.md` (`scripts/ac_parse.py`), which
+normalizes Linear's stored form — `\[manual\]` (escaped) and `` `[manual]` `` (code-span) —
+**before** matching, so it is **not** fooled by a naive `[manual]` substring scan against
+Linear's escaped storage form. It labels the unit that carries the `[manual]` AC (not a
+decomposed container), and is a no-op when the label already matches the unit's AC state.
 
 Then **stop**. Do **not** move the problem to a started state, and do **not** dispatch a
 developer. Shaping is complete; solving is a separate, deliberate step the product owner

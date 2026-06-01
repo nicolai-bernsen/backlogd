@@ -1,11 +1,11 @@
 ---
 id: ADR-001
 title: Visible agent identity in Linear
-status: Accepted
-date: 2026-05-29
+status: Superseded by ADR-006
+date: 2026-05-31
 problem: NB-370
 supersedes: ~
-superseded-by: ~
+superseded-by: ADR-006
 assertion: Agent identity in Linear stays comment-badge based (Tier 0); Tier 1 (MCP delegate, no server) is a gated experiment only; Tier 2 (held actor=app token + webhook server) is rejected and may not be built without superseding this ADR.
 applies-to:
   domains: [agent-identity, linear, runtime]
@@ -15,12 +15,22 @@ applies-to:
 
 **ADR-001 — Visible agent identity in Linear**
 
-- **Status:** Accepted _(2026-05-29)_ · **Problem:** NB-370
+- **Status:** Superseded by [ADR-006](ADR-006-tier2-locally-hosted-agent-identity.md) _(2026-05-31; accepted 2026-05-29)_ · **Problem:** NB-370
 - **Decision (TL;DR):** default **Tier 0** (today's comment badges) · authorise a **gated Tier-1 experiment** (MCP `delegate`, no server) · **reject Tier 2** (full Agent Interaction Protocol — breaks the key-free/serverless principle).
 
 > First ADR — establishes `docs/standards/adrs/`. Shape: **Status · Context · Considered Options · Decision · Consequences**. ADRs are immutable once Accepted: supersede, don't rewrite.
 
 ## Status
+
+**Superseded by [ADR-006](ADR-006-tier2-locally-hosted-agent-identity.md)** (2026-05-31).
+ADR-006 lifts the **Tier-2 rejection** below: this ADR rejected Tier 2 on the premise that it
+requires _a held `actor=app` token + a webhook **server**_ that "turns backlogd into a hosted
+service," but the NB-419 PO/colleague diagnostic shows the `actor=app` listener runs
+**locally** (a local daemon + tunnel, not a cloud server), so the premise is false and Tier-2
+**run locally** is now the sanctioned identity. The still-binding parts of this ADR — Tier-0
+comment badges, the role-prefixed comment baseline, and **delegation-is-additive (the human
+stays `assignee`)** — are **carried forward** into ADR-006; Tier-2-**cloud** stays rejected.
+Body retained unchanged for history per the TEMPLATE lifecycle (supersede, don't rewrite).
 
 Accepted (2026-05-29). Research spike (NB-370) — ships no runtime behaviour itself; the recommendation below is now binding. Follow-ups in [Consequences](#consequences) to be filed as problems.
 
