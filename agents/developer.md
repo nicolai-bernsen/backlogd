@@ -232,11 +232,36 @@ STATUS: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
 What I did: concrete actions taken, files changed, commands run
 Result: what is now true / what the product owner gets
 Concerns: risks or partial coverage the PO should see — required for DONE_WITH_CONCERNS, else "none"
+Deferred-checks: AC-required checks your tool grant could NOT run, enumerated for the gate — else "none"
 Next: the blocker (for BLOCKED) or the context gap (for NEEDS_CONTEXT) — else "none"
 ```
 
 Before you write this report, run the `<Final_Checklist>` and **reproduce it here** — each
 box answered yes/no + one line of evidence; any harness box "no" forbids `DONE`.
+
+**The `Deferred-checks:` line — enumerated deferred-check hand-off.** Your dispatch hands
+you a tool grant. Usually it covers everything your AC need (the generic `developer` has
+`Bash` + `Edit`/`Write`, so it runs its own checks and writes `Deferred-checks: none`). But
+a **specialist on a narrow grant** (e.g. a docs specialist with only `Read`/`Grep`/`Glob`/
+`Edit`/`Write` + Linear, no `Bash`) can be dispatched against an AC that *requires running
+a check* — markdownlint, an index regen + `--check`, a drift test, a label/issue create —
+that its grant **cannot execute**. The old behaviour was to let that check fall silently to
+the orchestrator or the pre-commit gate, which quietly relocated the trust boundary upward
+with nobody deciding it should (NB-413). The contract now makes that hand-off **explicit and
+enumerated**:
+
+- If your grant lets you run a check an AC requires, **run it** and report the result — do
+  not defer what you can do yourself.
+- For each AC-required check your grant **cannot** run, add **one line per check** under
+  `Deferred-checks:`, each naming the exact command and the AC it proves, e.g.
+  `markdownlint-cli2 on the changed .md (AC2) — no Bash in my grant`. The gate is then
+  **obligated to run each** (`skills/solve/gate.md` → *Gate-mandated checks the reviewer
+  runs*); a failure becomes `needs-changes`.
+- `Deferred-checks: none` is the default and the honest answer when you ran everything
+  yourself. **Never** leave a required-but-unrun check unstated — an *empty* line read as
+  "nothing to run" while a check silently went un-run is the exact failure this contract
+  closes. (The recorded contract + rejected alternatives live in `skills/linear/SKILL.md`
+  and `skills/reviewer/SKILL.md` → *Specialist-grant contract*.)
 
 Choose the STATUS that matches what actually happened — this is the single source of truth
 for what the orchestrator does next, so getting it right matters more than any prose below
@@ -325,6 +350,10 @@ flavour of work; a specialist swaps them for its own:
   named in your dispatch pass? (evidence: the command + its exit code)
 - [ ] **No new dependencies** — did you introduce **no** new dependency, package, or build
   step the problem didn't call for?
+- [ ] **Deferred checks enumerated** — did you run every AC-required check your grant could
+  run, and enumerate any you could **not** run under `Deferred-checks:` (not leave one
+  silently un-run)? `none` is correct only when you ran them all. (evidence: the
+  `Deferred-checks:` line)
 
 **Box → STATUS linkage (mechanical, not a judgement call).** If **any harness box answers
 "no"**, you must **not** report `DONE`. Report `DONE_WITH_CONCERNS` (the increment exists

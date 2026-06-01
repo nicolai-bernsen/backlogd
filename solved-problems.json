@@ -46,5 +46,13 @@
     "marker_snippet": "## Definition of 1.0",
     "shipped_in": "dev",
     "shipped_at": "2026-05-30"
+  },
+  {
+    "id": "NB-413",
+    "title": "Specialist tool-grant contract — gate runs markdownlint + enumerated deferred-check hand-off",
+    "marker_file": "skills/solve/gate.md",
+    "marker_snippet": "## 2.5 Gate-mandated checks the reviewer runs",
+    "shipped_in": "dev",
+    "shipped_at": "2026-06-01"
   }
 ]

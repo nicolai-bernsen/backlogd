@@ -237,6 +237,61 @@ The same hazard applies to any subagent in backlogd that needs an MCP tool — t
 developer agent (`agents/developer.md`) is the other case. `/backlogd:solve`'s
 dispatch is the symmetric pre-load point.
 
+## Specialist-grant contract (NB-413)
+
+NB-340/NB-368 above are about *Linear MCP* tools a subagent may not have at runtime.
+NB-413 is the sibling case for the **runnable checks an AC requires** — markdownlint, an
+index regen + `--check`, a drift test, a label/issue create. A specialist on a narrow grant
+(e.g. a docs specialist with no `Bash`) could be dispatched against such an AC, and the old
+behaviour let the un-runnable check fall **silently** to the orchestrator or the pre-commit
+gate — relocating the trust boundary upward with nobody deciding it should. The instances:
+NB-379 (a docs dispatch with only Read/Grep/Glob/Edit/Write + Linear deferred 12 markdownlint
+errors, the index regen, and the drift test to the orchestrator) and NB-381 (a developer on a
+`save_comment`-only grant could not create the `kind:improvement` label its AC implied).
+
+**The contract — two complementary halves, neither widening the restricted grants:**
+
+1. **Explicit, enumerated hand-off (the general rule).** A specialist runs every
+   AC-required check its grant *can* run, and **enumerates** each one it *cannot* in a
+   machine-readable `Deferred-checks:` line in its STATUS report (`agents/developer.md` →
+   *The `Deferred-checks:` line*). `Deferred-checks: none` is the honest default when it ran
+   everything. The gate is then **obligated to run each enumerated check** and folds a
+   failure into `needs-changes` (`skills/solve/gate.md` → *Gate-mandated checks the reviewer
+   runs* (b)). This **replaces silent deferral**: the boundary still moves when a grant is
+   too narrow, but on purpose and recorded, not by accident.
+
+2. **markdownlint folded into the gate (the common docs check).** The single most common
+   un-runnable check — markdownlint on changed `.md` — is run **unconditionally by the
+   reviewer** in every pre-commit gate, because the reviewer already holds `Bash` and
+   already runs every machine-verifiable check itself. It is invoked **the way CI does**
+   (`markdownlint-cli2` pinned to `v0.22.1`, reading `.markdownlint-cli2.jsonc`), trusting
+   the printed error count over the process exit code — an ad-hoc invocation can print a
+   **false exit-0** while CI still reds (NB-417, where a green tester + reviewer let an
+   MD038 through to CI). So a docs specialist need not even enumerate markdownlint: the gate
+   always runs it. See `skills/solve/gate.md` → *Gate-mandated checks the reviewer runs* (a).
+
+**Why not just widen every grant?** Rejected. The restricted specialists
+(`reviewer`/`tester`/`refiner`) keep narrow grants **by design** (the reviewer's missing
+`Edit`/`Write` is what makes its verdict trustworthy — *Restricted tool grant* above), and a
+broader `tools:` list is *more* for the NB-340 intersection to silently drop. The generic
+`developer` already inherits a broad grant (no `tools:` line, NB-345) and runs its own
+checks. Widening the *restricted* roles to self-check would trade away the property that
+earns their trust.
+
+**Why not the NB-353 `disallowedTools:` inverted grant?** Evaluated, deferred. Inheriting
+the parent surface and *subtracting* (e.g. `disallowedTools: Write, Edit, Bash`) is a smaller
+frontmatter with less for the intersection to drop, and is attractive prior art
+(Yeachan-Heo/oh-my-claudecode). But its runtime interaction with the NB-340
+`frontmatter ∩ loaded-deferred-tools` behaviour is **unverified here** (NB-368 verified the
+*positive* `tools:` list path, not the inverted one), and adopting it now would couple this
+trust-contract fix to an unproven harness behaviour. It stays a candidate for a focused
+follow-up; the enumerated hand-off + gate-runs-markdownlint contract above does not depend on
+it.
+
+The decision lives here (the trust model) and is mirrored in
+`skills/linear/SKILL.md` → *Specialist-grant contract*, alongside the NB-340 tool-grant
+lineage it extends.
+
 ## How the reviewer fits into the loop
 
 ```text
