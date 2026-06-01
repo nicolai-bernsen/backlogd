@@ -182,5 +182,3 @@ MobilePay/Checkout.
 _Refs: NB-400 · indexed by `scripts/standards_index.py` into
 [`docs/standards/index.json`](../index.json); the reviewer consults it index-first
 ([`agents/reviewer.md`](../../../agents/reviewer.md), [`skills/reviewer/SKILL.md`](../../../skills/reviewer/SKILL.md))._
-</content>
-</invoke>
