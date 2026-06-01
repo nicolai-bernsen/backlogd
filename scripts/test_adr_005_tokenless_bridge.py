@@ -140,48 +140,29 @@ class AC1_AC13_DesignOnlyShipsNoRuntimeCode(unittest.TestCase):
     only — no runtime code is shipped" (AC #1) and "does not start runtime
     implementation" (AC #13); whether the *reasons* are well argued is [review].
 
-    NB-418 / NB-400 — the *footprint* tests below were a tracked bug: `_changed_files()`
-    is computed over the whole worktree (`git diff origin/dev...HEAD` ∪
+    NB-418 / NB-420 — the *footprint* tests below were a tracked bug. They computed the
+    unit's changed set over the **whole worktree** (`git diff origin/dev...HEAD` ∪
     `git status --porcelain`), so once ADR-005 merged to the integration branch the
     footprint collapsed to *whatever is uncommitted in the current worktree* — false-failing
     **every other unit's** local suite on that unit's own files (e.g. NB-413's gate/skill
-    edits). The fix (NB-400, PR #124) **scopes the footprint to ADR-005-attributable paths**
-    via `_unit_footprint()` rather than skipping: a foreign worktree yields an *empty* unit
-    footprint, so the two footprint tests skip cleanly through their own
-    `if not changed` guard (a legitimate "no ADR-005 footprint here" scope skip), while
-    ADR-005's own PR still has a non-empty footprint and the guarantee still fires. The
-    extension-based runtime scan (`test_AC13_no_runtime_code_artifact_shipped`) is
-    language-agnostic — `.ts`/`.js`/`package.json`/lockfile over the whole changed set —
-    so it stays on `_changed_files()` and simply passes for a unit (like NB-413) that ships
-    no runtime artifact. AC1/AC13 is additionally anchored, diff-independently, by
-    ``test_adr_and_index_present_no_runtime_anchor`` (the ADR exists + the committed index
-    carries ADR-005) and by ``test_standards_index.py::IndexDriftTest`` (the index's
-    byte-for-byte correctness)."""
+    edits), and "passing" in CI only by the accident of a depth-1 checkout (no `origin/dev`
+    → empty → skip). The fix anchors the footprint to the **commit that introduced the ADR
+    doc** (`_intro_footprint()`, the `test_adr_003_workspace_config.py` precedent): it
+    isolates ADR-005's own files from history, so the design-only guarantee verifies
+    robustly on any full clone — local or a deep CI — and a foreign worktree can never
+    pollute it (no marker-based blind spots, no reliance on the shallow-skip). On a shallow
+    checkout history is unavailable, so it returns empty and the callers skip — unchanged CI
+    behaviour, where the guarantee is anchored by ``test_adr_and_index_present_no_runtime_anchor``
+    (the ADR exists + the committed index carries ADR-005) and ``test_standards_index.py::IndexDriftTest``
+    (the index's byte-for-byte correctness). The stray/runtime predicates are pure
+    (`_strays` / `_runtime_markers`), so the "still bites a planted artifact" guarantee
+    (NB-418 AC#2) is unit-tested directly rather than only asserted on the live diff."""
 
     # The unit's allowed footprint: the ADR doc, the regenerated index, and tests.
     _ALLOWED_EXACT = {
         "docs/standards/adrs/ADR-005-tokenless-bridge-local-cli-executor.md",
         "docs/standards/index.json",
     }
-
-    # NB-400 / PR #124: scope the footprint to ADR-005-attributable paths so an unrelated
-    # problem sharing the dev lineage cannot pollute it (the NB-418 false-fail). A path is
-    # ADR-005's if it is an allowed deliverable or its name carries an ADR-005 / NB-379
-    # marker.
-    _UNIT_PATH_MARKERS = ("adr-005", "adr_005", "nb-379", "nb379")
-
-    @classmethod
-    def _is_unit_path(cls, path: str) -> bool:
-        if path in cls._ALLOWED_EXACT:
-            return True
-        low = path.lower()
-        return any(marker in low for marker in cls._UNIT_PATH_MARKERS)
-
-    @classmethod
-    def _unit_footprint(cls) -> set:
-        """The ADR-005 unit's footprint: the changed set scoped to ADR-005-attributable
-        paths, so an unrelated problem sharing the dev lineage cannot pollute it (NB-418)."""
-        return {p for p in cls._changed_files() if cls._is_unit_path(p)}
 
     def test_adr_and_index_present_no_runtime_anchor(self):
         """AC1/AC13 non-footprint anchor: the ADR markdown exists and the committed
@@ -207,128 +188,193 @@ class AC1_AC13_DesignOnlyShipsNoRuntimeCode(unittest.TestCase):
             "ADR-005 entry",
         )
 
-    @staticmethod
-    def _changed_files() -> set:
-        """The unit's changed files = committed (vs the integration ref) ∪ working
-        tree. The NB-379 work lands as a working-tree add of the ADR + a modify of
-        index.json before the scrum-master commits; post-commit it is the
-        origin/dev...HEAD diff. The union captures it in both states. The try/except
-        keeps the test green on a CI checkout where `origin/dev` is absent (matching
-        the ADR-003 precedent)."""
-        committed: set = set()
+    _ADR_REL = "docs/standards/adrs/ADR-005-tokenless-bridge-local-cli-executor.md"
+
+    # Runtime artifacts a design-only spike must never ship (a Node manifest / lockfile,
+    # or TypeScript/JS source). Pure data so the predicates below can be unit-tested.
+    _RUNTIME_BASENAMES = {"package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock"}
+    _RUNTIME_SUFFIXES = (".ts", ".tsx", ".js", ".mjs", ".cjs")
+
+    @classmethod
+    def _intro_footprint(cls) -> set:
+        """ADR-005's footprint = the files changed by the commit that **introduced** the
+        ADR-005 doc — read from history, never from the live worktree.
+
+        The previous implementation unioned `git diff origin/dev...HEAD` with
+        `git status --porcelain`, i.e. the *whole* worktree, so it false-failed every
+        other unit's local suite on that unit's own files and only "passed" in CI by the
+        accident of a depth-1 checkout (NB-418 / NB-420). Anchoring to the introducing
+        commit — the
+        `test_adr_003_workspace_config.py::test_AC4_is_documentation_only_no_engine_rewrite`
+        precedent — isolates ADR-005's own files, so the guarantee holds on any full clone
+        (local or a deep CI) and a foreign worktree can never pollute it.
+
+        Returns an empty set when the footprint can't be trusted — a shallow checkout
+        (CI's default fetch-depth=1, no history), the ADR not yet committed, or a resolved
+        commit that looks like a squash/root (more than a handful of files). Callers treat
+        empty as a clean scope-skip, which preserves the existing CI behaviour."""
+
+        def _git(args: list[str]) -> str:
+            return subprocess.run(
+                ["git", *args], cwd=str(REPO_ROOT),
+                capture_output=True, text=True, check=True,
+            ).stdout
+
+        # A shallow checkout sees one commit and reports every path as added in it, so the
+        # introducing-commit lookup is meaningless → empty (callers skip).
         try:
-            out = subprocess.run(
-                ["git", "diff", "--name-only", "origin/dev...HEAD"],
-                cwd=str(REPO_ROOT), capture_output=True, text=True, check=True,
-            )
-            committed = set(out.stdout.split())
+            if _git(["rev-parse", "--is-shallow-repository"]).strip() == "true":
+                return set()
         except (subprocess.CalledProcessError, FileNotFoundError):
-            committed = set()
-        working: set = set()
+            return set()
+
+        # The commit that first ADDED the ADR doc (the NB-379 unit). No --follow: the ADR
+        # was added at this path and never renamed. First add = last log line.
         try:
-            stat = subprocess.run(
-                ["git", "status", "--porcelain"],
-                cwd=str(REPO_ROOT), capture_output=True, text=True, check=True,
-            )
-            # porcelain: 2 status chars + space, then the path (rename → take dest).
-            for line in stat.stdout.splitlines():
-                if not line.strip():
-                    continue
-                path = line[3:]
-                if " -> " in path:
-                    path = path.split(" -> ", 1)[1]
-                working.add(path.strip().strip('"'))
+            log = _git(
+                ["log", "--diff-filter=A", "--format=%H", "--", cls._ADR_REL]
+            ).split()
         except (subprocess.CalledProcessError, FileNotFoundError):
-            working = set()
-        # Normalise to forward slashes for cross-platform comparison.
-        return {p.replace("\\", "/") for p in (committed | working) if p}
+            return set()
+        if not log:
+            return set()
+
+        try:
+            changed = set(
+                _git(["show", "--name-only", "--format=", log[-1]]).split()
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            return set()
+
+        # A focused single-ADR doc commit touches a handful of files (ADR + index + test).
+        # A larger set means a squash/root we can't trust → empty (skip).
+        if len(changed) > 6:
+            return set()
+        return {p.replace("\\", "/") for p in changed if p}
+
+    @classmethod
+    def _runtime_markers(cls, footprint) -> list:
+        """Runtime artifacts present in a footprint set. Pure — unit-tested below."""
+        markers = []
+        for path in sorted(footprint):
+            base = path.rsplit("/", 1)[-1]
+            if base in cls._RUNTIME_BASENAMES or path.endswith(cls._RUNTIME_SUFFIXES):
+                markers.append(path)
+        return markers
+
+    @classmethod
+    def _strays(cls, footprint) -> list:
+        """Footprint paths that are neither an allowed deliverable (the ADR + the
+        regenerated index) nor a test. Pure — unit-tested below."""
+        out = []
+        for path in footprint:
+            if path in cls._ALLOWED_EXACT:
+                continue
+            base = path.rsplit("/", 1)[-1]
+            if base.startswith("test_") and base.endswith(".py"):
+                continue
+            out.append(path)
+        return sorted(out)
 
     def test_AC13_no_runtime_code_artifact_shipped(self):
-        """No runtime artifact may appear in the unit's footprint: no Node manifest
-        (`package.json` / lockfile), no TypeScript/JS source, and no executable bridge
-        module. (The ADR's own claim: 'no `package.json`, no executable — only this
-        ADR and the regenerated standards index'.)
+        """No runtime artifact may appear in ADR-005's footprint: no Node manifest
+        (`package.json` / lockfile), no TypeScript/JS source, no executable bridge module.
+        (The ADR's own claim: 'no `package.json`, no executable — only this ADR and the
+        regenerated standards index'.)
 
-        This scan is **language-agnostic** — it matches runtime *extensions* over the whole
-        changed set, so it is safe to run on any worktree: a unit that ships only
-        docs/`.py`/`.json` (e.g. NB-413) simply finds zero runtime markers and passes. It
-        therefore stays on `_changed_files()` (whole-diff), unlike the two ADR-005-specific
-        footprint tests below which scope to `_unit_footprint()`."""
-        changed = self._changed_files()
-        # If git gave us nothing (detached/offline CI checkout with no diff base and a
-        # clean tree), there is no footprint to police — the existence test above still
-        # anchors AC1. Don't assert a vacuous pass as a violation.
-        if not changed:
-            self.skipTest("no diff base and clean tree — footprint not observable here")
-
-        runtime_markers = []
-        for path in sorted(changed):
-            base = path.rsplit("/", 1)[-1]
-            if base in {"package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock"}:
-                runtime_markers.append(path)
-            elif path.endswith((".ts", ".tsx", ".js", ".mjs", ".cjs")):
-                runtime_markers.append(path)
+        Scoped to `_intro_footprint()` (NB-418 / NB-420): the scan runs on ADR-005's own
+        introducing commit, so a foreign worktree — even one that legitimately ships
+        `.js` / `package.json` for an unrelated unit — can't false-fail it, and it no longer
+        leans on the depth-1 shallow-skip to stay green."""
+        footprint = self._intro_footprint()
+        if not footprint:
+            self.skipTest(
+                "ADR-005 introducing commit not resolvable here (shallow checkout / "
+                "uncommitted) — anchored instead by the existence test"
+            )
+        markers = self._runtime_markers(footprint)
         self.assertEqual(
-            runtime_markers, [],
+            markers, [],
             "AC1/AC13: this is a design-only spike and must ship NO runtime code; "
-            f"found runtime artifact(s) in the unit's footprint: {runtime_markers}",
+            f"found runtime artifact(s) in ADR-005's footprint: {markers}",
         )
 
     def test_AC13_footprint_is_docs_plus_index_plus_tests_only(self):
-        """Every file the ADR-005 unit touches must be either the two allowed deliverables
-        (the ADR + the regenerated index) or a test. A stray source/runtime file outside
-        that set fails — proving 'design only' against the diff, not the prose.
+        """Every file ADR-005's introducing commit touches must be an allowed deliverable
+        (the ADR + the regenerated index) or a test — a stray file outside that set fails,
+        proving 'design only' against the diff, not the prose.
 
-        Scoped to ``_unit_footprint()`` (NB-400, PR #124): for a foreign worktree (any unit
-        other than ADR-005) the unit footprint is empty, so this skips cleanly via the
-        ``if not changed`` guard below — it does not police that unit's files."""
-        changed = self._unit_footprint()
-        if not changed:
-            self.skipTest("no ADR-005 footprint in this worktree — scope skip (NB-400)")
-        stray = []
-        for path in changed:
-            if path in self._ALLOWED_EXACT:
-                continue
-            base = path.rsplit("/", 1)[-1]
-            # Tests are allowed (this file + any the tester adds for the unit).
-            if base.startswith("test_") and base.endswith(".py"):
-                continue
-            stray.append(path)
+        Scoped to `_intro_footprint()` (NB-418 / NB-420): isolates ADR-005's own commit, so
+        a foreign worktree skips cleanly (empty footprint) and ADR-005's real footprint is
+        policed in full — including a stray with no ADR-005 name marker, the blind spot the
+        earlier marker-scoped footprint had."""
+        footprint = self._intro_footprint()
+        if not footprint:
+            self.skipTest(
+                "ADR-005 introducing commit not resolvable here — scope skip (NB-418)"
+            )
+        strays = self._strays(footprint)
         self.assertEqual(
-            sorted(stray), [],
+            strays, [],
             "AC1/AC13: a design-only spike's footprint must be the ADR + the "
             "regenerated index (+ tests) only; unexpected file(s) in the unit: "
-            f"{sorted(stray)}",
+            f"{strays}",
         )
 
     def test_AC1_index_modified_for_the_new_adr(self):
-        """The deliverable is the ADR *and* the regenerated index. Assert the index
-        is part of the unit's footprint, so 'ADR lands' includes its index entry
-        (the byte-for-byte content correctness is proven by the drift test).
+        """The deliverable is the ADR *and* the regenerated index, so ADR-005's introducing
+        commit must include `docs/standards/index.json` (the index's byte-for-byte content
+        is proven by `test_standards_index.py::IndexDriftTest`).
 
-        Scoped to ``_unit_footprint()`` (NB-400, PR #124), and fired only when the ADR-005
-        **deliverable itself** (the ADR markdown) is being landed — keyed on the ADR doc
-        being in the footprint, not merely a path-attributed file. This matters because the
-        ADR-005-named *test file* is itself attributable (its name carries ``adr_005``), so a
-        worktree that edits only this test (e.g. NB-413) has a non-empty unit footprint that
-        is **not** the ADR-005 PR landing its index. Guarding on the deliverable keeps
-        NB-418 AC#2 ("when ADR-005's own deliverable IS in the changed set, the footprint
-        tests still fire") true without false-failing a foreign worktree.
-        ``test_adr_and_index_present_no_runtime_anchor`` is the diff-independent companion
-        that reads the committed index directly."""
-        adr_doc = "docs/standards/adrs/ADR-005-tokenless-bridge-local-cli-executor.md"
-        changed = self._unit_footprint()
-        # Fire only when ADR-005's own deliverable (the ADR markdown) is in the footprint —
-        # i.e. ADR-005 is genuinely the unit under work. A footprint of only the
-        # ADR-005-named test file (the NB-413 case) is a scope skip, not the ADR-005 PR.
-        if adr_doc not in changed:
+        Scoped to `_intro_footprint()` (NB-418 / NB-420)."""
+        footprint = self._intro_footprint()
+        if not footprint:
             self.skipTest(
-                "ADR-005 deliverable not in this worktree's footprint — scope skip (NB-400)"
+                "ADR-005 introducing commit not resolvable here — scope skip (NB-418)"
             )
         self.assertIn(
-            "docs/standards/index.json", changed,
+            "docs/standards/index.json", footprint,
             "AC1: landing ADR-005 must also regenerate docs/standards/index.json",
         )
+
+    # --- NB-418 AC#2: the design-only guarantee still BITES (not gutted) -----------
+    # The footprint *source* is the introducing commit (history), so a stray can't be
+    # planted into it from a test. Instead the detection predicates are pure, and these
+    # prove they still flag a planted runtime / stray artifact in a synthetic footprint —
+    # i.e. were ADR-005's commit to ship such a file, the tests above would fail.
+    def test_AC2_runtime_marker_flagged_in_synthetic_footprint(self):
+        planted = {self._ADR_REL, "docs/standards/index.json",
+                   "package.json", "src/bridge.ts"}
+        self.assertEqual(
+            self._runtime_markers(planted), ["package.json", "src/bridge.ts"],
+            "AC2: a planted Node manifest / TS source must be flagged — the design-only "
+            "guarantee must still bite, not be gutted by the scoping fix",
+        )
+
+    def test_AC2_unmarked_stray_flagged_in_synthetic_footprint(self):
+        planted = {self._ADR_REL, "docs/standards/index.json", "scripts/runtime_bridge.py"}
+        self.assertEqual(
+            self._strays(planted), ["scripts/runtime_bridge.py"],
+            "AC2: a stray non-deliverable, non-test file is flagged even with no ADR-005 "
+            "name marker — the blind spot the prior marker-scoped footprint had",
+        )
+
+    def test_AC2_clean_synthetic_footprint_is_silent(self):
+        clean = {self._ADR_REL, "docs/standards/index.json",
+                 "scripts/test_adr_005_tokenless_bridge.py"}
+        self.assertEqual(self._strays(clean), [], "AC2: a clean ADR footprint has no strays")
+        self.assertEqual(
+            self._runtime_markers(clean), [],
+            "AC2: a clean ADR footprint has no runtime markers",
+        )
+
+    # --- NB-418 AC#5: sibling ADR footprint tests checked for the same pattern ------
+    # test_adr_003_workspace_config.py already anchors to the ADR's introducing commit
+    # (test_AC4_is_documentation_only_no_engine_rewrite) — it does NOT carry the
+    # whole-worktree pattern, so no change is needed there.
+    # test_adr_006_tier2_local_identity.py deliberately ships no footprint scan (its header
+    # cites this very pattern as a tracked bug). ADR-005 (this file) was the last carrier of
+    # the whole-worktree footprint; with this change it is gone.
 
 
 # --- ACs that are NOT mechanically testable (named, not faked) -----------------
