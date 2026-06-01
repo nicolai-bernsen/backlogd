@@ -94,6 +94,28 @@ to record.
 NB-340 closed as the platform-side root cause investigation; backlogd ships both
 mitigations and re-evaluates if the upstream behaviour changes.
 
+## Specialist-grant contract (NB-413)
+
+NB-340 above covers the *Linear MCP* tools a subagent may not have at runtime. Its sibling,
+NB-413, covers the **runnable checks an AC requires** (markdownlint, an index regen +
+`--check`, a drift test, a label/issue create) that a specialist on a narrow grant cannot
+execute — which used to fall **silently** to the orchestrator or the gate, relocating the
+trust boundary upward with nobody deciding it should (instances: NB-379, NB-381). The
+contract closes that gap without widening the restricted grants:
+
+- **Enumerated hand-off** — a specialist runs every AC-required check its grant *can* run
+  and **enumerates** each one it *cannot* in a machine-readable `Deferred-checks:` line in
+  its STATUS report (`agents/developer.md`); the gate is **obligated to run each**
+  (`skills/solve/gate.md`). Replaces silent deferral.
+- **markdownlint folded into the gate** — the reviewer (which holds `Bash`) runs
+  `markdownlint-cli2` on every changed `.md` **the way CI does** (pinned `v0.22.1` +
+  `.markdownlint-cli2.jsonc`, trusting the error count over the exit code) in every
+  pre-commit gate, so the most common docs check never silently defers (NB-417).
+
+The full decision + the rejected alternatives (widen every grant; the NB-353
+`disallowedTools:` inverted grant) live in `skills/reviewer/SKILL.md` →
+*Specialist-grant contract*, the home of the trust model this extends.
+
 ## Deferred tools — pre-load before dispatch
 
 Every `/backlogd:*` command begins with a **§0 "Pre-load deferred tools" step** that

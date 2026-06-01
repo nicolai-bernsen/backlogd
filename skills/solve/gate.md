@@ -1,6 +1,6 @@
 ---
 name: solve-gate
-description: Per-unit quality gate — dispatch the tester after the developer, then the reviewer in pre-commit-gate mode (both skipped on kind:ops runs), with a formal 2-round hard cap on combined re-dispatches. Surface failing tests + needs-changes verdicts as rework notes back through dispatch.md.
+description: Per-unit quality gate — dispatch the tester after the developer, then the reviewer in pre-commit-gate mode (both skipped on kind:ops runs), with a formal 2-round hard cap on combined re-dispatches. The reviewer runs markdownlint-cli2 on changed .md the way CI does and runs the developer's enumerated deferred-checks. Surface failing tests + needs-changes verdicts as rework notes back through dispatch.md.
 ---
 
 # solve — per-unit quality gate
@@ -58,6 +58,11 @@ worktree path, and pointers to both the developer's and tester's progress commen
 > Done. Mode: **pre-commit-gate**. Inspect the worktree diff, judge each AC + DoD line,
 > roll up to `ok` / `needs-changes`, post your progress to your issue, then report.
 >
+> Run the **mandatory gate checks** in *Gate-mandated checks the reviewer runs* below —
+> markdownlint-cli2 on every changed `.md` the way CI does, plus every check the developer
+> enumerated under `Deferred-checks:` in its report. Any of these failing is
+> `needs-changes`.
+>
 > Worktree to inspect: {$WT}
 >
 > Unit ({identifier}, issue id {id}): {title}
@@ -68,6 +73,9 @@ worktree path, and pointers to both the developer's and tester's progress commen
 > Developer's progress comment (what they changed):
 > {body of the `**[backlogd developer]**` comment on this unit}
 >
+> Developer's enumerated deferred checks (run each — see below):
+> {the `Deferred-checks:` line from the developer's STATUS report, or "none"}
+>
 > Tester's progress comment (what they proved):
 > {body of the `**[backlogd tester]**` comment on this unit}
 
@@ -75,19 +83,65 @@ Capture the reviewer's final structured summary verbatim, including its `verdict
 (`ok` / `needs-changes`) and any `notes:`. Verify the `**[backlogd reviewer]**` comment
 landed; do **not** re-post it.
 
+## 2.5 Gate-mandated checks the reviewer runs
+
+The reviewer holds `Bash` in its grant, so the gate makes it the single place where two
+classes of check are **always run before commit** — closing the silent-deferral gap a
+specialist on a narrow grant otherwise leaves (NB-413). Both feed the *same*
+`ok` / `needs-changes` rollup as the AC + DoD walk; neither is advisory.
+
+**(a) markdownlint on every changed `.md`, the way CI does (Fold-in NB-417).** CI runs
+`markdownlint-cli2` **pinned to `v0.22.1`** via `.pre-commit-config.yaml`, reading the
+repo's `.markdownlint-cli2.jsonc` automatically. The reviewer **must invoke it the same
+way** — an ad-hoc `npx markdownlint-cli2` on a different version, or with a flag set that
+bypasses the repo config, can print a **false exit-0** while CI still reds (observed live
+on NB-417: tester + independent reviewer both passed a diff that then tripped MD038 in CI).
+So:
+
+- Run `npx --yes markdownlint-cli2@v0.22.1 <each changed .md>` from the worktree root —
+  the **same pinned rev** the `.pre-commit-config.yaml` markdownlint-cli2 hook uses, so the
+  gate matches CI exactly (if that pin is bumped, bump it here too). It auto-discovers
+  `.markdownlint-cli2.jsonc`. Scope to the diff's changed `.md` set, not the whole tree
+  (CI lints everything; the gate only needs to clear what this unit touched).
+- **Trust the printed `Summary: N error(s)` / per-file findings over the process exit
+  code.** A non-zero error count is a `needs-changes` even if the shell reported exit 0;
+  cite the offending `file:line rule` in the rollup notes.
+- A unit that changed **no** `.md` skips this check (nothing to lint) — say so.
+
+**(b) The developer's enumerated deferred checks.** A specialist whose tool grant could
+not run a check its AC required declares each one in a machine-readable `Deferred-checks:`
+line in its STATUS report (see `agents/developer.md` → *The `Deferred-checks:` line —
+enumerated deferred-check hand-off*). For **each** entry the developer enumerated, the
+reviewer runs the named command and treats a failure as `needs-changes`, citing the
+command and its result. An
+empty / `none` `Deferred-checks:` line means the specialist ran everything itself — there
+is nothing to pick up. This is the explicit, enumerated hand-off that **replaces today's
+silent deferral**: the trust boundary moves on purpose, recorded in the report, not by
+accident.
+
+> **Why the reviewer and not the orchestrator.** The reviewer already runs every
+> machine-verifiable check itself with cited evidence (`agents/reviewer.md`), already holds
+> `Bash`, and already rolls up to `ok` / `needs-changes`. Folding these two classes into
+> its existing walk needs no new tool grant and keeps one place responsible for "was every
+> runnable check actually run before commit". The orchestrator stays the actor on the
+> verdict; the reviewer stays the judge.
+
 ## 3. Act on gate verdicts (unified)
 
 Combine the tester's `failing:` + `untestable:` lists and the reviewer's `verdict:` +
-`notes:` into a single decision:
+`notes:` into a single decision. The reviewer's `verdict:` **already folds in** the
+*Gate-mandated checks* (markdownlint on changed `.md`, the developer's enumerated
+deferred-checks) — a red from either of those is part of the reviewer's
+`needs-changes`, so there is no separate channel to merge here:
 
 - **Both `ok`** (tester `failing: []` and reviewer `verdict: ok`) — gate returns
   **`ok`**. If the tester captured `untestable:` items, carry them forward so
   `skills/solve/handoff.md` can surface them in the PO-facing solution brief under
   *"Needs your eyes"*. Untestable items do **not** auto-block.
 - **Either is red** (tester `failing:` non-empty **or** reviewer `verdict:
-  needs-changes`) — gate returns **`needs-changes`** with combined rework notes:
-  failing-test names (and the AC each one proves) plus the reviewer's notes —
-  **subject to the cap below**.
+  needs-changes` — including a markdownlint red or a failed deferred-check) — gate returns
+  **`needs-changes`** with combined rework notes: failing-test names (and the AC each one
+  proves) plus the reviewer's notes — **subject to the cap below**.
 
 ## 4. Enforce the 2-round hard cap
 

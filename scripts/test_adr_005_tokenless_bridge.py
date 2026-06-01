@@ -42,6 +42,7 @@ CI runs `python3 -m unittest discover -s scripts -p 'test_*.py'` from the repo r
 Run from the repo root:  python scripts/test_adr_005_tokenless_bridge.py
 """
 
+import json
 import pathlib
 import re
 import subprocess
@@ -137,13 +138,74 @@ class AC1_AC13_DesignOnlyShipsNoRuntimeCode(unittest.TestCase):
     standards index (+ this test), and no runtime artifact (a `package.json`, a bridge
     executable/module) is introduced. This is the mechanically-provable core of "design
     only — no runtime code is shipped" (AC #1) and "does not start runtime
-    implementation" (AC #13); whether the *reasons* are well argued is [review]."""
+    implementation" (AC #13); whether the *reasons* are well argued is [review].
+
+    NB-418 / NB-400 — the *footprint* tests below were a tracked bug: `_changed_files()`
+    is computed over the whole worktree (`git diff origin/dev...HEAD` ∪
+    `git status --porcelain`), so once ADR-005 merged to the integration branch the
+    footprint collapsed to *whatever is uncommitted in the current worktree* — false-failing
+    **every other unit's** local suite on that unit's own files (e.g. NB-413's gate/skill
+    edits). The fix (NB-400, PR #124) **scopes the footprint to ADR-005-attributable paths**
+    via `_unit_footprint()` rather than skipping: a foreign worktree yields an *empty* unit
+    footprint, so the two footprint tests skip cleanly through their own
+    `if not changed` guard (a legitimate "no ADR-005 footprint here" scope skip), while
+    ADR-005's own PR still has a non-empty footprint and the guarantee still fires. The
+    extension-based runtime scan (`test_AC13_no_runtime_code_artifact_shipped`) is
+    language-agnostic — `.ts`/`.js`/`package.json`/lockfile over the whole changed set —
+    so it stays on `_changed_files()` and simply passes for a unit (like NB-413) that ships
+    no runtime artifact. AC1/AC13 is additionally anchored, diff-independently, by
+    ``test_adr_and_index_present_no_runtime_anchor`` (the ADR exists + the committed index
+    carries ADR-005) and by ``test_standards_index.py::IndexDriftTest`` (the index's
+    byte-for-byte correctness)."""
 
     # The unit's allowed footprint: the ADR doc, the regenerated index, and tests.
     _ALLOWED_EXACT = {
         "docs/standards/adrs/ADR-005-tokenless-bridge-local-cli-executor.md",
         "docs/standards/index.json",
     }
+
+    # NB-400 / PR #124: scope the footprint to ADR-005-attributable paths so an unrelated
+    # problem sharing the dev lineage cannot pollute it (the NB-418 false-fail). A path is
+    # ADR-005's if it is an allowed deliverable or its name carries an ADR-005 / NB-379
+    # marker.
+    _UNIT_PATH_MARKERS = ("adr-005", "adr_005", "nb-379", "nb379")
+
+    @classmethod
+    def _is_unit_path(cls, path: str) -> bool:
+        if path in cls._ALLOWED_EXACT:
+            return True
+        low = path.lower()
+        return any(marker in low for marker in cls._UNIT_PATH_MARKERS)
+
+    @classmethod
+    def _unit_footprint(cls) -> set:
+        """The ADR-005 unit's footprint: the changed set scoped to ADR-005-attributable
+        paths, so an unrelated problem sharing the dev lineage cannot pollute it (NB-418)."""
+        return {p for p in cls._changed_files() if cls._is_unit_path(p)}
+
+    def test_adr_and_index_present_no_runtime_anchor(self):
+        """AC1/AC13 non-footprint anchor: the ADR markdown exists and the committed
+        standards index carries an ADR-005 entry — read directly, not via the live
+        worktree diff. This proves the design-only deliverable *landed* without policing
+        what else is uncommitted in the current worktree (the NB-418 trap). The index's
+        content correctness is proven byte-for-byte by test_standards_index.py."""
+        adr = REPO_ROOT / "docs" / "standards" / "adrs" / \
+            "ADR-005-tokenless-bridge-local-cli-executor.md"
+        self.assertTrue(adr.is_file(), "AC1: the ADR-005 markdown deliverable must exist")
+        index = REPO_ROOT / "docs" / "standards" / "index.json"
+        self.assertTrue(index.is_file(), "AC1: the standards index must exist")
+        data = json.loads(index.read_text(encoding="utf-8"))
+        # The index is a list of standard entries; ADR-005 must be one of them.
+        ids = {
+            entry.get("id")
+            for entry in (data if isinstance(data, list) else data.get("standards", []))
+            if isinstance(entry, dict)
+        }
+        self.assertIn(
+            "ADR-005", ids,
+            "AC1: landing ADR-005 must regenerate docs/standards/index.json with an "
+            "ADR-005 entry",
+        )
 
     @staticmethod
     def _changed_files() -> set:
@@ -185,7 +247,13 @@ class AC1_AC13_DesignOnlyShipsNoRuntimeCode(unittest.TestCase):
         """No runtime artifact may appear in the unit's footprint: no Node manifest
         (`package.json` / lockfile), no TypeScript/JS source, and no executable bridge
         module. (The ADR's own claim: 'no `package.json`, no executable — only this
-        ADR and the regenerated standards index'.)"""
+        ADR and the regenerated standards index'.)
+
+        This scan is **language-agnostic** — it matches runtime *extensions* over the whole
+        changed set, so it is safe to run on any worktree: a unit that ships only
+        docs/`.py`/`.json` (e.g. NB-413) simply finds zero runtime markers and passes. It
+        therefore stays on `_changed_files()` (whole-diff), unlike the two ADR-005-specific
+        footprint tests below which scope to `_unit_footprint()`."""
         changed = self._changed_files()
         # If git gave us nothing (detached/offline CI checkout with no diff base and a
         # clean tree), there is no footprint to police — the existence test above still
@@ -207,13 +275,16 @@ class AC1_AC13_DesignOnlyShipsNoRuntimeCode(unittest.TestCase):
         )
 
     def test_AC13_footprint_is_docs_plus_index_plus_tests_only(self):
-        """Every file the unit touches must be either the two allowed deliverables
-        (the ADR + the regenerated index) or a test. A stray source/runtime file
-        outside that set fails — proving 'design only' against the diff, not the
-        prose."""
-        changed = self._changed_files()
+        """Every file the ADR-005 unit touches must be either the two allowed deliverables
+        (the ADR + the regenerated index) or a test. A stray source/runtime file outside
+        that set fails — proving 'design only' against the diff, not the prose.
+
+        Scoped to ``_unit_footprint()`` (NB-400, PR #124): for a foreign worktree (any unit
+        other than ADR-005) the unit footprint is empty, so this skips cleanly via the
+        ``if not changed`` guard below — it does not police that unit's files."""
+        changed = self._unit_footprint()
         if not changed:
-            self.skipTest("no diff base and clean tree — footprint not observable here")
+            self.skipTest("no ADR-005 footprint in this worktree — scope skip (NB-400)")
         stray = []
         for path in changed:
             if path in self._ALLOWED_EXACT:
@@ -233,10 +304,27 @@ class AC1_AC13_DesignOnlyShipsNoRuntimeCode(unittest.TestCase):
     def test_AC1_index_modified_for_the_new_adr(self):
         """The deliverable is the ADR *and* the regenerated index. Assert the index
         is part of the unit's footprint, so 'ADR lands' includes its index entry
-        (the byte-for-byte content correctness is proven by the drift test)."""
-        changed = self._changed_files()
-        if not changed:
-            self.skipTest("no diff base and clean tree — footprint not observable here")
+        (the byte-for-byte content correctness is proven by the drift test).
+
+        Scoped to ``_unit_footprint()`` (NB-400, PR #124), and fired only when the ADR-005
+        **deliverable itself** (the ADR markdown) is being landed — keyed on the ADR doc
+        being in the footprint, not merely a path-attributed file. This matters because the
+        ADR-005-named *test file* is itself attributable (its name carries ``adr_005``), so a
+        worktree that edits only this test (e.g. NB-413) has a non-empty unit footprint that
+        is **not** the ADR-005 PR landing its index. Guarding on the deliverable keeps
+        NB-418 AC#2 ("when ADR-005's own deliverable IS in the changed set, the footprint
+        tests still fire") true without false-failing a foreign worktree.
+        ``test_adr_and_index_present_no_runtime_anchor`` is the diff-independent companion
+        that reads the committed index directly."""
+        adr_doc = "docs/standards/adrs/ADR-005-tokenless-bridge-local-cli-executor.md"
+        changed = self._unit_footprint()
+        # Fire only when ADR-005's own deliverable (the ADR markdown) is in the footprint —
+        # i.e. ADR-005 is genuinely the unit under work. A footprint of only the
+        # ADR-005-named test file (the NB-413 case) is a scope skip, not the ADR-005 PR.
+        if adr_doc not in changed:
+            self.skipTest(
+                "ADR-005 deliverable not in this worktree's footprint — scope skip (NB-400)"
+            )
         self.assertIn(
             "docs/standards/index.json", changed,
             "AC1: landing ADR-005 must also regenerate docs/standards/index.json",
