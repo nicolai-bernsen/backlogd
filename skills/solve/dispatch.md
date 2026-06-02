@@ -200,10 +200,13 @@ each unit in `blocked-by` order):
    </details>
 
 4. **Capture** the developer's final structured summary verbatim — including its first-line
-   `STATUS:` value. **In a parallel group, do not abort sibling dispatches when one returns
-   a non-terminal `STATUS` (`BLOCKED`/`NEEDS_CONTEXT`) — let every dispatch in the group
-   finish, then process each per step 7 below.** (See `skills/solve/walk.md` § "Dispatch a
-   parallel group" for the wait-and-collect contract.)
+   `STATUS:` value **and its `Deferred-checks:` line** (the AC-required checks its grant
+   could not run, enumerated for the gate; `none` if it ran everything — see
+   `agents/developer.md` → *The `Deferred-checks:` line*). **In a parallel group, do not
+   abort sibling dispatches when one returns a non-terminal `STATUS`
+   (`BLOCKED`/`NEEDS_CONTEXT`) — let every dispatch in the group finish, then process each
+   per step 7 below.** (See `skills/solve/walk.md` § "Dispatch a parallel group" for the
+   wait-and-collect contract.)
 
 5. **Confirm its record** — the developer posts its own progress/result comment on the
    unit issue (the `**[backlogd developer]**` comment). Verify it landed; do **not**
@@ -212,7 +215,9 @@ each unit in `blocked-by` order):
 
 5b. **Run the quality gate** → **`skills/solve/gate.md`**. Load it; it dispatches the
    tester and the reviewer (`pre-commit-gate` mode) against the unit the resolved
-   specialist just edited. If the gate returns **`needs-changes`**, re-enter **step 3**
+   specialist just edited. **Pass the developer's `Deferred-checks:` line (captured in step
+   4) into the gate** so the reviewer runs each enumerated check (the gate also always runs
+   markdownlint on changed `.md`). If the gate returns **`needs-changes`**, re-enter **step 3**
    above (re-dispatch the resolved specialist with the gate's rework notes prepended to
    the envelope), then re-enter this gate stage. Bounded by a 2-round hard cap inside
    `gate.md` — on the 3rd would-be re-dispatch the gate returns `blocked`, which step 7
