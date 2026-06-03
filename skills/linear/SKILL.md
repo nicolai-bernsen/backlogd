@@ -348,8 +348,14 @@ Drive every judgement off the state **`type`** (category), never the display nam
 - **Pure MCP client.** backlogd talks to Linear only through `mcp__linear__*`. The Linear
   *Agents platform's* **agent sessions and webhooks** (the full Agent Interaction
   Protocol — `actor=app` token + a webhook server) stay **out of scope**: they breach the
-  key-free / serverless principle. The MCP **`delegate` field** is **no longer blanket-
-  banned** — it may be used per [ADR-001](../../docs/standards/adrs/ADR-001-visible-agent-identity-in-linear.md)'s
-  gated Tier-1 experiment (delegate to one installed agent app user, no server), once that
-  ADR is Accepted and its install-check follow-up passes. Until then, default to leaving
-  `delegate` unset.
+  key-free / serverless principle. The MCP **`delegate` field** is **now wired into the
+  solve pickup** — the scrum-master sets `delegate:"backlogd"` on the In Progress
+  transition (`skills/solve/dispatch.md` step 1; the write shape, best-effort contract, and
+  leave-on-completion default live in `skills/solve/identity.md`). The Tier-1 gate has
+  passed: it was verified live (NB-390, 2026-06-02) and
+  [ADR-006](../../docs/standards/adrs/ADR-006-tier2-locally-hosted-agent-identity.md) AC#7
+  carried Tier-1 forward as the first rung (delegate to one installed agent app user, no
+  server). The write is **best-effort** — on a workspace without the agent app user
+  installed it errors or no-ops and the pickup carries on. The broader Agents-platform
+  surface (agent sessions, webhooks, `actor=app`) remains out of scope here per the Tier-2
+  guard above.
