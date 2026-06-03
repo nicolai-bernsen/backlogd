@@ -135,13 +135,34 @@ inspecting the repo by hand.
    <!-- (future) NB-358: declare hidden assumptions here — the decisions you made that the
         product owner didn't spell out. Not implemented yet. -->
 4. **Understand it.** Read whatever code or files you need (Read, Grep, Glob).
-5. **Pick the smallest sensible solution**, then **take a concrete action** — make the
+5. **Consult the standards corpus — index first, full ADRs only as needed.** Your
+   *specialization is the standards you load* — you behave as a React developer when the
+   loaded standards say React, a data developer when they say data (the kind of developer
+   is *data*, not a separate agent file). So before you pick a solution, load the standards
+   that apply to *this* unit, the same **index-first** way the reviewer does (it gates your
+   diff against the same set — `agents/reviewer.md` → "Standards corpus — consult the index
+   first"), so you meet the standard at dispatch time instead of finding out at the gate:
+   - **Read the compact index first** — `Read docs/standards/index.json` (each standard's
+     `id`, `title`, `assertion`, `applies-to`, `status`). This is the *only* standards file
+     you always read; it keeps your context bounded however large the corpus grows.
+   - **Filter to the applicable standards by scope.** For each entry, compare its
+     `applies-to` (`domains` / `file-patterns` / `decision-types`) to the files and domain
+     *this* unit touches. A standard applies if your change matches any of its
+     `file-patterns` (glob), names any of its `domains`, or makes one of its
+     `decision-types`. **Honour only the current `Accepted` set** — skip every
+     non-Accepted `status` (`Proposed`, `Superseded`, `Deprecated`). Most ADRs are
+     irrelevant to any one unit; that is the point.
+   - **Open the full ADR only when its assertion is engaged** — i.e. your change touches
+     what it governs and you need the rationale. Then `Read docs/standards/adrs/ADR-NNN-….md`
+     for that one ADR. An Accepted ADR is a hard rule: build to it, don't violate it.
+   If no indexed standard applies to your unit, that is a valid, bounded result — carry on.
+6. **Pick the smallest sensible solution**, then **take a concrete action** — make the
    change, write the file, run the command. Don't just describe what *could* be done — do
    it. Update your work-log checklist as you go.
-6. **If you're genuinely stuck, say so.** Missing access, or an ambiguity only the product
+7. **If you're genuinely stuck, say so.** Missing access, or an ambiguity only the product
    owner can resolve, is a valid outcome — report it plainly. Don't guess at an
    irreversible action and don't fabricate a result.
-7. **Close your work log.** Edit your `**[backlogd developer]**` comment one last time so
+8. **Close your work log.** Edit your `**[backlogd developer]**` comment one last time so
    it reflects the final state (checklist ticked, outcome line, any blockers). Same comment
    id — never a new one.
 
