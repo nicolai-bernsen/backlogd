@@ -57,6 +57,9 @@ the PO as a three-option decision. The ruling — a separate durable artifact, b
 telemetry and a durable run record are different contracts — goes into the issue, and only
 then does anyone build.
 
+![The problem in Linear — the refiner's shaping note and the PO's ruling, recorded in the
+issue description](docs/assets/demo-1-ruling.png)
+
 **3 · One command solves it.** `/backlogd:solve` dispatches a developer that owns the
 *how* (it chose append-only JSONL with a per-record schema `version` field), a tester that
 proves every `[test]` criterion with exit codes — and an independent pre-commit gate,
@@ -65,11 +68,17 @@ environment-dependent on a pristine checkout. The acceptance criterion was retyp
 deterministic file-path form; round 2 passed. The team fixed its own spec before any human
 saw the diff ([PR #133](https://github.com/nicolai-bernsen/backlogd/pull/133)).
 
+![The pre-commit gate's comment in Linear — VERDICT: ok on round 2, after the round-1
+acceptance-criterion retype](docs/assets/demo-2-gate.png)
+
 **4 · An independent reviewer verifies with receipts, then ship-on-green merges.** A
 fresh-context verdict re-ran every check itself — the full 606-test suite, lint, the
 gitignore invariant on a checkout where `.backlogd/` doesn't even exist — and the run
 merged on the green verdict with no human gate. The ledger's first record is its own
 birth-run ([`scripts/ledger.py`](scripts/ledger.py)).
+
+![The independent verdict on the ledger in Linear — accepted, with per-criterion cited
+evidence](docs/assets/demo-3-verdict.png)
 
 **5 · The standards corpus grows on demand.** The verdict's standards walk surfaced that
 the ledger's format had only per-issue authority — the *next* persisted store would have
@@ -82,14 +91,17 @@ regenerated the standards index, pinned it with new tests, and merged
 line on the second verdict: *"this unit closes the persisted-data governance gap NB-426
 surfaced."*
 
+![The verdict on ADR-007 in Linear — accepted; the standards walk that closes the
+governance gap](docs/assets/demo-4-standard.png)
+
 From filed problem to two merged PRs and a new Accepted standard, the product owner made
 **one product ruling and one approval** — the challenge, the build, the catches, the
 verification, and the governance were the team.
 
 <!-- NB-396: static demo artifact — annotated walkthrough of the real NB-426 → NB-427
-     runs (PR #133 + PR #135). Linear-side screenshots land under docs/assets/ and embed
-     here; a recorded terminal cast (docs/demo-runbook.md, good-first-issue #42) can
-     augment or replace this section post-1.0. -->
+     runs (PR #133 + PR #135), with the Linear-side screenshots embedded above from
+     docs/assets/. A recorded terminal cast (docs/demo-runbook.md, good-first-issue #42)
+     can augment or replace this section post-1.0. -->
 
 *(Want the recorded version? The [demo runbook](docs/demo-runbook.md) scripts a turnkey
 cast — contributions welcome via good-first-issue #42.)*
