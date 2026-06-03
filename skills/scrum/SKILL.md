@@ -43,13 +43,19 @@ wired yet. Where that is true, it is flagged inline:
 
 It once was **no Scrum language at all** — backlogd's commands and agents were filed
 under ad-hoc names. Adopting Scrum-true language (this initiative, parent NB-329) is
-in flight: the reference docs and this skill land first, then the commands and agents
-are re-wired in follow-up sub-issues to consume them. Until that wiring lands:
+in flight: the reference docs and this skill landed first, then the agents were
+re-wired to consume them. State of the wiring today:
 
-> 🎯 **Target — not yet wired.** The `/backlogd:scope` / `solve` / `status` / `review`
-> commands and the `backlogd:developer` agent **do not yet read this skill** at run
-> time. They follow their existing prose. The follow-up sub-issues under NB-329 add
-> the explicit references.
+> **Partially wired.** The `backlogd:developer`, `backlogd:tester`,
+> `backlogd:reviewer`, and `backlogd:refiner` agents now open with **Load the `scrum`
+> skill** and read it at run time. The **Definition of Done is fully wired** through
+> them: the reviewer gates every diff against `docs/scrum/definition-of-done.md` and
+> `/backlogd:solve` merges only a fully-green increment (every AC and every DoD line
+> met). **Not yet wired:** the `/backlogd:scope` / `solve` / `status` commands still
+> follow their own prose and do not load this skill directly (they reach Scrum
+> behaviour through the agents they dispatch); `/backlogd:review` references
+> `references/accountabilities.md` but does not load the whole skill. Closing those
+> remaining command-level references is follow-up work under NB-329.
 
 ## The three core moves
 
@@ -74,8 +80,11 @@ Scrum gives backlogd three load-bearing moves that everything else hangs off.
    `problem`-labelled issues; the Sprint Backlog is the shaped problem's `##
    Acceptance Criteria` + decomposition; the **Increment is the merged PR** itself.
    Each artifact carries its Scrum commitment: Product Goal → the engagement
-   Initiative; Sprint Goal → the AC; Definition of Done → `docs/scrum/definition-of-
-   done.md` (🎯 **target — not yet wired**; the DoD file lands in follow-up NB-331).
+   Initiative; Sprint Goal → the AC; **Definition of Done →
+   [`docs/scrum/definition-of-done.md`](../../docs/scrum/definition-of-done.md)** —
+   wired: the reviewer enforces it on every increment (`agents/reviewer.md` loads this
+   skill and gates each diff against it), and `/backlogd:solve` merges only a
+   fully-green increment (`skills/solve/ship.md`: every AC and every DoD line met).
    See [`../../docs/scrum/mapping.md`](../../docs/scrum/mapping.md) for the full table.
 
 ## Who does what — the responsibility split
