@@ -6,6 +6,14 @@ to *Done* and merge into `dev`. This is a **hard-rules floor**, not a methodolog
 each line is observable by an agent or reviewer without taste calls. If a line takes
 judgement, it does not belong here.
 
+**DoD vs AC — two distinct commitments, both enforced.** The Definition of Done is
+**standing**: the same bar *every* increment clears, regardless of which problem it
+solves. A problem's `## Acceptance Criteria` is **per-problem**: the contract for *that*
+one increment. The reviewer holds each diff against **both** — every AC line *and* every
+DoD line — and a red DoD line blocks the merge exactly like a red AC line. The AC says
+*what this problem must deliver*; the DoD says *what every increment must satisfy
+anyway*. Neither subsumes the other.
+
 See [`mapping.md`](mapping.md) → *Artifacts › Increment* for where the DoD sits in
 backlogd's Scrum interpretation, and [`scrum-guide.md`](scrum-guide.md) →
 *Increment › Commitment: Definition of Done* for the canonical Scrum text.

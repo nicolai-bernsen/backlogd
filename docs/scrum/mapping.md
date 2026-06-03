@@ -62,6 +62,13 @@ of Done).
 | **Increment** — a concrete, usable stepping stone toward the Product Goal; thoroughly verified; must meet the Definition of Done to count (Scrum Guide → *Scrum Artifacts › Increment*). | **The merged PR** (one branch → one PR per problem, into `dev`). `/backlogd:solve` opens the worktree and PR and — on the happy path — auto-chains the independent verdict and **merges a fully-green increment to Done with no human gate** (ship-on-green); `/backlogd:review` is the manual re-entry that accepts and merges. The PR *is* the Increment — usable, additive, verified. |
 | **Commitment: Definition of Done** — a formal description of the state of the Increment when it meets the quality measures required for the product (Scrum Guide → *Increment › Commitment: Definition of Done*). | **[`definition-of-done.md`](definition-of-done.md)** — the repo-level DoD that every increment must meet: AC covered by tests, CI green, no orphan TODOs, no secrets, `/docs` and conventions updated where behaviour changed, one commit per unit with the issue ref, work-log + solution-brief comments posted on the Linear issues. |
 
+> **Don't conflate the two commitments.** The **Sprint Goal (AC)** is *per-problem* — the
+> "done" contract for one loop, written into the issue by `/backlogd:scope`. The
+> **Definition of Done** is *standing* — the same floor every increment clears no matter
+> which problem it solves. The reviewer gates each diff against **both**, and a red DoD
+> line blocks the merge exactly like a red AC line. See
+> [`definition-of-done.md`](definition-of-done.md) → *DoD vs AC*.
+
 ## A note on cadence
 
 backlogd's **core loop** is continuous flow with no fixed time-box: the Scrum Guide
