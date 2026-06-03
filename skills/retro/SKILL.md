@@ -171,13 +171,20 @@ official-MCP filing path (`save_issue` with **no `id`** → create — see
 ## The retro summary — one comment, idempotent
 
 The retro posts **one** summary comment so the inspection→adaptation step is durable and
-visible in Linear (not just the terminal). It is an idempotent upsert keyed by a scope
-marker, exactly like the project-health and Shipped-summary helpers in
+visible in Linear (not just the terminal). Where it can dedupe, it is an idempotent upsert
+keyed by a scope marker, like the project-health and Shipped-summary helpers in
 `skills/linear/references/documents-and-updates.md`:
 
-- **Milestone scope** → the **milestone thread** (`save_comment({ milestoneId, body })`).
+- **Milestone scope** → the **milestone thread** (`save_comment({ milestoneId, body })`),
+  **deduped** by the scope marker (see below) — `list_comments({ milestoneId })` lists the
+  thread, so a re-run updates in place.
 - **No milestone** (cycle / date / count) → the **engagement Project thread**
-  (`save_comment({ projectId, body })`).
+  (`save_comment({ projectId, body })`), **deduped** by the scope marker (see below) —
+  `list_comments({ projectId })` lists the thread, so a re-run updates in place.
+  **Verified live 2026-06-03** ([ADR-008](../../docs/standards/adrs/ADR-008-live-surface-verification.md)):
+  a probe `list_comments({ projectId })` returned the prior retro summary by its
+  `<!-- marker: retro:<scope> -->`, so project-thread marker-dedupe works (the earlier
+  "issues-only" reading off the stale 2026-05-28 snapshot was itself an unverified assumption).
 
 Body shape (visible `**[backlogd retro]**` badge; Linear renders the HTML comment as
 literal text):
@@ -201,10 +208,13 @@ Filed for prioritization: <NB-N>, <NB-M>, …   (or "none — nothing load-beari
 <!-- marker: retro:<milestone-name | cycle-N | since-<date> | last-N> -->
 ```
 
-The trailing `<!-- marker: retro:<scope> -->` is the dedupe key: on a re-run over the same
-scope, `list_comments` → filter to bodies starting `**[backlogd retro]**` → match the
-marker → capture the comment `id` → `save_comment({ id, body })` to update in place. Never
-post a second summary for the same scope.
+The trailing `<!-- marker: retro:<scope> -->` is the dedupe key on **both** paths: on a
+re-run over the same scope, `list_comments({ milestoneId })` (milestone scope) or
+`list_comments({ projectId })` (no-milestone scope) → filter to bodies starting
+`**[backlogd retro]**` → match the marker → capture the comment `id` →
+`save_comment({ id, body })` to update in place. Never post a second summary for the same
+scope. The `projectId` listing is **verified live 2026-06-03** (see the no-milestone bullet
+above).
 
 ## Sparse-graph behaviour
 
@@ -277,4 +287,6 @@ moment) and a reader of the same graph `/backlogd:status` reads for its forecast
 - ❌ Raising on an empty graph → a fresh checkout would crash the retro. ✅ `report --json`
   degrades to zeros; lean on Linear evidence and say so.
 - ❌ Posting a new summary every run → noisy thread, broken history. ✅ One summary per
-  scope, edited in place by the `retro:<scope>` marker.
+  scope, edited in place by the `retro:<scope>` marker — `list_comments({ milestoneId })`
+  on the milestone path, `list_comments({ projectId })` on the no-milestone path (the
+  `projectId` listing is verified live 2026-06-03, ADR-008).
