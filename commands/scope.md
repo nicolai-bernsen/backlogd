@@ -95,6 +95,14 @@ structure and state writes that follow.
 > justification of why no fresh-context agent could observe it. It is **not** a peer
 > default alongside `[review]`. Do **not** fabricate a `[test]` command that doesn't
 > exist — when in doubt, leave the bullet untagged.
+> **One standing exception widens `[manual]` to a default:** when the deliverable is a
+> **guide or runbook** a human follows end-to-end (a `docs/guides/*-setup.md`, an
+> install/onboarding walk-through, a demo runbook), add a `[manual]` **first-live-run** AC —
+> *"one real end-to-end execution of this guide by a human; defects fed back into the
+> guide"* — with the standard justification (no fresh-context agent can do the human
+> walk-through). It is the only such default; `skills/ac/SKILL.md` carries the full rule
+> (source of truth — do not restate it). This is the **execution** gate, distinct from
+> [ADR-008](../docs/standards/adrs/ADR-008-live-surface-verification.md)'s live-evidence lane.
 >
 > Problem ({identifier}, issue id {id}): {title}
 >
@@ -234,7 +242,12 @@ nothing is a clear match, pick generic `developer` and say so explicitly in §6 
 - **Label (machine-readable).** Apply an `agent:<suffix>` label to the issue — this is
   what `/backlogd:solve` reads. For `developer-docs`, the label is `agent:docs`. The
   `agent:*` family is backlogd-owned (see
-  `skills/linear/references/linear-mcp.md`). **Ensure the label exists first, then apply
+  `skills/linear/references/linear-mcp.md`). `agent:docs` is also the **recognised hook for
+  the guide/runbook first-live-run AC**: when a problem routed here delivers a guide or
+  runbook a human follows end-to-end (a `docs/guides/*-setup.md`, an install walk-through, a
+  demo runbook), confirm the refiner gave it the `[manual]` first-live-run AC from
+  `skills/ac/SKILL.md` (the execution gate) — not every `agent:docs` problem is guide-shaped,
+  so apply it only to those that are. **Ensure the label exists first, then apply
   it** — `save_issue` does **not** auto-create labels: an unknown label name passed in
   `labels: [...]` is **silently dropped** (the call succeeds and returns the issue with
   only its pre-existing labels — no error, no label created), so a brand-new `agent:*`

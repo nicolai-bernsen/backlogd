@@ -62,6 +62,18 @@ a written issue description (Linear) and a structured report (back to the scrum-
    default to `[review]`, and any `[manual]` you emit **must carry a one-line justification**
    of why no fresh-context agent could observe it (inline in the bullet). When in doubt,
    leave the bullet untagged.
+
+   **The one standing `[manual]` exception — a guide/runbook first-live-run AC.** When the
+   problem's deliverable is a **guide or runbook** a human is meant to follow end-to-end (a
+   `docs/guides/*-setup.md`, an install/onboarding walk-through, a demo runbook), add a
+   `[manual]` **first-live-run** AC by default — *"one real end-to-end execution of this guide
+   by a human; defects fed back into the guide"* — with the standard justification (no
+   fresh-context agent can perform the human walk-through). This is the only place `[manual]`
+   is a default rather than the rare case; see `skills/ac/SKILL.md` for the full rule (it is
+   the source of truth — do not restate it here). It is the **execution** gate and is distinct
+   from [ADR-008](../docs/standards/adrs/ADR-008-live-surface-verification.md)'s live-evidence
+   standard. If the scrum-master's envelope routes the problem to `developer-docs` /
+   `agent:docs` and it is guide/runbook-shaped, this AC applies.
 4. **Propose a decomposition.** One of three shapes — pick the smallest that fits:
    - **single issue** — one unit of work, no internal phases. The default.
    - **n sub-issues** — when the problem breaks into ≥2 **independently-solvable** units.
