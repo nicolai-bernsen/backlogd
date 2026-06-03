@@ -36,13 +36,13 @@ re-run); put the issue identifier in the title/body so Linear links the PR to th
 
 (No `gh` available? Push the branch and ask the PO to open the PR.)
 
-## 2. Record the PR open + run completion on the graph
+## 2. Record the PR open + run completion on the graph and the ledger
 
-Best-effort — a graph write must never block the handoff. Record the PR open time
+Best-effort — neither write must ever block the handoff. Record the PR open time
 immediately after the PR exists, and the run completion at the very end. The
-`dispatch_started` edges from `skills/solve/dispatch.md` give both calls their start
-clock automatically (so `dispatch_to_pr` latency and `run_wall_time` are derived for
-you):
+`dispatch_started` edges from `skills/solve/dispatch.md` give both graph calls their
+start clock automatically (so `dispatch_to_pr` latency and `run_wall_time` are derived
+for you):
 
     python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" pr-opened \
         --session "$SESSION" --problem {identifier}
@@ -58,10 +58,32 @@ run (the byte-identical-to-today case), `≥2` when at least one parallel group 
 `run_wall_time` and `dispatch_to_pr`. Omitting `--fanout` (or passing `1`) yields the
 legacy behaviour — the field is additive on the `run_completed` edge.
 
+Then, **at the same lifecycle point** (right after `run-end`), append one durable record
+to the **solve ledger** (`scripts/ledger.py` → `.backlogd/ledger.jsonl`, gitignored). The
+ledger is the problem-keyed, append-only durable run record that complements the
+session-keyed graph telemetry (NB-426): resume short-circuits off it and the retro reads
+it as local run history, without a Linear round-trip. Co-locating the append with the
+graph's `run_completed` is what keeps the two stores from silently disagreeing — the graph
+stays the metrics source of truth, the ledger the problem-first durable record:
+
+    python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/ledger.py" record-run \
+        --problem {identifier} \
+        --units-json '[{"identifier":"{unit}","outcome":"{solved|partial|blocked}"}, ...]' \
+        --pr {PR url, or omit on an ops-only run} \
+        --outcome {run-level outcome, e.g. solved}
+
+Pass each solved unit and its outcome (the per-unit STATUS captured in
+`skills/solve/capture.md`); for a single-issue problem the one unit is the problem itself.
+The record names the problem, the units solved with their outcomes, the PR reference, and
+the run timestamp (defaulted to now). The ledger write is append-only — it never rewrites
+the file — so it cannot truncate a prior run's record.
+
 > **Ops-only run?** Skip the `pr-opened` call — there is no PR, so the `dispatch_to_pr`
 > latency is undefined for this run. Still call `run-end` (with `--fanout 1` — ops-only
 > runs are sequential); the run completed, and `run_wall_time` (earliest
-> `dispatch_started` → run end) remains meaningful.
+> `dispatch_started` → run end) remains meaningful. Still call `ledger record-run` too —
+> just **omit `--pr`** (the record's `pr` is then `null`); the durable run record is as
+> useful for an ops-only run as a standard one.
 
 ## 3. Post a high-level, PO-facing solution brief
 

@@ -42,6 +42,21 @@ For the problem you've just picked up (`{identifier}` / `gitBranchName` from
   The JSON returns `state` (`completed` / `in-progress` / `untouched`),
   `sessions`, `last_started`, `last_completed`, and the most recent
   `outcome`.
+- **Ledger** (a cheap **problem-first** corroborating read — `scripts/ledger.py` →
+  `.backlogd/ledger.jsonl`) — for the **problem** identifier:
+
+      python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/ledger.py" read \
+          --problem {identifier}
+
+  Returns the durable record(s) of any **completed** run on this problem (the units
+  solved with their outcomes, the PR reference, the run timestamp — see NB-426). This is
+  the problem-keyed short-circuit the graph's session-keyed per-unit reconcile can't give
+  cheaply: a non-empty result is a strong signal the whole problem already ran to handoff,
+  so the all-units-`completed` fast path (§3) is the expected classification. It is a
+  **corroborating** read, **not** a replacement — the per-unit classification below is
+  still driven by the graph `run-status` + Linear + worktree signals (the ledger does not
+  change the 4-state table), so the existing graph-based reconcile is unchanged when the
+  ledger is empty (a fresh checkout, or a problem that never reached handoff).
 - **Claim-lock** (the fifth source of truth — **`skills/linear/claim-lock.md`**) — `check`
   the problem's `**[backlogd]** Claim` comment. It tells you whether *another live session*
   is actively working this problem right now — the signal Linear state alone can't give you
