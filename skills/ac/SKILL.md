@@ -123,6 +123,37 @@ something to settle it, it is a `[review]` item.
    `[manual]` without that justification is treated as mis-typed and should be retyped
    `[review]`.
 
+#### The one named exception: a guide/runbook **first-live-run** AC
+
+There is exactly **one** standing exception where a `[manual]` is the default rather than the
+rare case: a **guide/runbook-class deliverable** — a doc whose entire value is a human
+**following it end-to-end** (a `docs/guides/*-setup.md`, an install/onboarding walk-through, a
+demo runbook, any step-by-step a person is meant to execute). Prose review reads the steps; it
+cannot *run* them, and the defects that matter (a copied URL the terminal mangles, a redirect
+that errors yet succeeds, a step misordered against what the live tool actually does) only
+surface when a human walks it. So a guide/runbook-class problem **carries a `[manual]`
+first-live-run AC by default**:
+
+```markdown
+- [ ] [manual] One real end-to-end execution of this guide by a human; defects fed back into
+  the guide — [manual] because no fresh-context agent can perform the human walk-through.
+```
+
+The one-line justification is the standard one (no fresh-context agent can do the human
+walk-through), so it satisfies rule 2 above. This is the **execution** gate; it is a sibling of
+the live-evidence rule in
+[ADR-008](../../docs/standards/adrs/ADR-008-live-surface-verification.md), which governs the
+*evidence behind an external-surface claim* — keep the two crisp: ADR-008 asks *is the claim
+proven against the live surface*; this AC asks *has a human run the deliverable end to end*. The
+guide's recorded run (e.g. the "Verified — first live run" blockquote that
+[`docs/guides/agent-identity-setup.md`](../../docs/guides/agent-identity-setup.md) carries) is
+where the run and any defects it fed back are written down.
+
+This exception is **narrow**: it fires only for the guide/runbook class. It does **not** widen
+`[manual]` for anything else, and it does **not** touch the rule above that a
+soundness/correctness/consistency call is `[review]` — a guide can still carry `[review]` ACs
+for whether its prose is right; the first-live-run AC is only the standing *execution* check.
+
 The reviewer subagent **does not try to verify** `[manual]` items itself. Instead,
 it batches every `[manual]` item on the problem into a single follow-up section in
 its drafted verdict body — one bullet per item — titled "Manual checks for the PO".
