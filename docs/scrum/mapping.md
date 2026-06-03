@@ -36,7 +36,7 @@ for the agent-facing voice.
 | Scrum Guide concept | backlogd surface |
 | --- | --- |
 | **Sprint** — fixed-length container of one month or less; "the heartbeat of Scrum, where ideas are turned into value" (Scrum Guide → *Scrum Events › The Sprint*). | **Continuous flow — no fixed-length sprint.** backlogd runs **one problem per loop**: pickup → solve → review → release. The "Sprint" container is the *single problem's loop* from `solve`-claim to `review`-accept. There is no calendar timebox. |
-| **Sprint Planning** — initiates the Sprint by laying out the work; produces the Sprint Backlog (the *why* / *what* / *how*) (Scrum Guide → *Scrum Events › Sprint Planning*). | **`/backlogd:scope`** — shapes a problem: writes the spec + `## Acceptance Criteria` into the Linear issue description, decomposes on discovery (sub-issues + `blocked-by`, or promotes to a Project), sets priority. Produces the equivalent of a Sprint Backlog **for that one problem**. |
+| **Sprint Planning** — initiates the Sprint by laying out the work; produces the Sprint Backlog (the *why* / *what* / *how*) (Scrum Guide → *Scrum Events › Sprint Planning*). | **`/backlogd:scope`** — shapes a problem: writes the spec + `## Acceptance Criteria` into the Linear issue description, decomposes on discovery (sub-issues + `blocked-by`, or promotes to a Project), sets priority. Produces the equivalent of a Sprint Backlog **for that one problem**. A problem must clear the **[Definition of Ready](definition-of-ready.md)** entry gate before it is solvable — symmetric to the [Definition of Done](definition-of-done.md) exit gate (entry mirrors exit: backlogd refuses to start an unready problem just as it refuses to ship an ungoverned increment). The gate is reached **Socratically — `scope` interrogates the idea into a crisp, falsifiable problem; it does not generate ideas or prioritize the backlog** (ordering stays the PO's call, per *Product Backlog* below). |
 | **Daily Scrum** — 15-minute Developer event to inspect progress toward the Sprint Goal and adapt the plan (Scrum Guide → *Scrum Events › Daily Scrum*). | **`/backlogd:status`** — read-only standup. Surveys active `problem` issues, reads decomposition / states / `blocked-by`, reports progress + blockers to the PO. Writes nothing — same inspection function, no plan adaptation (that lives in `solve`). |
 | **Sprint Review** — inspects the outcome of the Sprint; stakeholders decide what to do next (Scrum Guide → *Scrum Events › Sprint Review*). | **The independent verdict review** — verifies an *In Review* problem against its `## Acceptance Criteria` and the [Definition of Done](definition-of-done.md). All met (fully green) → merged → Done; gaps → back to In Progress with rework notes; genuine judgement call → asks the PO. On the happy path `/backlogd:solve` **auto-chains this verdict and merges with no human gate** (ship-on-green, on by default); `/backlogd:review` is the manual re-entry point. Closes the loop. |
 | **Sprint Retrospective** — inspects how the last Sprint went; identifies improvements to process, tools, Definition of Done (Scrum Guide → *Scrum Events › Sprint Retrospective*). | **`/backlogd:retro`** — over a completed **milestone** (primary; cycle-end as a cadence safety-net, and on-demand `--cycle` / `--since` / `--last` selectors), reads the **execution graph** (`scripts/graph.py report --json`: rework, latency, blockers, partials) as objective evidence, detects **cross-issue patterns** no single review can see, classifies each learning (recurring failure → ADR/standard · process problem → framework bug · one-off → noted), and **files the load-bearing ones as candidate `kind:improvement` issues**. The retro proposes; the PO prioritizes — the team does not grade its own homework and auto-fix. Closes the empirical loop's adaptation pillar. |
@@ -46,6 +46,18 @@ for the agent-facing voice.
 > — releases in Scrum happen *within* the Sprint (an Increment may ship at any time).
 > Treat `release` as the engineering counterpart to the Increment's "usable" property,
 > not a separate ceremony.
+
+<!-- two distinct notes; the comment separates the blockquotes (MD028) -->
+
+> **Note on the Definition of Ready.** backlogd attaches a
+> **[Definition of Ready](definition-of-ready.md)** to Sprint Planning (`/backlogd:scope`)
+> as the **entry** gate symmetric to the [Definition of Done](definition-of-done.md)
+> **exit** gate. The DoR is **not** in the November 2020 Scrum Guide — it is community
+> practice — so backlogd adopts it to complete entry/exit symmetry, **not** as a
+> Scrum-compliance fix, and does not claim it as one (consistent with *Interpretation, not
+> certification* in [`../../skills/scrum/SKILL.md`](../../skills/scrum/SKILL.md)). The DoD
+> *is* a canonical Scrum commitment (on the Increment); the DoR is backlogd's own mirror of
+> it at the front of the loop.
 
 ## Artifacts (3) + their commitments
 
