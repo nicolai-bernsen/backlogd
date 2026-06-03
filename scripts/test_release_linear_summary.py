@@ -46,16 +46,51 @@ class AC1_IncludedIssueSetComputation(unittest.TestCase):
     def test_AC1_release_md_exists(self):
         self.assertTrue(RELEASE_PATH.is_file(), f"{RELEASE_PATH} must exist")
 
-    def test_AC1_uses_git_log_merges_for_tag_range(self):
+    def test_AC1_walks_all_commits_not_only_merges(self):
+        """NB-425: §6.5a must walk ALL commits in the tag range (the squash-merges onto
+        the integration branch carry the issue identity; the release-branch merge commits
+        do not), feeding them to `scripts/release_scan.py`. The old `git log --merges`
+        contract is superseded and must be gone.
+        """
         body = _read(RELEASE_PATH)
-        # The script invokes `git ... log --merges <prev-tag>..vX.Y.Z` — every git
-        # call in this file is `-C "$WT"`-scoped per §3 worktree convention, so
-        # match the `log --merges` shape with `git` ahead of it (allowing the
-        # -C "$WT" interposition).
+        # The walk must be the all-commits form `git ... log <prev-tag>..vX.Y.Z` (no
+        # --merges). Every git call in this file is `-C "$WT"`-scoped per §3, so allow the
+        # -C "$WT" interposition.
         self.assertRegex(
             body,
-            r"git\s+(-C\s+[^\s]+\s+)?log\s+--merges\s+<prev-tag>\.\.vX\.Y\.Z",
-            "AC1: must use `git log --merges <prev-tag>..vX.Y.Z` to walk the tag range",
+            r"git\s+(-C\s+[^\s]+\s+)?log\s+<prev-tag>\.\.vX\.Y\.Z",
+            "AC1/NB-425: must walk `git log <prev-tag>..vX.Y.Z` (all commits, not merges)",
+        )
+        # The superseded merge-only *instruction* must NOT reappear (drift guard): forbid
+        # the `log --merges <prev-tag>..vX.Y.Z` walk command specifically, so an
+        # explanatory mention of the old contract in prose does not false-trip.
+        self.assertNotRegex(
+            body,
+            r"log\s+--merges\s+<prev-tag>",
+            "AC1/NB-425: the superseded `git log --merges <prev-tag>..` walk must be gone",
+        )
+        # The all-commits set is computed by the tested pure module, not inline prose.
+        self.assertIn(
+            "scripts/release_scan.py",
+            body,
+            "AC1/NB-425: §6.5a must invoke the tested `scripts/release_scan.py` module",
+        )
+
+    def test_AC1_documents_inclusion_vs_advisory(self):
+        """NB-425: the inclusion-vs-advisory distinction and the bare `#N` scope form (the
+        identifier the old pattern missed) must be documented in prose."""
+        body = _read(RELEASE_PATH)
+        self.assertRegex(
+            body,
+            r"[Aa]dvisory",
+            "AC1/NB-425: §6.5a must document the advisory (incidental-reference) set",
+        )
+        # The conventional-commit scope form `feat(#N)` (bare #N, no NB- prefix) is the
+        # form the old scan missed — it must be named as an inclusion.
+        self.assertRegex(
+            body,
+            r"feat\(#N\)|`#N`",
+            "AC1/NB-425: §6.5a must name the bare `#N` conventional-commit scope form",
         )
 
     def test_AC1_extracts_NB_identifiers_from_branch_pr_or_commit(self):
