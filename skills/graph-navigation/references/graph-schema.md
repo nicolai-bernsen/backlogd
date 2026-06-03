@@ -113,3 +113,21 @@ links — all readable on demand. Git owns file-authorship history. This graph s
 what neither can compute: the **behaviour of the agent loop itself** (dispatch outcomes,
 latencies, rework rate). A lookup returns Linear `NB-N` ids; resolve their titles/status in
 Linear **separately** (see the `linear` skill). Keep the graph query itself offline.
+
+## The solve ledger — a sibling store, not part of the graph
+
+The graph is **session-keyed, edge-level telemetry** with an evolving internal schema,
+optimised for metrics. Beside it lives a deliberately separate store (NB-426): the **solve
+ledger** at `.backlogd/ledger.jsonl` (`scripts/ledger.py`) — a compact, **problem-keyed,
+append-only durable run record** with a **stable read contract**. One JSONL line per
+completed `/backlogd:solve` run names the problem, the units solved with their outcomes,
+the PR reference, and the run timestamp.
+
+It is **not** an edge type and **not** read by `metrics()` — it answers a different
+question. The graph answers *"how is the loop behaving across sessions?"* (the metrics
+source of truth); the ledger answers *"what did this problem's runs do?"* in one cheap
+problem-first lookup, so resume can short-circuit and the retro can read local run history
+without a Linear round-trip. To keep the two from silently disagreeing, the orchestrator
+appends the ledger record at the **same lifecycle point** the graph records `run_completed`
+(`skills/solve/handoff.md` §2). Both are gitignored under `.backlogd/` and absent on a
+fresh checkout. Read the ledger with `python scripts/ledger.py read --problem {id}`.
