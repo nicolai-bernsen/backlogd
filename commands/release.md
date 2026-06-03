@@ -2,7 +2,7 @@
 description: Cut a release — promote the integration branch to the release branch, bump the plugin version on a release branch, merge with a merge commit, tag vX.Y.Z, and back-merge so the two branches re-sync.
 ---
 
-<!-- release-script-version: 0.20.0 -->
+<!-- release-script-version: 1.0.0 -->
 
 # /backlogd:release
 
@@ -199,24 +199,58 @@ git) carries the same audit trail. Call shapes and idempotency markers live in
 
 ### a. Compute the included-issue set
 
-Walk the merge commits from the previous tag to the new one and extract Linear identifiers:
+Walk **all** commits from the previous tag to the new one (not only merge commits) and
+feed them to the tested pure module `scripts/release_scan.py`. This supersedes the prior
+merge-only walk: on backlogd's `feature → dev → main` flow the release-branch merge commits
+are `Merge pull request #N from nicolai-bernsen/main` / `… /release/vX.Y.Z`, which carry
+**no Linear identity at all** — the commits that *do* carry issue identity are the
+squash-merges onto the integration branch (`feat(#413): …`, `fix(#418): …`), exactly the
+ones a merge-only walk skips. So gather every commit in the range and let the module
+classify them:
 
 ```bash
-git -C "$WT" log --merges <prev-tag>..vX.Y.Z --pretty=format:"%H %s%n%b"
+git -C "$WT" log <prev-tag>..vX.Y.Z \
+  --format="%s$(printf '\x1f')%b$(printf '\x1e')" | python scripts/release_scan.py
 ```
 
-For each merge commit, scan the subject, body, and the head-branch name (PRs cut by
-`/backlogd:solve` follow `nicolaibernsen/nb-<n>-<slug>`) for Linear identifiers. The
-magic-word pattern is `NB-N` — accept it in any of:
+The module reads that delimited stream (subject and body per commit; the field separator
+is ASCII Unit Separator `\x1f`, the record separator is Record Separator `\x1e`) and prints
+two lines — the **included** set and the **advisory** set:
 
-- a branch name segment (`nicolaibernsen/nb-<n>-...`, case-insensitive),
-- a PR title or body (`(#NB-N)`, `#NB-N`, or bare `NB-N`),
-- a commit message line (same patterns).
+```text
+included: NB-413, NB-418, NB-420
+advisory: NB-315, NB-340, NB-398
+```
 
-Deduplicate the resulting set of `NB-N` ids.
+It recognises every identifier form backlogd actually emits, and distinguishes a
+**structural inclusion** (the commit *is* this issue's work) from an **incidental
+reference**. The logic lives in the module (and its `scripts/test_release_scan.py` suite)
+so it cannot drift from this prose; do **not** restate the regexes here. The contract it
+implements:
 
-**Degrade gracefully.** If the range yields no Linear identifiers (e.g. a release built
-from external contributions only), fall back to issues *completed* in the tag range:
+- **Included** — a conventional-commit scope `feat(#N)` / `fix(#N)` / `docs(#N)` etc. (a
+  bare `#N`, **no** `NB-` prefix — this is the form the old bare-`NB-N` pattern missed); a
+  bare `NB-N` in the subject; a `closes` / `fixes` / `resolves` directive before an `NB-N`
+  or `#N` (in the subject **or** body); and an `nb-N` segment in the head-branch name (PRs
+  cut by `/backlogd:solve` follow `nicolaibernsen/nb-<n>-<slug>`, case-insensitive).
+- **Advisory, not included** — an `NB-N` that appears **only** in a commit body (an
+  incidental mention of a prior, already-shipped issue), reported on its own line so the
+  maintainer can eyeball near-misses but never counted as shipped.
+- **Dropped entirely** — the trailing GitHub PR number a squash-merge appends to the
+  subject (`… (#129)`) is a PR number, not an issue; it enters **neither** set.
+
+The module already deduplicates; the printed `included` line is the set of `NB-N` ids the
+rest of §6.5 uses.
+
+> The head-branch name is not on the commit itself, so the `git log` stream above leaves
+> that field empty and the scan relies on the subject / body signals (which carry issue
+> identity on backlogd's squash-merge convention). If you have the head-branch names to
+> hand (e.g. from `gh pr list`), you may supply them as the third `\x1f`-delimited field
+> per commit to light up the branch-segment rule too.
+
+**Degrade gracefully.** If the range yields no Linear identifiers at all (e.g. a release
+built from external contributions only, so the module prints `included: none`), fall back
+to issues *completed* in the tag range — this degrade path is unchanged:
 
 ```text
 list_issues({ team: "<team>", filter: { completedAt: { gte: <prev-tag date>, lte: <vX.Y.Z date> }, labels: { name: { eq: "problem" } } } })
@@ -310,7 +344,12 @@ Released vX.Y.Z
   back-merge -> {release} → {integration} (re-synced)
   gh-release -> vX.Y.Z (<url>)
   linear     -> {n} "Shipped" comments + roll-up
+  advisory   -> (not shipped-in-range): NB-315, NB-340, NB-398   # omit the line if none
 ```
+
+Surface the **advisory** ids (the incidental body references the scan reported separately)
+on their own line so the maintainer can eyeball near-misses against what actually shipped.
+Omit the line when the advisory set is empty.
 
 If any step needs the product owner (review-gated merge with no admin rights, a back-merge
 conflict, or `gh` unavailable), report what landed, what's left, and the exact next step.

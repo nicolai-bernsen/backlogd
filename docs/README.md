@@ -36,6 +36,8 @@ directory holds the **living** spec (how the system is built, and why).
 
 - **[PO daily overview — saved views setup](guides/po-overview.md)** — configure the two
   Linear views and read the forecast block; the 60-second daily PO routine.
+- **[Agent identity setup](guides/agent-identity-setup.md)** — install the `backlogd` agent
+  in Linear so problems it picks up show a `delegate` (Tier 1); optional, admin-only, one-time.
 
 ## In one line
 

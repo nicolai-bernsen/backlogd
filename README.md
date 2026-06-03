@@ -1,5 +1,10 @@
 # backlogd
 
+[![CI](https://github.com/nicolai-bernsen/backlogd/actions/workflows/ci.yml/badge.svg)](https://github.com/nicolai-bernsen/backlogd/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/nicolai-bernsen/backlogd)](https://github.com/nicolai-bernsen/backlogd/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-d97757)](https://claude.com/claude-code)
+
 **backlogd is an agent *team* that runs real Scrum — any problem type — on your Claude
 subscription, not API tokens.**
 
@@ -43,50 +48,89 @@ loop. After setup, backlogd stays key-free and MCP-only. This is the keyless pri
 
 ## Watch it work
 
-📹 *Demo recording coming soon.*
+Two real, back-to-back runs from this repo's own backlog — backlogd building backlogd.
+Every code artifact below is public: the PRs, the commit history, the standard.
 
-Until the cast lands, the exact beats it records against — file a problem, the team picks
-it up, the reviewer **blocks on a missing standard**, the PO defines it, the team resolves
-it, the PR merges — are scripted in the **[demo runbook](docs/demo-runbook.md)** (and
-summarised as the **Demo run-of-show** in
-[docs/ROADMAP.md](docs/ROADMAP.md#demo-run-of-show)). The strongest framing: it is backlogd
-solving a backlogd problem.
+**1 · The PO files a problem, not a spec.** *"Persist a per-run solve ledger under
+`.backlogd/` so re-runs and the retro can read run history."* One paragraph of outcome,
+four acceptance-criteria bullets, zero implementation detail.
 
-<!-- NB-396: embed the asciinema cast / GIF here once recorded. Drop it directly under the
-     "Watch it work" heading and remove the "Demo recording coming" line above. -->
+**2 · The team pushes back before building.** `/backlogd:scope`'s refiner reads the code
+first and challenges the problem: the execution graph *already* records run history — is
+this a thin view over it, a separate artifact, or a duplicate to close? The call routes to
+the PO as a three-option decision. The ruling — a separate durable artifact, because
+telemetry and a durable run record are different contracts — goes into the issue, and only
+then does anyone build.
+
+![The problem in Linear — the refiner's shaping note and the PO's ruling, recorded in the
+issue description](docs/assets/demo-1-ruling.png)
+
+**3 · One command solves it.** `/backlogd:solve` dispatches a developer that owns the
+*how* (it chose append-only JSONL with a per-record schema `version` field), a tester that
+proves every `[test]` criterion with exit codes — and an independent pre-commit gate,
+which **bounced round 1**: the spec's `git check-ignore .backlogd` command is
+environment-dependent on a pristine checkout. The acceptance criterion was retyped to the
+deterministic file-path form; round 2 passed. The team fixed its own spec before any human
+saw the diff ([PR #133](https://github.com/nicolai-bernsen/backlogd/pull/133)).
+
+![The pre-commit gate's comment in Linear — VERDICT: ok on round 2, after the round-1
+acceptance-criterion retype](docs/assets/demo-2-gate.png)
+
+**4 · An independent reviewer verifies with receipts, then ship-on-green merges.** A
+fresh-context verdict re-ran every check itself — the full 606-test suite, lint, the
+gitignore invariant on a checkout where `.backlogd/` doesn't even exist — and the run
+merged on the green verdict with no human gate. The ledger's first record is its own
+birth-run ([`scripts/ledger.py`](scripts/ledger.py)).
+
+![The independent verdict on the ledger in Linear — accepted, with per-criterion cited
+evidence](docs/assets/demo-3-verdict.png)
+
+**5 · The standards corpus grows on demand.** The verdict's standards walk surfaced that
+the ledger's format had only per-issue authority — the *next* persisted store would have
+no rule to follow. The PO answered the open question once, and the loop turned that
+sentence into
+**[ADR-007](docs/standards/adrs/ADR-007-persisted-on-disk-run-state-data.md)**
+(append-only NDJSON · per-record `version` · grow-only schema · never commit),
+regenerated the standards index, pinned it with new tests, and merged
+([PR #135](https://github.com/nicolai-bernsen/backlogd/pull/135)). The reviewer's closing
+line on the second verdict: *"this unit closes the persisted-data governance gap NB-426
+surfaced."*
+
+![The verdict on ADR-007 in Linear — accepted; the standards walk that closes the
+governance gap](docs/assets/demo-4-standard.png)
+
+From filed problem to two merged PRs and a new Accepted standard, the product owner made
+**one product ruling and one approval** — the challenge, the build, the catches, the
+verification, and the governance were the team.
+
+<!-- NB-396: static demo artifact — annotated walkthrough of the real NB-426 → NB-427
+     runs (PR #133 + PR #135), with the Linear-side screenshots embedded above from
+     docs/assets/. A recorded terminal cast (docs/demo-runbook.md, good-first-issue #42)
+     can augment or replace this section post-1.0. -->
+
+*(Want the recorded version? The [demo runbook](docs/demo-runbook.md) scripts a turnkey
+cast — contributions welcome via good-first-issue #42.)*
 
 ## The loop
 
-Most AI coding workflows want you to hand over a spec — a precise description of what to
-build, and often how to build it. backlogd flips that. You describe the *problem* and what
-"better" looks like; the agents own the *solution*.
+Most AI coding workflows want a spec. backlogd flips that: you file a *problem* as a
+Linear issue (the `problem` label) and describe what "better" looks like; the agents own
+the *solution*, and everything — status, decisions, results — is recorded in Linear, the
+single source of truth.
 
-- **You (PO)** file a problem as a Linear issue (the `problem` label).
-- **`/backlogd:scope`** shapes that problem into an executable, decomposed issue — it
-  writes the `## Acceptance Criteria` and splits the work on discovery.
-- **`/backlogd:solve`** executes it — dispatches a developer per unit of work (in
-  parallel when the units are blocked-by-independent), opens **one** PR, hands back a
-  solution brief at In Review, then **auto-chains the independent verdict review and, on a
-  fully-green result, merges to Done with no human gate** (ship-on-green, on by default;
-  `--no-ship` holds it at In Review). On ops-only problems (e.g. tweaking GitHub repo
-  settings) it skips the worktree entirely — no PR, just an action log on the issue.
-- **`/backlogd:review`** is the manual re-entry to the same gate: it dispatches an
-  **independent reviewer agent** to verify the acceptance criteria against the diff (with
-  a fresh context, running the checks itself), then accepts to Done (merging) or sends it
-  back. On the happy path `/backlogd:solve` already ran this for you.
-- **`/backlogd:status`** gives a read-only standup of progress and blockers, changing
-  nothing.
-- **`/backlogd:retro`** closes the adaptation loop: it reads the execution graph, detects
-  cross-issue patterns, and files candidate improvements back into the backlog for you to
-  prioritise.
+- **`/backlogd:scope`** — shapes a problem: writes the `## Acceptance Criteria`,
+  decomposes on discovery, picks the specialist.
+- **`/backlogd:solve`** — executes it: a developer per unit (parallel when independent),
+  one PR, then the **auto-chained independent verdict review — ship-on-green merges a
+  fully-green result to Done with no human gate** (`--no-ship` holds at In Review;
+  `--dryrun` previews and touches nothing).
+- **`/backlogd:review`** — the manual re-entry to the same gate for held or sent-back
+  work.
+- **`/backlogd:status`** — a read-only standup: progress, blockers, forecast.
+- **`/backlogd:retro`** — reads the execution graph and files improvement candidates back
+  into the backlog for you to prioritise.
 
-Throughout, developer agents own the technical calls, blockers return to you as questions
-rather than silent guesses, and everything — status, decisions, results — is recorded in
-Linear, the single source of truth for the whole loop.
-
-The methodology underneath — spec-driven development, small vertical slices, tests first —
-is a tool the agents reach for, encouraged but not mandated. The contract is the problem
-and the outcome, not the process.
+Blockers come back to you as questions, never silent guesses.
 
 ## Status — honest, and on purpose
 
@@ -94,44 +138,24 @@ and the outcome, not the process.
 built by running it on itself (dogfooded) — that is the strongest proof it works. (For the
 exact current version, see the [releases](https://github.com/nicolai-bernsen/backlogd/releases).)
 
-**Both 1.0 gates have shipped:**
+**Both 1.0 gates have shipped**: the independent reviewer **enforces the standards corpus
+and blocks on a missing load-bearing standard** (the moment that distinguishes a *team*
+from a single-agent runner), and **`/backlogd:retro`** closes the adaptation loop —
+shipped *and dogfooded*. All three of Scrum's empirical pillars are real:
+**transparency** (Linear as the system of record, visible per-agent identity),
+**inspection** (the execution graph + the independent verdict review), and **adaptation**
+(standards growth + the retro).
 
-- The independent reviewer **enforces the standards corpus and blocks on a missing
-  load-bearing standard** — the moment that distinguishes a *team* from a single-agent
-  runner.
-- **`/backlogd:retro`**, the retrospective / adaptation loop, is shipped *and dogfooded*: a
-  real retro run read the execution graph and filed a genuine improvement back into the
-  backlog. The adaptation pillar is fully closed, not merely shipped.
+**What works today:** the commands above plus `/backlogd:init`, specialist dispatch
+([docs/specialists.md](docs/specialists.md)), a parallel walk for independent units,
+ship-on-green, the execution graph ([`scripts/graph.py`](scripts/graph.py)), key-free
+Linear via the official MCP, and per-session worktree isolation. **Explicitly *not* in
+1.0** (roadmap): the always-on tokenless runtime, the standards ↔ graph join, the full
+Agent-Interaction-Protocol identity.
 
-So all three of Scrum's empirical pillars are real: **transparency** (Linear is the system
-of record, with visible per-agent identity), **inspection** (the execution graph plus the
-independent verdict review), and **adaptation** (standards growth, ADR supersession, and
-the dogfooded retro).
-
-**What works today:**
-
-- The commands `/backlogd:scope` · `:solve` · `:status` · `:review` · `:retro` · `:init`.
-- **Specialist dispatch** — `developer-<suffix>` agents pick the right craft per problem
-  (see [docs/specialists.md](docs/specialists.md)).
-- A **parallel walk** — independent units run concurrently.
-- **Ship-on-green** — on a fully-green verdict, `solve` auto-merges and closes the issue
-  (`--no-ship` holds at In Review).
-- The **execution graph** ([`scripts/graph.py`](scripts/graph.py)).
-- **Key-free Linear** via the official MCP, and per-session worktree isolation.
-
-**What's explicitly *not* in 1.0** (on the roadmap, not shipped): the always-on / headless
-tokenless runtime, the standards ↔ execution-graph join ("graph-DB v2"), and the full
-Agent-Interaction-Protocol identity (1.0 ships the visible comment-badge identity, not the
-full protocol).
-
-What remains for the 1.0 *declaration* is the launch trio — this README, the demo
-recording, and the announcement — plus the 1.0.0 version bump. The substance has shipped;
-launch-readiness is what's left.
-
-The full **Definition of 1.0**, the minimal end-to-end loop, and the complete *what is
-explicitly out* list live in [docs/ROADMAP.md](docs/ROADMAP.md) — so you can see what's
-built before you install and never bounce off an unbuilt feature. You can file a problem,
-or pick up an open one, on the public
+The full **Definition of 1.0** and what's explicitly out live in
+[docs/ROADMAP.md](docs/ROADMAP.md) — see what's built before you install, and never
+bounce off an unbuilt feature. File a problem, or pick up an open one, on the public
 [issue tracker](https://github.com/nicolai-bernsen/backlogd/issues).
 
 ## Quickstart
@@ -159,73 +183,40 @@ backlogd is a Claude Code plugin. Add the marketplace, then install it:
 
 ### Your first loop
 
-The first slice proves the whole loop with one command. From a clean checkout, with the
-prerequisites above in place:
-
-1. In Linear, create an issue describing a small problem — e.g. *"The README has no example
-   of running the demo."* Add the `problem` label and leave it in your Backlog.
-2. From this repo, with the plugin installed, run:
+1. In Linear, create an issue describing a small problem — e.g. *"The README has no
+   example of running the demo."* Add the `problem` label and leave it in your Backlog.
+2. From a repo with the plugin installed, run:
 
    ```text
    /backlogd:solve
    ```
 
-   (`solve` shapes the problem first if it isn't already; run `/backlogd:scope` yourself
-   when you want to review the shape and decomposition before solving. Add `--dryrun` —
-   `/backlogd:solve --dryrun {identifier}` — to preview the dispatch plan without touching
-   Linear or git, or `--no-ship` to stop at In Review instead of auto-merging on green.)
+   (`solve` shapes an unshaped problem first; `--dryrun` previews the plan and touches
+   nothing; `--no-ship` stops at In Review instead of auto-merging on green.)
 
-3. Watch the loop:
-   - the issue moves **Backlog → In Progress**,
-   - a `backlogd:developer` agent picks up the problem and takes a concrete action,
-   - its result is recorded as a **comment** on the issue,
-   - the issue moves to **In Review** with a high-level solution brief,
-   - and `/backlogd:solve` **auto-chains the independent verdict review and, on a
-     fully-green result, merges the PR and moves the issue to Done — no second command**
-     (ship-on-green). You are interrupted only if it is sent back, needs a judgement call
-     from you, or hits a blocker. (Ran with `--no-ship`, or want to re-check a held
-     problem? Run **`/backlogd:review`** to verify it against its acceptance criteria and
-     accept or send it back.)
+3. Watch: **Backlog → In Progress** (a developer owns the *how*, its work-log lands as a
+   comment) → **In Review** (solution brief posted) → the auto-chained verdict → **merged
+   and Done on green, no second command**. You are interrupted only by a real blocker or
+   a judgement call.
 
-That's the contract: you described a problem, an agent owned the solution, and the result
-is visible on the issue — no spec, no step-by-step.
-
-Run **`/backlogd:status`** any time for a read-only standup — progress and blockers across
-your active problems, with nothing changed.
+That's the contract: you described a problem; the result is visible on the issue. Run
+**`/backlogd:status`** any time for a read-only standup.
 
 ### Bootstrap your workspace (optional)
 
-The `problem` label is the only thing the loop strictly needs, but a fresh Linear workspace
-can be brought fully into backlogd's canonical shape — the `problem` / `kind:ops` /
-`blocked` labels, the workflow-state categories the forecast reads, and the issue/project
-templates — in one pass with **`/backlogd:init`**. It runs the audit first (try
-`/backlogd:init --dryrun` to preview the plan and change nothing), applies only additive,
-idempotent fixes by default, and never deletes anything without an explicit per-group yes.
-
-This is the *one* place backlogd uses a local Linear Admin API key — read by a setup
-engine, never by the orchestrator or any agent. The runtime loop stays key-free / MCP-only
-after setup. See [docs/guides/workspace-bootstrap.md](docs/guides/workspace-bootstrap.md)
-for the key-creation walkthrough and exactly what `init` configures.
-
-> **Identity cache.** On first use, the scrum-master commands resolve your Linear team,
-> its workflow states, and its labels, and snapshot them to `.backlogd/identity.json` with
-> a 24-hour TTL — subsequent runs short-circuit the three `list_*` calls. The directory is
-> gitignored. If you rename a workflow state or add a label backlogd should know about
-> inside the 24-hour window, **delete `.backlogd/identity.json`** to force a refresh on the
-> next run.
->
-> **How backlogd uses Linear** — the operating model (how a problem maps to issues,
-> sub-issues, projects, and milestones) and the exact Linear MCP usage live in the
-> [`skills/linear/`](skills/linear/SKILL.md) skill.
+**`/backlogd:init`** brings a fresh Linear workspace into backlogd's canonical shape —
+labels, workflow states, templates — in one audited, idempotent pass (`--dryrun` previews
+it). It is the *one* place a local Linear Admin key is ever read, by the setup engine and
+never the runtime loop. Walkthrough:
+[docs/guides/workspace-bootstrap.md](docs/guides/workspace-bootstrap.md). How backlogd
+uses Linear — the operating model and the identity cache — lives in
+[`skills/linear/`](skills/linear/SKILL.md).
 
 ## For Product Owners
 
-The PO's daily job in backlogd is small: notice blockers, glance at what's in flight, trust
-the forecast. Two Linear saved views and one `## 📊 Forecast` block on your engagement
-Project make the whole check fit in 60 seconds, click-free.
-
-See [docs/guides/po-overview.md](docs/guides/po-overview.md) for the exact filter specs,
-sort and grouping setup, and the daily routine.
+The daily PO check fits in 60 seconds: two Linear saved views plus a `## 📊 Forecast`
+block on your Project. Setup + routine:
+[docs/guides/po-overview.md](docs/guides/po-overview.md).
 
 ## Roadmap / open questions
 
@@ -241,24 +232,6 @@ issues](https://github.com/nicolai-bernsen/backlogd/issues) and
   **GitHub Issues backend** (drop Linear), (b) **require a PAT** (which breaks the no-keys
   principle), or (c) **wait for CI-friendly auth**. We don't have a settled answer — input
   and prototypes welcome.
-
-## Layout
-
-```text
-.claude-plugin/   plugin + marketplace manifests
-agents/           subagent definitions (refiner / developer / tester / reviewer)
-commands/         slash commands — scope + solve + status + review + retro + release + init
-skills/           reusable skill playbooks (see skills/linear — how backlogd uses Linear;
-                  skills/reviewer — the independent-review trust model;
-                  skills/solve — the executing loop; skills/retro — the adaptation loop;
-                  skills/worktree-isolation — the per-session worktree pattern that lets
-                  the loop dispatch in parallel)
-docs/             living spec — how backlogd works and the conventions for working in it
-docs/scrum/       scrum guide + mapping + DoD (the Scrum operating model)
-docs/standards/   the standards corpus (ADRs) the reviewer enforces
-hooks/            lifecycle hooks (incl. the git-identity guard — see CONTRIBUTING.md)
-.github/          continuous integration
-```
 
 ## Contributing
 

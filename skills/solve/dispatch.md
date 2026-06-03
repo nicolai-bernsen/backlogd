@@ -80,7 +80,15 @@ each unit in `blocked-by` order):
    `check`/`acquire` is **before the first state mutation below** — the cross-session lock
    (NB-414) guards the Linear work item one layer above the worktree/git isolation.
 
-   Then move the unit to the *In Progress* state (from `skills/solve/identity.md`).
+   Then move the unit to the *In Progress* state (from `skills/solve/identity.md`), and
+   **in the same `save_issue` call set `delegate:"backlogd"`** — one MCP write, no extra
+   round-trip. This is the **Tier-1 visible-agent-identity** signal (ADR-001 → carried
+   forward by [ADR-006](../../docs/standards/adrs/ADR-006-tier2-locally-hosted-agent-identity.md)
+   AC#7): the issue then shows the agent as its `delegate` while the product owner stays
+   `assignee` (delegation is additive — it never displaces the human owner), so *"an agent
+   picked this up"* is a first-class, filterable signal rather than only a comment badge.
+   See `skills/solve/identity.md` → "Set the delegate on pickup (best-effort, Tier 1)" for
+   the write shape, the best-effort contract, and the leave-on-completion default.
    On a **Project-form** run, post a project-thread health update immediately after the
    claim with marker `claim` — the body shape, dedupe-by-marker procedure, and health
    derivation rules live in
