@@ -22,8 +22,9 @@ carried forward from [ADR-001](../standards/adrs/ADR-001-visible-agent-identity-
   *your* machine, never a hosted cloud server) acks Linear AgentSessions and spawns the local
   `claude` CLI. Adds presence + autonomy. The next rung, gated on a proof.
 
-**Both rungs start from the same OAuth application — create it once (steps 1–3).** Tier 1
-needs nothing more; Tier 2 adds the webhook + the daemon later.
+**Both rungs start from the same OAuth application — create it once.** Tier 1 needs only
+steps 1–2 (create + authorize); Tier 2 adds the token exchange (step 3), the webhook, and
+the daemon later.
 
 > **Secret custody — [ADR-002](../standards/adrs/ADR-002-keyless-mcp.md).** The app's
 > `client_id`, `client_secret`, and access token are **setup-only** secrets — the same
@@ -66,22 +67,32 @@ Installing the agent is a one-time OAuth authorization you approve **as admin**.
 URL in a browser (signed in as the admin), substituting `<client_id>` and a random `<state>`:
 
 ```text
-https://linear.app/oauth/authorize?client_id=<client_id>&redirect_uri=http://localhost:3000/oauth/callback&response_type=code&scope=read,app:assignable&state=<random>&actor=app
+https://linear.app/oauth/authorize?client_id=<client_id>&actor=app&response_type=code&scope=read%2Capp%3Aassignable&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Foauth%2Fcallback&state=<random>
 ```
 
+- **Keep the URL percent-encoded exactly as above** (`%2C` = `,`, `%3A` = `:`). The first
+  live install (2026-06-02) hit this: raw `,`/`:` in query values get mangled when the URL
+  is copied through a terminal or chat linkifier, and Linear then rejects with *"Actor has
+  to be `user`, `application` or `app`"*. Putting `actor=app` early also survives trailing
+  truncation.
 - **`actor=app`** installs it as an *agent* (not as you) — this is the admin-only step that
   creates the `backlogd` user in your workspace.
-- **`scope=read,app:assignable`** (comma-separated). `app:assignable` is what lets the agent
-  be a **delegate** target. Add `app:mentionable` to allow @-mentions, and `write` if the
-  agent token itself will mutate Linear (Tier 2).
+- **`scope=read%2Capp%3Aassignable`** (`read,app:assignable`). `app:assignable` is what lets
+  the agent be a **delegate** target. Add `app:mentionable` to allow @-mentions, and `write`
+  if the agent token itself will mutate Linear (Tier 2).
 
-Approve, and pick the team(s) the agent can access. The browser then redirects to
+Approve, and pick the team(s) the agent can access. **The agent user is created the moment
+you approve** — before any token exchange. The browser then redirects to
 `http://localhost:3000/oauth/callback?code=…`; since nothing is listening there you'll see a
-connection error — **that's expected. Copy the `code` value out of the address bar.**
+connection error (or a bare "Internal Server Error") — **that's expected and harmless.**
 
-## 3. Exchange the code for the agent token
+- **Tier 1: you're done — skip step 3.** The agent exists; discard the `code`.
+- **Tier 2: copy the `code` value out of the address bar** before closing the tab.
 
-Run this yourself so the secret never leaves your machine:
+## 3. Exchange the code for the agent token (Tier 2 only)
+
+Tier 1 never uses the agent's own token — skip this entirely unless you are building the
+Tier-2 listener. Run it yourself so the secret never leaves your machine:
 
 ```bash
 curl -X POST https://api.linear.app/oauth/token \
@@ -92,8 +103,8 @@ curl -X POST https://api.linear.app/oauth/token \
   -d "grant_type=authorization_code"
 ```
 
-Store the returned `access_token` alongside the client id/secret — **out of the repo**. On
-**Tier 1 you set this token aside**; the runtime does not use it. (Tier 2's listener will.)
+Store the returned `access_token` alongside the client id/secret — **out of the repo**.
+Only Tier 2's listener ever presents it; nothing in the Tier-1 loop does.
 
 Optionally confirm the agent's identity:
 
@@ -116,12 +127,12 @@ mcp__linear__save_issue(id:"<issue>", delegate:"backlogd")
 Confirm with `get_issue` that `delegate` is now `backlogd` **and** you remain the `assignee`
 (delegation is additive — it never displaces the human owner).
 
-> **Verification status.** The OAuth install above is the documented, solid path. Whether the
-> `delegate` field-write succeeds under *plain user-OAuth MCP* — i.e. whether Tier 1 is truly
-> key-free at runtime — is the empirical question the spike **NB-390** confirms; record the
-> result there. If the write turns out to require the agent's own `actor=app` token, Tier 1 is
-> not key-free and the realistic choice narrows to comment badges (Tier 0) vs the Tier-2
-> listener.
+> **Verified — first live run, 2026-06-02 (NB-390: pass).** This guide has been executed
+> end-to-end once: the agent user was provisioned at the Authorize click, the `delegate`
+> write succeeded under the **plain user-OAuth MCP** (no agent token anywhere in the loop),
+> the human stayed `assignee`, and `list_issues(delegate:"backlogd")` filters on it. Tier 1
+> is key-free at runtime. The two pitfalls that run surfaced — URL mangling and the harmless
+> redirect error — are baked into step 2 above.
 
 ## What this is *not*
 
