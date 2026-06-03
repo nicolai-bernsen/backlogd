@@ -43,17 +43,68 @@ loop. After setup, backlogd stays key-free and MCP-only. This is the keyless pri
 
 ## Watch it work
 
-📹 *Demo recording coming soon.*
+Two real, back-to-back runs from this repo's own backlog — backlogd building backlogd.
+Every code artifact below is public: the PRs, the commit history, the standard.
 
-Until the cast lands, the exact beats it records against — file a problem, the team picks
-it up, the reviewer **blocks on a missing standard**, the PO defines it, the team resolves
-it, the PR merges — are scripted in the **[demo runbook](docs/demo-runbook.md)** (and
-summarised as the **Demo run-of-show** in
-[docs/ROADMAP.md](docs/ROADMAP.md#demo-run-of-show)). The strongest framing: it is backlogd
-solving a backlogd problem.
+**1 · The PO files a problem, not a spec.** *"Persist a per-run solve ledger under
+`.backlogd/` so re-runs and the retro can read run history."* One paragraph of outcome,
+four acceptance-criteria bullets, zero implementation detail.
 
-<!-- NB-396: embed the asciinema cast / GIF here once recorded. Drop it directly under the
-     "Watch it work" heading and remove the "Demo recording coming" line above. -->
+**2 · The team pushes back before building.** `/backlogd:scope`'s refiner reads the code
+first and challenges the problem: the execution graph *already* records run history — is
+this a thin view over it, a separate artifact, or a duplicate to close? The call routes to
+the PO as a three-option decision. The ruling — a separate durable artifact, because
+telemetry and a durable run record are different contracts — goes into the issue, and only
+then does anyone build.
+
+![The problem in Linear — the refiner's shaping note and the PO's ruling, recorded in the
+issue description](docs/assets/demo-1-ruling.png)
+
+**3 · One command solves it.** `/backlogd:solve` dispatches a developer that owns the
+*how* (it chose append-only JSONL with a per-record schema `version` field), a tester that
+proves every `[test]` criterion with exit codes — and an independent pre-commit gate,
+which **bounced round 1**: the spec's `git check-ignore .backlogd` command is
+environment-dependent on a pristine checkout. The acceptance criterion was retyped to the
+deterministic file-path form; round 2 passed. The team fixed its own spec before any human
+saw the diff ([PR #133](https://github.com/nicolai-bernsen/backlogd/pull/133)).
+
+![The pre-commit gate's comment in Linear — VERDICT: ok on round 2, after the round-1
+acceptance-criterion retype](docs/assets/demo-2-gate.png)
+
+**4 · An independent reviewer verifies with receipts, then ship-on-green merges.** A
+fresh-context verdict re-ran every check itself — the full 606-test suite, lint, the
+gitignore invariant on a checkout where `.backlogd/` doesn't even exist — and the run
+merged on the green verdict with no human gate. The ledger's first record is its own
+birth-run ([`scripts/ledger.py`](scripts/ledger.py)).
+
+![The independent verdict on the ledger in Linear — accepted, with per-criterion cited
+evidence](docs/assets/demo-3-verdict.png)
+
+**5 · The standards corpus grows on demand.** The verdict's standards walk surfaced that
+the ledger's format had only per-issue authority — the *next* persisted store would have
+no rule to follow. The PO answered the open question once, and the loop turned that
+sentence into
+**[ADR-007](docs/standards/adrs/ADR-007-persisted-on-disk-run-state-data.md)**
+(append-only NDJSON · per-record `version` · grow-only schema · never commit),
+regenerated the standards index, pinned it with new tests, and merged
+([PR #135](https://github.com/nicolai-bernsen/backlogd/pull/135)). The reviewer's closing
+line on the second verdict: *"this unit closes the persisted-data governance gap NB-426
+surfaced."*
+
+![The verdict on ADR-007 in Linear — accepted; the standards walk that closes the
+governance gap](docs/assets/demo-4-standard.png)
+
+From filed problem to two merged PRs and a new Accepted standard, the product owner made
+**one product ruling and one approval** — the challenge, the build, the catches, the
+verification, and the governance were the team.
+
+<!-- NB-396: static demo artifact — annotated walkthrough of the real NB-426 → NB-427
+     runs (PR #133 + PR #135), with the Linear-side screenshots embedded above from
+     docs/assets/. A recorded terminal cast (docs/demo-runbook.md, good-first-issue #42)
+     can augment or replace this section post-1.0. -->
+
+*(Want the recorded version? The [demo runbook](docs/demo-runbook.md) scripts a turnkey
+cast — contributions welcome via good-first-issue #42.)*
 
 ## The loop
 
