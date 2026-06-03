@@ -39,7 +39,13 @@ writes correct. Read this **before every write**. For what the concepts mean, se
 - **Relations (append-only):** `blockedBy`, `blocks`, `relatedTo` (arrays of identifiers);
   `duplicateOf`; and the inverse removers `removeBlockedBy`, `removeBlocks`,
   `removeRelatedTo`. Relations are set **on the issue** — there is no separate relation tool.
-- **`delegate`:** ignore — that's the Agents-platform surface, out of scope.
+- **`delegate`:** set to the configured agent name (`delegate:"backlogd"`) on the In
+  Progress transition — backlogd's **Tier-1 visible-agent-identity** signal (it shows the
+  agent as `delegate` while the human stays `assignee`). It rides the same plain user-OAuth
+  MCP, no `actor=app` token or server. **Best-effort:** on a workspace without the agent app
+  user installed it errors or no-ops; never fail a pickup on it. See `skills/solve/identity.md`
+  and `docs/guides/agent-identity-setup.md`. The wider Agents-platform surface (agent
+  sessions, webhooks, `actor=app`) stays out of scope — see rule 8.
 
 ## backlogd-owned label families
 
@@ -189,9 +195,15 @@ filtering client-side. Use `cursor` to page when needed.
 
 ### 8. Pure MCP client
 
-backlogd talks to Linear only through `mcp__linear__*`. The Linear **Agents platform**
-(agent `delegate`, agent sessions, webhooks, timing windows) is **out of scope** for v1 —
-do not implement or depend on it.
+backlogd talks to Linear only through `mcp__linear__*`. The Linear **Agents platform's**
+**agent sessions, webhooks, and `actor=app` timing windows** are **out of scope** — they
+need a held `actor=app` token and a webhook server, which breach the key-free / serverless
+principle. The one Agents-platform primitive backlogd **does** use is the MCP **`delegate`
+field**: it is set per-pickup as the Tier-1 visible-agent-identity signal (see the
+`save_issue` `delegate` note above, `skills/solve/identity.md`, and the SKILL.md
+"Boundaries"), and that needs none of the out-of-scope machinery — it is a plain
+user-OAuth MCP field-write to one installed agent app user. Do not implement or depend on
+agent sessions or webhooks.
 
 ## Pitfalls checklist
 
