@@ -148,6 +148,30 @@
           "executor"
         ]
       }
+    },
+    {
+      "id": "ADR-007",
+      "title": "Persisted on-disk run/state data — gitignored .backlogd/, append-only NDJSON, grow-only versioned schema",
+      "status": "Accepted",
+      "assertion": "Persisted on-disk run/state data lives under the gitignored `.backlogd/` directory as append-only newline-delimited JSON (one record per line), each record carrying a schema `version` field; readers tolerate unknown fields and the schema only ever grows (no field is removed or repurposed in place); `.backlogd/` content is never committed.",
+      "applies-to": {
+        "domains": [
+          "persistence",
+          "runtime",
+          "storage"
+        ],
+        "file-patterns": [
+          "scripts/**",
+          ".backlogd/**",
+          ".gitignore"
+        ],
+        "decision-types": [
+          "data-format",
+          "schema-evolution",
+          "persistence",
+          "storage-location"
+        ]
+      }
     }
   ]
 }
