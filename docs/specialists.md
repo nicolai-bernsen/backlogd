@@ -12,6 +12,42 @@ and flips it.
 > *mechanism* (discovery, the picker, the two surfaces, PO override). Add a specialist =
 > add a row there + drop the agent file.
 
+## The rule: split agents on tool grants, not on topics
+
+**Read this before you add a `developer-<suffix>` agent.** backlogd deliberately keeps
+**one** `developer` agent. Developer *variety* — React, data, slides, prose — comes from
+**the standards the developer loads**, not from a separate agent file per domain. The
+"kind" of developer is **data, not code**: a React problem and a data problem are solved by
+the same `developer`, behaving differently because different `applies-to` standards in
+[`docs/standards/index.json`](standards/index.json) engage (the index-first selective load
+the developer runs at dispatch — `agents/developer.md` → `<Investigation_Protocol>` step 5,
+mirroring the reviewer's discipline). A new domain is a **new standards file, not a new
+agent**.
+
+So the bar for a genuinely separate agent is narrow and explicit:
+
+> **A separate `developer-<suffix>` is justified ONLY when it needs a different
+> capability / tool grant — never merely a domain label.** If the only difference is "it
+> works on React" or "it works on data", that is a standards-profile difference and stays
+> on the single `developer`. A separate agent earns its place only when its job needs a
+> tool the generic `developer` must *not* have (or must be *denied* a tool the generic one
+> has) — e.g. a slides specialist that needs a rendering tool, or a docs specialist
+> restricted to a no-Bash/no-git grant.
+
+This is what stops the roster sprawling into `developer-react` / `developer-python` /
+`developer-go` near-duplicates that drift out of sync and need a new file per domain. Less
+clutter **and** more power: variety lives in the **corpus** (standards), not the **roster**
+(agents). When you think you want a new specialist, ask: *does it need a different tool
+grant?* If no — write a standards file instead.
+
+**Worked example — `developer-docs` is grant-justified, not topic-justified.** The
+repo-local `developer-docs` specialist (`.claude/agents/developer-docs.md`) is a legitimate
+separate agent **not because its topic is docs**, but because its job needs a **narrower
+tool grant**: `Read, Grep, Glob, Edit, Write` plus the Linear comment tools only — **no
+Bash, no git**. That reduced capability surface is the justification; "it edits prose" by
+itself would not be. State the same test for any future specialist in its roster row's
+*tool-grant style* column.
+
 ## The convention
 
 A *specialist* is any Claude Code subagent whose `name:` frontmatter begins with
