@@ -201,6 +201,36 @@
           "oauth-flow"
         ]
       }
+    },
+    {
+      "id": "ADR-009",
+      "title": "Adopt selected superpowers craft skills by reference, excluding auto-trigger and run-to-completion",
+      "status": "Accepted",
+      "assertion": "backlogd adopts three superpowers craft skills (test-driven-development, verification-before-completion, systematic-debugging) into its developer/tester/reviewer agents by reference (vendor-clean principle + credit obra/MIT, no new always-on plugin dependency), adapted to backlogd's gated model; it explicitly rejects two superpowers stances that fight that model — the aggressive 1%-chance auto-trigger and the run-to-completion (\"execute all tasks without stopping\") rule — and does not adopt superpowers' generic brainstorming or two-stage subagent review, which duplicate backlogd's Linear/standards-aware scope/refiner and its tester+reviewer split.",
+      "applies-to": {
+        "domains": [
+          "craft",
+          "developer",
+          "tester",
+          "reviewer",
+          "verification",
+          "dependencies"
+        ],
+        "file-patterns": [
+          "agents/developer.md",
+          "agents/tester.md",
+          "agents/reviewer.md",
+          "skills/develop/**",
+          "skills/reviewer/**",
+          "docs/specialists.md"
+        ],
+        "decision-types": [
+          "dependency",
+          "craft-skill",
+          "specialist-contract",
+          "agent-identity"
+        ]
+      }
     }
   ]
 }
