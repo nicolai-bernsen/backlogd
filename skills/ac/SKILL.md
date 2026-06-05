@@ -218,6 +218,37 @@ The reviewer's **index-first load order** (read `docs/standards/index.json`, fil
 `applies-to`, judge each applicable `assertion`, cite which it verified) lives in
 `agents/reviewer.md` and `skills/reviewer/SKILL.md` — not duplicated here.
 
+## The `## Goal` — one shared objective above the AC
+
+A shaped problem's description carries a single-sentence **`## Goal`** section positioned
+**immediately above `## Acceptance Criteria`**. Where each AC bullet is a *local* check, the
+Goal is the **coherent objective the whole unit serves** — the one "why" the developer,
+tester, and reviewer all read so they pull in the same direction instead of each serving a
+local artifact (AC / tests / verdict). It recovers the Sprint Goal at the problem level
+(the per-bullet AC is too local; the Initiative/Product Goal is too far up).
+
+- **Home: the description, not a custom field.** The Goal lives as a `## Goal` section in
+  the issue description (the description-canonical / no-separate-AC-field precedent) — not a
+  Linear custom field. This is the working default; the PO may later choose a filterable
+  custom field instead if they want to query Goals.
+- **Author: the refiner, from the problem.** `/backlogd:scope`'s refiner writes the Goal as
+  one crisp sentence stating the outcome the increment must achieve, captured from the
+  problem the PO filed. The **scrum-master never substitutes its own product intent**; if the
+  problem's "why" is genuinely unclear, the refiner surfaces it as an ambiguity rather than
+  inventing an objective.
+- **Travels in the dispatch envelope.** Because `/backlogd:solve` inlines the unit's full
+  description verbatim (`skills/solve/dispatch.md`), the `## Goal` reaches every dispatched
+  role alongside the AC — same "why", not just the AC.
+- **The reviewer reasons against it.** The verdict judges whether the increment *serves the
+  Goal*, not only passes the local AC; a pass-the-AC-but-miss-the-Goal increment is a
+  **NEEDS-PO** Goal/AC mismatch, never a silent accept (`agents/reviewer.md` → *Reason
+  against the Goal*). A problem with **no `## Goal`** (older / not re-shaped) falls back to
+  AC + DoD judgement — absence is not an UNMET.
+- **Distinct from the Project-form `## Goals` list.** A promoted Project's Spec document
+  (`templates/spec.md`) carries both: a single-sentence `## Goal` (this shared objective) and
+  the granular `## Goals` bullet list (the outcomes the PO is buying). The single `## Goal`
+  is the one the envelope inlines and the reviewer reasons against.
+
 ## How `/backlogd:scope` writes AC
 
 When `/backlogd:scope` shapes a problem, it dispatches the **refiner subagent** to

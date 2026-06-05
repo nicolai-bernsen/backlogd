@@ -18,6 +18,14 @@ Project — see `skills/linear/references/documents-and-updates.md`).
 {One- to three-paragraph context lead: what the problem is, why it matters, and what
 the world looks like after it is solved.}
 
+## Goal
+
+{A single sentence: the coherent objective this work serves — the *why* the developer,
+tester, and reviewer all reason against. Distinct from the granular `## Goals` list below
+(outcomes the PO is buying); this one shared sentence is the artifact the dispatch envelope
+inlines and the reviewer's verdict reasons against. See `skills/ac/SKILL.md` and
+`agents/refiner.md`.}
+
 ## Goals
 
 - {Goal 1 — the outcome the product owner is buying.}
