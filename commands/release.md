@@ -54,6 +54,30 @@ If `ToolSearch` is not available (a future Claude Code version drops it), this i
 no-op for `/backlogd:release` on the current flow — skip the fallback rather than
 forcing a `mcp__linear__*` invocation the command doesn't need.
 
+## 0.4 Parse argument tokens
+
+Scan the arguments for the shared `key:value` tokens (`mode:report-only`, `mode:headless`,
+`base:<sha>`) defined once in **`skills/common/argument-tokens.md`** — load that file for
+the grammar (the position-independent syntax and the ignore-with-a-warning rule for an
+unrecognised token); do not restate it. The leftover non-token argument (if any) is the
+explicit version or bump type (§2). For `release`:
+
+- **`mode:report-only`** — *plan, write nothing.* Resolve the branches + the target
+  version, then **print** the promote / version-bump / tag / back-merge / Linear-write plan
+  the run would execute — but touch nothing: no `worktree add`, no `plugin.json` edit, no
+  `commit` / `push`, no `gh pr create` / `merge`, no `tag`, no `gh release create`, and no
+  Shipped `save_comment`. Reads (resolving the version and the included-issue set) are
+  allowed.
+- **`mode:headless`** — documented **no-op**: `release`'s only prompt is the bump type,
+  which is supplied as an argument in an unattended run; nothing else prompts. Note it and
+  continue.
+- **`base:<sha>`** — **warn-ignored.** `release` cuts its release branch off the
+  integration branch by design, not an arbitrary base; accept it, emit the one-line "this
+  verb opens no worktree base" warning, and continue unchanged.
+
+Strip the recognised tokens, warn once for any unrecognised `key:value` token, and carry
+the leftover word (if any) into §2. No tokens → behave exactly as today.
+
 ## 0.5 Preflight — confirm the release script is current
 
 > **Stale-cache safeguard.** Claude Code loads `/backlogd:release` from your installed plugin

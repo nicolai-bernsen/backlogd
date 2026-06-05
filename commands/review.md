@@ -59,6 +59,30 @@ If you skip this step and the reviewer reports it cannot post its
 `**[backlogd reviewer]**` comment, that is the NB-340 tool-grant skew — re-run with
 the pre-load done, do not silently accept a tool-grant failure as a reviewer issue.
 
+## 0.5. Parse argument tokens
+
+Scan the arguments for the shared `key:value` tokens (`mode:report-only`, `mode:headless`,
+`base:<sha>`) defined once in **`skills/common/argument-tokens.md`** — load that file for
+the grammar (the position-independent syntax and the ignore-with-a-warning rule for an
+unrecognised token); do not restate it. (The `--steal` **flag** is parsed separately in §2;
+it is a flag, not a `key:value` token.) For `review`:
+
+- **`mode:report-only`** — *plan, write nothing.* Dispatch the reviewer to compute the
+  verdict, then **print** the `**[backlogd review]**` rollup it would post and the
+  merge / state-transition it would make — but make **no** `save_comment`, no
+  `save_issue(state)` transition, no `gh pr merge`, and do not release the claim-lock or
+  write the rework graph event. Reads are allowed.
+- **`mode:headless`** — at any PO-surfacing point (a *needs you*: NEEDS-PO / AWAITING-PO
+  `[manual]`; or a NO-STANDARD missing-standard *block* in §5), **fail fast with the
+  one-line reason and stop** instead of asking the product owner. Never proceed with a
+  silent default.
+- **`base:<sha>`** — **warn-ignored.** `review` opens no worktree; accept it, emit the
+  one-line "this verb opens no worktree" warning, and continue unchanged.
+
+Strip the recognised tokens, warn once for any unrecognised `key:value` token, and carry
+the leftover word (if any) into §2's named-issue handling. No tokens → behave exactly as
+today.
+
 ## 1. Resolve identity
 
 Resolve the team and its workflow states — **read `.backlogd/identity.json` first**: if

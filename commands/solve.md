@@ -105,14 +105,31 @@ get to the step. Sub-skills carry the dry-run carve-outs.
    > happened (or that the fallback nudge **would** happen on a real run) and
    > continue.
 
-1. **Parse flags.** Scan the arguments for `--dryrun`, `--no-ship`, and `--steal` in any
-   position. If `--dryrun` is present, remember the run is a dry run and follow
+1. **Parse flags, then parse argument tokens.** Scan the arguments for `--dryrun`,
+   `--no-ship`, and `--steal` in any position, **and** for the shared argument tokens
+   (`mode:report-only`, `mode:headless`, `base:<sha>`) defined once in
+   **`skills/common/argument-tokens.md`** — load that file for the grammar (the
+   position-independent `key:value` syntax and the ignore-with-a-warning rule for an
+   unrecognised token); do not restate it here. The token wiring for solve:
+   - **`mode:report-only`** is the cross-verb name for solve's report-only plan and is the
+     documented **alias** of `--dryrun` — recognise either spelling and treat them
+     **identically** (follow **`skills/solve/dryrun.md`** verbatim, no behavioural fork).
+   - **`mode:headless`** means: at any point this loop would pause for the product owner (a
+     developer `BLOCKED` blocker, a NEEDS-PO / unconfirmed `[manual]` *needs-you* call, or a
+     missing-standard *block* in step 8), **fail fast with a one-line reason and stop**
+     instead of surfacing the prompt — never proceed with a silent default.
+   - **`base:<sha>`** scopes the worktree: cut the branch off `<sha>` instead of
+     `origin/{integration}` in step 5 (`skills/solve/walk.md`). This is the one verb that
+     honours `base:` (it opens a worktree).
+
+   If `--dryrun` (or `mode:report-only`) is present, remember the run is a dry run and follow
    **`skills/solve/dryrun.md`** instead of the side-effecting steps below. If `--no-ship`
    is present (or `BACKLOGD_SHIP_ON_GREEN=0` in the environment), remember the run opts out
    of ship-on-green and carry that decision to step 8. If `--steal` is present, remember it
    and carry it into the claim-lock check at pickup (step 3 → **`skills/linear/claim-lock.md`**)
    so a known-dead claim on an explicitly-named problem is force-taken rather than stood off.
-   Strip all three flags and treat the remaining token (if any) as the identifier.
+   Strip the flags and recognised tokens, emit a one-line warning for any unrecognised
+   `key:value` token, and treat the remaining word (if any) as the identifier.
    (Ship-on-green is on by default — see the Flags section and step 8.)
 
 2. **Resolve identity** → **`skills/solve/identity.md`**. Read `.backlogd/identity.json`

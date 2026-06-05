@@ -59,6 +59,25 @@ on the same idiom. If `ToolSearch` is not available, fall back to invoking each
 `mcp__linear__*` tool naturally from the orchestrator's context (most of them are
 called in step 1 by the identity-resolution fallback).
 
+## 0.5. Parse argument tokens
+
+Scan the arguments for the shared `key:value` tokens (`mode:report-only`, `mode:headless`,
+`base:<sha>`) defined once in **`skills/common/argument-tokens.md`** — load that file for
+the grammar (the position-independent syntax and the ignore-with-a-warning rule for an
+unrecognised token); do not restate it. For `status`:
+
+- **`mode:report-only`** — *plan, write nothing.* Compute and print the forecast and the
+  console standup exactly as today, but **skip** the one write this command makes: the
+  `save_project(description: …)` forecast-block refresh in §4 (and the `save_issue(labels)`
+  signal-label sync in §3). Print the block it **would** have spliced instead.
+- **`mode:headless`** — documented **no-op**: `status` only reports and never raises an
+  interactive prompt, so headless changes nothing here. Note it and continue.
+- **`base:<sha>`** — **warn-ignored.** `status` opens no worktree; accept it, emit the
+  one-line "this verb opens no worktree" warning, and continue unchanged.
+
+Strip the recognised tokens, warn once for any unrecognised `key:value` token, and treat
+the remaining word (if any) as the survey scope (§1). No tokens → behave exactly as today.
+
 ## 1. Resolve identity and scope
 
 Resolve the team and its workflow states — **read `.backlogd/identity.json` first**: if

@@ -46,6 +46,27 @@ If `ToolSearch` itself is not available (e.g. a future Claude Code version drops
 fall back to the prior idiom: invoke each `mcp__linear__*` tool at least once from the
 orchestrator's context before the dispatch in step 3.
 
+## 0.5. Parse argument tokens
+
+Scan the arguments for the shared `key:value` tokens (`mode:report-only`, `mode:headless`,
+`base:<sha>`) defined once in **`skills/common/argument-tokens.md`** — load that file for
+the grammar (the position-independent syntax and the ignore-with-a-warning rule for an
+unrecognised token); do not restate it. For `scope`:
+
+- **`mode:report-only`** — *plan, write nothing.* Print the spec, the
+  `## Acceptance Criteria`, and the decomposition the refiner proposes that you **would**
+  write, but create no issues/sub-issues, set no `blocked-by` relations, apply no labels,
+  and make no `save_issue` / `save_comment` / `save_document` write. Reads (and the refiner
+  dispatch for its proposal) are allowed.
+- **`mode:headless`** — on a genuine ambiguity the refiner surfaces in §3, **fail fast with
+  the one-line reason and stop** instead of asking the product owner the clarifying
+  question. Never guess past a real ambiguity with a silent default.
+- **`base:<sha>`** — **warn-ignored.** `scope` opens no worktree, so accept it, emit the
+  one-line "this verb opens no worktree" warning, and continue unchanged.
+
+Strip the recognised tokens, warn once for any unrecognised `key:value` token, and treat
+the remaining word (if any) as the named issue (§2). No tokens → behave exactly as today.
+
 ## 1. Resolve identity
 
 Before any write, resolve the team, its workflow states, and its labels — **but read the
