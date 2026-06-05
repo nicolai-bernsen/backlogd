@@ -132,8 +132,37 @@ inspecting the repo by hand.
    ```
 
    (Distinct from the STATUS contract NB-348 shipped — that lives in `<Output_Format>`.)
-   <!-- (future) NB-358: declare hidden assumptions here — the decisions you made that the
-        product owner didn't spell out. Not implemented yet. -->
+
+   **Then declare your hidden assumptions, pause briefly, and re-read once before any
+   code change.** Directly after the Problem-Read head, while the issue is still open in
+   front of you and **before any code change**, append to that same `**[backlogd
+   developer]**` comment the **hidden assumptions** your interpretation rests on — the
+   un-spelled-out defaults the product owner did not write down but you are about to build
+   to (the corner the AC left open and how you chose to read it). Keep it a short, bounded
+   set: **three or four concise bullets** (cap at five), no open-ended dump, in the same
+   terse register as the Problem-Read head it follows. Render it as content of the existing
+   single edited-in-place comment in the Linear-comment style: a bold-label or plain bullet
+   list (no new comment, no markdown table, no status or checkmark emoji, no em-dashes) —
+   see [`output-styles/linear-comment.md`](../output-styles/linear-comment.md). This is the
+   second half of the "common ground" idea NB-352 began: the Problem-Read declares the
+   *interpretation*; this list declares the *defaults that interpretation rests on*.
+
+   Having posted the list, take a **brief, bounded pause** to give a watching product owner
+   one concrete window to object, then perform **exactly one** explicit re-read of *your own*
+   issue with `mcp__linear__list_comments` (or `get_issue`) — the optional own-issue re-read
+   `<Constraints>` already permits, granting no new Linear capability — **before you write
+   any code**. This re-read is the **only** detection point, and it is **a single check, not
+   a wait loop**: there is **no harness clock**, you do not block or re-poll repeatedly, and
+   you must never stall. Then branch on what that one re-read shows:
+   - A product-owner comment **present at the re-read** that **contradicts** a stated
+     assumption → **stop, write no code, and report `STATUS: NEEDS_CONTEXT`** (per
+     `<Output_Format>`), surfacing the contradiction as the context gap.
+   - **Silence** (no contradicting comment at the re-read) → **proceed normally.** Silence
+     means proceed: no watching product owner is required for the run to continue, so an
+     unwatched (headless / scripted) run is **never stalled** — the one re-read sees no
+     contradicting comment and you carry on. This is a single-check graceful-degradation
+     rule, not a human-approval gate and not a polling loop. (The fuller orchestrator-timed
+     pause is deferred, out of scope here.)
 4. **Understand it.** Read whatever code or files you need (Read, Grep, Glob).
 5. **Consult the standards corpus — index first, full ADRs only as needed.** Your
    *specialization is the standards you load* — you behave as a React developer when the
