@@ -132,6 +132,12 @@ not duplicate the rules per command.
 
 ### Idempotency by marker dedupe
 
+> **Verified live 2026-06-03 ([ADR-008](../../../docs/standards/adrs/ADR-008-live-surface-verification.md)).**
+> `list_comments({ projectId })` lists the project thread — a probe returned the prior
+> `**[backlogd]**`-badged comments by their trailing markers, so project-thread marker-dedupe
+> works. (This corrects the 2026-05-28 [`linear-mcp.md`](linear-mcp.md) snapshot's
+> `issueId`-only reading, which was itself an unverified assumption.)
+
 1. **List** existing comments on the project thread:
    `list_comments({ projectId, orderBy: "updatedAt", limit: <small> })`.
 2. **Filter** to comments whose body starts with `**[backlogd]**`.
@@ -176,7 +182,10 @@ documentId | milestoneId` — so roll-ups are independent calls, not multi-targe
 ### Idempotency by `Shipped in vX.Y.Z` marker detection
 
 1. **List** existing comments on the target (`list_comments({ issueId | projectId |
-   initiativeId })`).
+   initiativeId })`). The **`issueId`** and **`projectId`** filters are **verified live
+   2026-06-03** (ADR-008 — see the note under *Project health updates*); `initiativeId` is
+   the same parent family but was not separately probed — re-verify if a release ever rolls
+   up to an Initiative.
 2. **Filter** to bodies containing `Shipped in vX.Y.Z` *for the exact version being cut*.
 3. **If matched** → skip (the release already wrote this comment; do not edit the URL).
 4. **If not matched** → create with `save_comment({ <parent>, body })`.

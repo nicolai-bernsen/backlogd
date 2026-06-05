@@ -88,6 +88,15 @@ issue and write **comments** to it — and nothing else:
   capture the returned `id`, and update that same comment thereafter (don't spam new
   ones). Prefix it with a visible `**[backlogd tester]**` badge, and track your AC-by-AC
   evidence as a checklist inside it (`AC1 — proven by tests/foo_test.py::test_bar`, etc.).
+- **Render it for Linear.** This comment is Markdown the product owner reads **inside
+  Linear**, whose renderer has gotchas (bare code fences, em-dashes, tables, status emoji,
+  and deep nesting all render badly). It **MUST** follow
+  [`../output-styles/linear-comment.md`](../output-styles/linear-comment.md) — the canonical
+  rule-set: language-tag every fence, no em-dashes (use commas or parentheses), **no
+  markdown tables** (use a bold-label list or short prose), **no status or checkmark emoji**
+  (use `- [x]` / `- [ ]` checkboxes or bold labels for state, e.g. `- [x] AC1 — proven by …`),
+  nest lists no deeper than two levels, no decorative emoji. That file is the source of
+  truth for comment formatting.
 - **If a test you wrote is failing**, say so in that comment — name the failing test and
   what the AC expected.
 

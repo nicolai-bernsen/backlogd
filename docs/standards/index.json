@@ -172,6 +172,35 @@
           "storage-location"
         ]
       }
+    },
+    {
+      "id": "ADR-008",
+      "title": "Live-surface verification — external-surface claims are specified from and verified against the live surface",
+      "status": "Accepted",
+      "assertion": "Any new or changed claim about how an external surface behaves (the Linear MCP tool surface, the Linear REST/GraphQL API, the Linear UI, or an OAuth/install flow) requires live evidence before the problem is Done — a live probe's output, a screenshot, or a real round-trip against the live surface, explicitly NOT a mocked test or an API call merely returning `created`/`200`; an external-surface claim lacking live evidence is marked as an unverified assumption, never stated as fact.",
+      "applies-to": {
+        "domains": [
+          "linear",
+          "external-surface",
+          "verification",
+          "docs"
+        ],
+        "file-patterns": [
+          "skills/linear/**",
+          "commands/**",
+          "scripts/linear_setup.py",
+          "docs/guides/*-setup.md",
+          "skills/retro/**"
+        ],
+        "decision-types": [
+          "external-surface-claim",
+          "live-evidence",
+          "mcp-behavior",
+          "api-behavior",
+          "ui-behavior",
+          "oauth-flow"
+        ]
+      }
     }
   ]
 }

@@ -23,7 +23,7 @@ What is proven here (the `[review]` ACs whose *presence* is mechanically checkab
            `blocked`-label helper and uses the `extract_kind` normalize-then-match rule
            (not a naive substring scan).
   * AC4  — `commands/review.md` clears the label on the `accepted` close and leaves it
-           attached while any `[manual]` is `📝 awaiting PO confirmation`.
+           attached while any `[manual]` is AWAITING-PO (awaiting PO confirmation).
   * AC5  — `commands/status.md` re-evaluates the label read-only on each in-scope
            problem (the signal-layer carve-out).
   * AC8  — `docs/guides/po-overview.md` documents the "Waiting on me" view filtered on
@@ -183,7 +183,7 @@ class ScopeWiringTest(unittest.TestCase):
 
 class ReviewWiringTest(unittest.TestCase):
     """AC4: `/backlogd:review` clears the label on the `accepted` close and leaves it
-    attached while any `[manual]` is `📝 awaiting PO confirmation`."""
+    attached while any `[manual]` is AWAITING-PO (awaiting PO confirmation)."""
 
     def test_review_loads_the_helper(self):
         body = _norm(_read(REVIEW_CMD))
@@ -208,7 +208,7 @@ class ReviewWiringTest(unittest.TestCase):
             body,
             "commands/review.md must leave the label attached while a [manual] is awaiting PO",
         )
-        # The state that keeps it on is the 📝-awaiting-PO-confirmation one.
+        # The state that keeps it on is the AWAITING-PO (awaiting-PO-confirmation) one.
         self.assertIn("awaiting PO confirmation", body)
 
 

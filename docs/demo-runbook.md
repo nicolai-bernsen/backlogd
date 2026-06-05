@@ -191,8 +191,8 @@ This is the beat-2-through-beat-3 engine. **Ship-on-green is on by default** (se
 
 Because the verdict runs _inside_ the solve run, **the block surfaces without a second
 command.** You do not need to type `/backlogd:review` for the demo — ship-on-green already
-ran it. The run does **not** merge: a `🚫` block holds the problem at _In Review_ and
-surfaces the gap to you. On screen, solve's report shows `verdict -> block` and `problem ->
+ran it. The run does **not** merge: a `NO-STANDARD` block holds the problem at _In Review_
+and surfaces the gap to you. On screen, solve's report shows `verdict -> block` and `problem ->
 In Review (blocked-by {Define standard for X})`.
 
 > `/backlogd:review` is the **manual re-entry** to the very same gate — reach for it to
@@ -264,8 +264,8 @@ With the standard now Accepted, carry the original problem to a green verdict:
 
 The `backlogd:reviewer` runs again with a fresh context; the once-`block`ed decision now
 **resolves against the freshly-Accepted ADR** (the index the reviewer reads first now contains
-it). On a **fully-green verdict** — every AC `✅`, every DoD line `✅`, CI green, zero
-`[manual]`, zero `❔`, no `🚫` — the scrum-master runs the base-race guard (re-confirm CI green
+it). On a **fully-green verdict** — every AC line MET, every DoD line MET, CI green, zero
+`[manual]`, zero NEEDS-PO, no NO-STANDARD block — the scrum-master runs the base-race guard (re-confirm CI green
 and the PR cleanly mergeable) and **squash-merges** the PR into `dev`, moving the problem to
 **Done**:
 
@@ -335,7 +335,7 @@ transparency pillar. Capture it so the audience sees the system of record, not j
 - **The role-prefixed comments.** On the problem issue, show the `**[backlogd developer]**`
   work-log comment, the `**[backlogd reviewer]**` verdict comment (the audit trail), and the
   scrum-master's `**[backlogd review]**` rollup carrying `Verdict: block` and the
-  `🚫 standard: …` line. These badges are the visible-agent-identity story
+  `- [ ] **NO-STANDARD** standard: …` line. These badges are the visible-agent-identity story
   ([ADR-001](standards/adrs/ADR-001-visible-agent-identity-in-linear.md), Tier 0).
 - **The delegate field.** If your workspace has the gated Tier-1 `delegate` experiment
   enabled, show the issue's _Delegate_ field naming the acting agent. If it is not enabled

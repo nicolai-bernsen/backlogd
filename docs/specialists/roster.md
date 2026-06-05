@@ -54,6 +54,18 @@ When they drift, the catalog wins for backlogd's picker; fix the `description:` 
 
 ## Adding a specialist
 
+> **First, the bar: split agents on tool grants, not on topics.** A separate
+> `developer-<suffix>` is justified **ONLY** when it needs a different *capability / tool
+> grant* — never merely a domain label. "It works on React" or "it works on data" is a
+> **standards-profile** difference (a new file in [`docs/standards/index.json`](../standards/index.json),
+> matched by `applies-to`), solved by the single `developer` — **not** a reason to add an
+> agent. So do **not** add `developer-react` / `developer-python` and recreate the sprawl;
+> add a standards file. Add an agent only when the job needs a tool the generic `developer`
+> must not have (or must be denied one it has) — that is why `developer-docs` exists (its
+> *reduced* grant, not its docs topic). The full rationale lives in
+> [`docs/specialists.md`](../specialists.md) → *The rule: split agents on tool grants, not
+> on topics*; the **Tool-grant style** column below is where you record that justification.
+
 1. **Drop the agent file** — `agents/developer-<suffix>.md` (to ship it) or
    `.claude/agents/developer-<suffix>.md` (per-repo only). Clone `agents/developer.md`'s
    six-section structure; see [`docs/specialists.md`](../specialists.md) →
