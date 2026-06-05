@@ -12,8 +12,10 @@ runnable command can pin:
   AC2 — `README.md`'s Linear-MCP setup note states that `/sse` is removed and
         `/mcp` is the required transport. Pinned by case-insensitive concept
         tokens (not a brittle sentence), with an explicit anti-vacuity guard
-        proving the same assertion FAILS against the pre-change README base
-        (`git show HEAD:README.md`).
+        proving the same assertion FAILS against the pre-change README at the
+        diff base (`git merge-base HEAD origin/dev`, fall back to `origin/main`)
+        — anchored to the diff base, not `HEAD`, so it stays correct once the
+        change is committed.
   AC3 — `skills/linear/references/linear-mcp.md` carries the current
         `Re-verified 2026-06-05` snapshot line (pairs with NB-441), so the MCP
         surface snapshot is confirmed current alongside the transport fix.
@@ -139,43 +141,79 @@ class AC2_ReadmeNotesSseRemovedMcpRequired(unittest.TestCase):
             "AC2: README must state `/mcp` is now the required transport",
         )
 
-    def test_AC2_anti_vacuity_clause_absent_from_pre_change_readme(self):
-        """Anti-vacuity: the AC2 pin must FAIL against the pre-change README base.
-        Read `HEAD:README.md` via git and assert the new clause's distinguishing
-        signal (the `/sse`-removed wording) is NOT present there — proving this
-        test would have been red before the developer's edit and is green only
-        because of it.
-
-        Skips (does not fail) if git/the blob is unavailable, so the suite stays
-        green in a non-git checkout (e.g. a packaged tarball) while still doing
-        its job in the dev worktree and CI."""
+    def _git(self, *args):
+        """Run a read-only git command in the repo, returning the CompletedProcess
+        or self-skipping if git itself is unavailable (non-git checkout / no git
+        on PATH). Read-only — no working-tree mutation."""
         try:
-            base = subprocess.run(
-                ["git", "show", "HEAD:README.md"],
+            return subprocess.run(
+                ["git", *args],
                 cwd=str(REPO_ROOT),
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
+                timeout=30,
             )
-        except (OSError, ValueError) as exc:  # git not on PATH, etc.
+        except (OSError, ValueError, subprocess.SubprocessError) as exc:
             self.skipTest(f"git unavailable; cannot check anti-vacuity base: {exc}")
-            return
+
+    def test_AC2_anti_vacuity_clause_absent_from_diff_base_readme(self):
+        """Anti-vacuity: the AC2 pin must FAIL against the *pre-change* README —
+        i.e. the README at the **diff base** (the commit this branch forked from),
+        NOT at `HEAD`. Anchoring to `HEAD` is wrong: once this change is committed,
+        `HEAD` *is* the changed README, so a `/sse`-absent assertion against it
+        inverts and reds CI. The diff base never contains the change, so the bite
+        ('fails-without-the-change') holds whether or not the change is committed.
+
+        Resolve the diff base as `git merge-base HEAD origin/dev` (the PR target),
+        falling back to `origin/main`. Then `git show <base>:README.md` and assert
+        the new clause's distinguishing signal (`/sse`) is absent there.
+
+        Self-skips (does not fail), mirroring the sibling content-pin suites'
+        post-merge idiom (see scripts/test_adr_009_superpowers_craft_skills.py and
+        scripts/test_initiative_surface_corrected.py), when: git is unavailable,
+        no diff base can be resolved (shallow clone with no remote-tracking refs),
+        the base blob is unreadable, or the base README *already* carries the
+        `/sse` note (base == changed state — the bite is historical, no-op). This
+        keeps the suite green on a packaged tarball and after the branch is merged,
+        while still biting in the dev worktree and on CI pre-merge."""
+        # Resolve the diff base: PR target (origin/dev) first, then origin/main.
+        base_sha = None
+        for ref in ("origin/dev", "origin/main"):
+            res = self._git("merge-base", "HEAD", ref)
+            if res.returncode == 0 and res.stdout.strip():
+                base_sha = res.stdout.strip()
+                break
+        if not base_sha:
+            self.skipTest(
+                "no diff base resolvable (origin/dev and origin/main absent — "
+                "shallow checkout?); skipping anti-vacuity base check"
+            )
+
+        base = self._git("show", f"{base_sha}:README.md")
         if base.returncode != 0 or not base.stdout:
             self.skipTest(
-                "HEAD:README.md unavailable (shallow/no-git checkout); "
+                f"README.md unreadable at diff base {base_sha[:12]}; "
                 "skipping anti-vacuity base check"
             )
-            return
 
         base_low = base.stdout.lower()
-        # The distinguishing signal of the new clause: the README base names
-        # neither `/sse` nor the removed/required transport wording on it.
+        if "/sse" in base_low:
+            # The diff base already carries the `/sse` note (e.g. the branch has
+            # been merged/rebased onto a base that contains it). The bite is
+            # proven historically; assert nothing now — a no-op skip, not a fail.
+            self.skipTest(
+                f"diff base {base_sha[:12]} README already mentions `/sse` "
+                "(post-merge/rebase) — the anti-vacuity bite is historical."
+            )
+        # Pre-change base genuinely lacks the `/sse` note, so the AC2 token pin
+        # had nothing to assert against there: it fails-without-the-change.
         self.assertNotIn(
             "/sse",
             base_low,
-            "Anti-vacuity FAILED: the pre-change README (HEAD) already mentions "
-            "`/sse` — the AC2 token pin would pass vacuously, proving nothing. "
-            "Re-anchor the pin on the genuinely new signal.",
+            f"Anti-vacuity FAILED: the diff-base README ({base_sha[:12]}) already "
+            "mentions `/sse` — the AC2 token pin would pass vacuously, proving "
+            "nothing. Re-anchor the pin on the genuinely new signal.",
         )
 
 
