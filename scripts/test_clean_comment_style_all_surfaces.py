@@ -22,11 +22,17 @@ was NOT yet pinned, and is the AC contract this file proves:
     AC1 names (the green-check, the cross, the question-mark, the memo), not only the block
     glyph. ``NoStatusGlyphInVerdictSurfacesTest`` asserts each glyph is absent from
     ``commands/review.md`` section 4 + ``agents/reviewer.md``, and
-    ``PinsBiteThePreChangeBaselineTest`` proves (via ``git show HEAD:<file>``) that the
-    pre-change files DID carry these glyphs, so a green here is a genuine pre/post anchor,
-    never a tautology. This is the literal evidence for both AC1 (the verdict no longer uses
-    the status glyphs) and AC5 (the converse: their *absence* is what the display-surface
-    tests now assert).
+    ``PinsBiteThePreChangeBaselineTest`` proves (via a git-independent inline fixture of the
+    OLD vs NEW format) that the glyph-counting logic genuinely discriminates -- it returns
+    > 0 on a synthetic old-format sample and 0 on a clean checkbox+label sample -- so a green
+    here is a genuine pre/post anchor, never a tautology. This is the literal evidence for
+    both AC1 (the verdict no longer uses the status glyphs) and AC5 (the converse: their
+    *absence* is what the display-surface tests now assert).
+
+    The non-tautology guarantee is deliberately INDEPENDENT of git state: a ``git show
+    HEAD:<file>`` baseline is a moving target (it is the post-change file once the change is
+    committed or merged, which inverts the guard on a CI checkout of the PR head), so the
+    discrimination proof is carried by inline synthetic fixtures, never by reading git.
   - AC1 (positive half) -- the surfaces adopt the Linear-clean convention: the verdict
     templates use ``- [x]`` / ``- [ ]`` checkboxes + the bold state labels. Pinned by
     ``CheckboxStateConventionTest``.
@@ -63,7 +69,6 @@ Run from the repo root:  python scripts/test_clean_comment_style_all_surfaces.py
 
 import pathlib
 import re
-import subprocess
 import unittest
 
 
@@ -107,19 +112,27 @@ def _norm(text):
     return " ".join(text.split())
 
 
-def _git_show_head(rel_path):
-    """The file's content at HEAD (the pre-change baseline), or '' if unavailable.
+def _count_status_glyphs(text):
+    """Total occurrences of any status glyph in ``text``. The single discrimination
+    primitive the live ``== 0`` pins and the inline-fixture guard both exercise, so the
+    guard proves exactly the logic the live assertion relies on."""
+    return sum(text.count(g) for g in STATUS_GLYPHS.values())
 
-    Used only by the anti-tautology guard to prove the live pins would FIRE on the
-    pre-NB-415 wording. Run from the repo root so the path resolves in this worktree."""
-    out = subprocess.run(
-        ["git", "show", f"HEAD:{rel_path}"],
-        cwd=str(REPO_ROOT),
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    )
-    return out.stdout if out.returncode == 0 else ""
+
+def _references_style(text):
+    """True iff ``text`` references the canonical comment style file. The single
+    discrimination primitive the live reference pins and the inline-fixture guard share."""
+    return "output-styles/linear-comment.md" in text
+
+
+def _claims_all_surfaces(text):
+    """True iff ``text`` carries the all-surfaces universal-quantifier claim AC6 wants
+    (the style governs every agent comment surface, not just the developer). The single
+    discrimination primitive the live AC6 pin and the inline-fixture guard share."""
+    return bool(re.search(
+        r"every backlogd agent comment surface"
+        r"|all\b[\w\s]*agent comment surface"
+        r"|not (just|only) the developer", _norm(text).lower()))
 
 
 class NoStatusGlyphInVerdictSurfacesTest(unittest.TestCase):
@@ -158,35 +171,56 @@ class NoStatusGlyphInVerdictSurfacesTest(unittest.TestCase):
 
 
 class PinsBiteThePreChangeBaselineTest(unittest.TestCase):
-    """Anti-tautology guard: prove the NoStatusGlyph* pins would FIRE on the pre-NB-415
-    wording. If the pre-change files had NO glyphs, the assertions above would prove
-    nothing. We read each surface at HEAD and confirm the status glyphs WERE present there
-    (and that the live worktree file has dropped them)."""
+    """Anti-tautology guard: prove the live ``glyph total == 0`` pins on the verdict
+    surfaces are MEANINGFUL -- i.e. the glyph-counting logic they rely on genuinely
+    discriminates the OLD format (carries the status glyphs) from the NEW format (clean
+    checkbox + bold label). If the counter could never fire, the live ``== 0`` assertions
+    would prove nothing.
+
+    The proof is a git-INDEPENDENT inline fixture: a synthetic pre-NB-415 verdict line (with
+    the glyphs) and a synthetic post-NB-415 verdict line (the checkbox + label convention),
+    fed through the SAME ``_count_status_glyphs`` primitive the live pins use. A HEAD-relative
+    baseline was the old mechanism and is a moving target -- once this change is committed or
+    merged, ``HEAD:<file>`` is the post-change file and the guard inverts (which is exactly
+    the CI failure this rework fixes) -- so the discrimination is proven from fixtures, never
+    from git."""
 
     def test_pre_change_surfaces_carried_the_glyphs(self):
-        any_baseline_seen = False
+        # Anti-tautology proof, git-independent. Feed a synthetic OLD-format verdict line
+        # (carries the glyphs) and a synthetic NEW-format line (the clean checkbox + bold
+        # label) through the SAME `_count_status_glyphs` primitive the live `== 0` pins use,
+        # and confirm it fires on old / not on new. The OLD fixture is built from the
+        # STATUS_GLYPHS escapes so it can never become a literal-glyph AC5 offender itself.
+        old_format = "\n".join(
+            f"- {glyph} [test] criterion {name} was met"
+            for name, glyph in STATUS_GLYPHS.items()
+        )
+        self.assertGreater(
+            _count_status_glyphs(old_format), 0,
+            "the glyph counter must FIRE on a synthetic OLD-format (pre-NB-415) verdict line "
+            "(so the live `== 0` absence pins are non-tautological): it found no glyphs in a "
+            "sample built from the status-glyph set.",
+        )
+        new_format = (
+            "- [x] **MET** [test] criterion was met\n"
+            "- [ ] **UNMET** [review] criterion was not met\n"
+            "- [ ] **NEEDS-PO** [manual] criterion needs a PO ruling"
+        )
+        self.assertEqual(
+            _count_status_glyphs(new_format), 0,
+            "the glyph counter must return 0 on a clean checkbox + bold-label sample (the "
+            "NEW format), proving a zero count is genuinely the cleaned state, not a dead "
+            "matcher.",
+        )
+        # And the REAL live-file assertion, routed through that same proven-discriminating
+        # primitive: each verdict-display surface must now carry zero glyphs (AC1).
         for path in VERDICT_DISPLAY_SURFACES:
             rel = path.relative_to(REPO_ROOT).as_posix()
-            head = _git_show_head(rel)
-            if not head:
-                # No git / detached baseline: skip the guard for this surface rather
-                # than fail (the live pins still stand on their own).
-                continue
-            any_baseline_seen = True
-            head_glyph_total = sum(head.count(g) for g in STATUS_GLYPHS.values())
-            self.assertGreater(
-                head_glyph_total, 0,
-                f"expected the pre-NB-415 {rel} to carry status glyphs (so the live "
-                f"absence pins are non-tautological); found none at HEAD.",
-            )
-            live_glyph_total = sum(_read(path).count(g) for g in STATUS_GLYPHS.values())
+            self.assertTrue(_read(path), f"{rel} must exist (AC1).")
             self.assertEqual(
-                live_glyph_total, 0,
+                _count_status_glyphs(_read(path)), 0,
                 f"the live {rel} must have dropped every status glyph (AC1).",
             )
-        if not any_baseline_seen:
-            self.skipTest("no HEAD baseline available for the verdict surfaces "
-                          "(git show returned nothing) -- live pins still hold.")
 
 
 class CheckboxStateConventionTest(unittest.TestCase):
@@ -233,42 +267,46 @@ class AllSurfacesReferenceTheStyleTest(unittest.TestCase):
     }
 
     def test_each_new_surface_references_the_style_file(self):
+        # Live pin, routed through the SAME `_references_style` primitive the sibling guard
+        # (test_references_are_non_tautological_new_wiring) proves discriminates.
         for name, path in self.SURFACES.items():
             with self.subTest(surface=name):
                 text = _read(path)
                 self.assertTrue(text, f"{name} must exist (AC2).")
-                self.assertIn(
-                    "output-styles/linear-comment.md", text,
+                self.assertTrue(
+                    _references_style(text),
                     f"{name} must reference output-styles/linear-comment.md as the "
                     f"canonical comment rule-set (AC2 -- the style governs all surfaces, "
                     f"not just the developer).",
                 )
 
     def test_references_are_non_tautological_new_wiring(self):
-        # Anti-tautology: at HEAD these surfaces did NOT all reference the style file
-        # (the style was developer-only). Prove at least one of the four NEW surfaces
-        # gained the reference, so the pin tracks a real change, not pre-existing prose.
-        gained = []
-        for name, path in self.SURFACES.items():
-            head = _git_show_head(path.relative_to(REPO_ROOT).as_posix())
-            if head and "output-styles/linear-comment.md" not in head:
-                gained.append(name)
-        # If git is unavailable, head is '' for all and we can't prove the delta here;
-        # the live pin above still stands. Only assert the delta when a baseline exists.
-        baseline_seen = any(
-            _git_show_head(p.relative_to(REPO_ROOT).as_posix())
-            for p in self.SURFACES.values()
+        # Anti-tautology proof, git-independent. The live pin above asserts each surface
+        # CONTAINS the style reference; that is only meaningful if the same containment test
+        # can also come back False. Feed a synthetic surface WITHOUT the reference and one
+        # WITH it through the SAME `_references_style` primitive the live pin uses, and
+        # confirm it discriminates. (The old mechanism asked "did this NEWLY reference the
+        # style vs HEAD?" -- a moving target that inverts once the change is committed; the
+        # discrimination is now proven from inline fixtures, never from git.)
+        without_ref = (
+            "Prompt body that constrains comment formatting but names no canonical file. "
+            "It talks about no tables and no status emoji, yet links nothing."
         )
-        if baseline_seen:
-            self.assertTrue(
-                gained,
-                "expected at least one reviewer/tester/scrum-master surface to NEWLY "
-                "reference output-styles/linear-comment.md (AC2 extends the "
-                "developer-only NB-359 style); none gained the reference vs HEAD.",
-            )
-        else:
-            self.skipTest("no HEAD baseline available (git show returned nothing) -- "
-                          "the live AC2 reference pins still hold.")
+        with_ref = (
+            "Your comment MUST follow the rules in output-styles/linear-comment.md -- "
+            "the canonical comment rule-set."
+        )
+        self.assertFalse(
+            _references_style(without_ref),
+            "the reference test must return False on a synthetic surface that does NOT link "
+            "output-styles/linear-comment.md (so the live 'each surface references it' pin "
+            "is non-tautological).",
+        )
+        self.assertTrue(
+            _references_style(with_ref),
+            "the reference test must return True on a synthetic surface that DOES link "
+            "output-styles/linear-comment.md.",
+        )
 
 
 class KindTagPreservedTest(unittest.TestCase):
@@ -374,11 +412,10 @@ class SpecialistsNotesAllSurfacesTest(unittest.TestCase):
     def test_specialists_states_all_surfaces_not_just_developer(self):
         self.assertTrue(self.body, "docs/specialists.md must exist (AC6).")
         # The load-bearing claim: the style governs *every* surface / *all* surfaces, not
-        # only the developer. Accept either phrasing of the universal quantifier.
+        # only the developer. Routed through the SAME `_claims_all_surfaces` primitive the
+        # sibling guard (test_pin_bites_the_pre_change_baseline) proves discriminates.
         self.assertTrue(
-            re.search(r"every backlogd agent comment surface"
-                      r"|all\b[\w\s]*agent comment surface"
-                      r"|not (just|only) the developer", self.low),
+            _claims_all_surfaces(self.body),
             "docs/specialists.md must state the style applies to ALL agent comment "
             "surfaces, not just the developer (AC6).",
         )
@@ -395,22 +432,33 @@ class SpecialistsNotesAllSurfacesTest(unittest.TestCase):
             )
 
     def test_pin_bites_the_pre_change_baseline(self):
-        # Anti-tautology: at HEAD docs/specialists.md documented the DEVELOPER-only style
-        # (NB-359) and did NOT carry the all-surfaces claim. Prove the universal-quantifier
-        # phrase is NEW vs HEAD, so this is a genuine pre/post anchor.
-        head = _git_show_head(SPECIALISTS.relative_to(REPO_ROOT).as_posix())
-        if not head:
-            self.skipTest("no HEAD baseline for docs/specialists.md (git show returned "
-                          "nothing) -- the live AC6 pins still hold.")
-        head_low = _norm(head).lower()
-        had_all_surfaces = bool(re.search(
-            r"every backlogd agent comment surface"
-            r"|all\b[\w\s]*agent comment surface"
-            r"|not (just|only) the developer", head_low))
+        # Anti-tautology proof, git-independent. The live pin asserts docs/specialists.md
+        # CARRIES the all-surfaces claim; that is only meaningful if the same matcher can
+        # also come back False. Feed a synthetic pre-NB-415 DEVELOPER-only phrasing (no
+        # universal quantifier) and a synthetic all-surfaces phrasing through the SAME
+        # `_claims_all_surfaces` primitive the live pin uses, and confirm it discriminates.
+        # (The old mechanism asked "is this phrase NEW vs HEAD?" -- a moving target that
+        # inverts once the change is committed; the discrimination is now proven from inline
+        # fixtures, never from git.)
+        developer_only = (
+            "The clean Linear-comment style applies to the developer's work-log comment. "
+            "It bans tables and status emoji and caps nesting at two levels."
+        )
+        all_surfaces = (
+            "The clean Linear-comment style applies to every backlogd agent comment "
+            "surface -- the reviewer, the tester, and the scrum-master, not just the "
+            "developer."
+        )
         self.assertFalse(
-            had_all_surfaces,
-            "expected the pre-NB-415 docs/specialists.md to NOT yet carry the "
-            "all-surfaces claim (so the AC6 pin is non-tautological); it already did.",
+            _claims_all_surfaces(developer_only),
+            "the all-surfaces matcher must return False on a synthetic DEVELOPER-only "
+            "phrasing (so the live AC6 pin is non-tautological): it matched a sample with "
+            "no universal quantifier.",
+        )
+        self.assertTrue(
+            _claims_all_surfaces(all_surfaces),
+            "the all-surfaces matcher must return True on a synthetic all-surfaces phrasing "
+            "(proving the live AC6 pin tracks a real claim, not pre-existing prose).",
         )
 
 
