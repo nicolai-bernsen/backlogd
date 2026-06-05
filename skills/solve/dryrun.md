@@ -9,6 +9,14 @@ When `--dryrun` is set, run the loop as a **preview**: every read you would norm
 but **no writes** — Linear, git, or graph — and **no developer dispatch**. The output is
 the plan; the world is untouched.
 
+> **`--dryrun` ≡ `mode:report-only` (NB-356 alias, one contract, no fork).** The shared
+> verb token `mode:report-only` (`skills/common/argument-tokens.md`) is the cross-verb
+> generalisation of NB-317's `--dryrun`. On `solve` the two are **the same contract**: when
+> the run carries `mode:report-only` *or* `--dryrun`, follow this file verbatim. `solve`
+> recognises both spellings and treats them identically — there is **no behavioural fork**
+> between them. `--dryrun` is retained as a documented alias (NB-356 does not deprecate it).
+> Read "`--dryrun`" throughout this file as "`--dryrun` or `mode:report-only`".
+
 The **ship-on-green** final phase (`commands/solve.md` step 8 → `skills/solve/ship.md`)
 **never runs under `--dryrun`** — the dry run exits after printing the plan, so there is no
 reviewer dispatch and no merge. `--no-ship` is independent of `--dryrun`: parse it (and
