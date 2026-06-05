@@ -1,5 +1,6 @@
 {
   "name": "backlogd",
+  "description": "Turn Claude Code into a problem-driven scrum team.",
   "owner": {
     "name": "Nicolai Bernsen"
   },
