@@ -140,12 +140,16 @@ each unit in `blocked-by` order):
    Then call the **resolved subagent** (`$AGENT` from step 2 — `developer` or
    `developer-<suffix>`) with the Agent tool, handing it the unit as a **curated-context
    inline** envelope. **Inline this unit's own issue context verbatim** — its title, its
-   **full** description, and its `## Acceptance Criteria` exactly as they read in Linear —
-   under a clearly-labeled `## Issue context` block, and include the unit's **issue id** so
-   the developer can post its own progress there. Reuse the `get_issue` result you already
-   have from pickup/identity (the NB-318 identity cache) rather than re-fetching. The
-   developer reads its spec from this envelope; it owns the *how*, you own all structure and
-   state:
+   **full** description (which carries the single-sentence `## Goal` and the
+   `## Acceptance Criteria`), exactly as they read in Linear — under a clearly-labeled
+   `## Issue context` block, and include the unit's **issue id** so the developer can post
+   its own progress there. Because the description is inlined verbatim, the unit's `## Goal`
+   (the coherent objective the work serves) travels with the AC — so the developer, the
+   tester, and the reviewer all read the **same "why"**, not just the AC. Do not trim or
+   summarise the `## Goal` out; it is part of the verbatim description. Reuse the `get_issue`
+   result you already have from pickup/identity (the NB-318 identity cache) rather than
+   re-fetching. The developer reads its spec from this envelope; it owns the *how*, you own
+   all structure and state:
 
    > Solve this problem. Take a concrete action toward resolving it, post your progress to
    > your issue (the `**[backlogd developer]**` comment, edited in place), then report what
@@ -191,6 +195,10 @@ each unit in `blocked-by` order):
 
        Today /backlogd:status appends a fresh 7-day forecast to the Project description on
        every run, so the description grows without bound.
+
+       ## Goal
+
+       The status forecast stays a single, current block the PO can trust at a glance.
 
        ## Acceptance Criteria
 
