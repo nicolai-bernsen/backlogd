@@ -95,7 +95,14 @@ and **stop**.
 
 A problem is *execution-ready* when its **description** carries a clear spec and a
 `## Acceptance Criteria` section — the canonical signal `/backlogd:solve` looks for to know a
-problem is already shaped.
+problem is already shaped — **and** it clears the
+[**Definition of Ready**](../docs/scrum/definition-of-ready.md): the front-of-scope entry
+gate (crisp outcome · falsifiable AC · no unresolved one-way-door decision · not fighting
+an Accepted standard) that is **symmetric to the [Definition of Done](../docs/scrum/definition-of-done.md)** exit
+gate. backlogd refuses to ship an ungoverned increment; it equally refuses to start an
+unready problem. The refiner runs the gate **Socratically — it interrogates the idea into
+shape, it does not generate or prioritize** (see the dispatch below); you act on what it
+surfaces.
 
 Read the problem. Then dispatch the `backlogd:refiner` subagent with the Agent tool,
 handing it the problem as an **inline** context envelope. The refiner owns the *shaping*
@@ -124,6 +131,18 @@ structure and state writes that follow.
 > walk-through). It is the only such default; `skills/ac/SKILL.md` carries the full rule
 > (source of truth — do not restate it). This is the **execution** gate, distinct from
 > [ADR-008](../docs/standards/adrs/ADR-008-live-surface-verification.md)'s live-evidence lane.
+>
+> Then run the **Definition-of-Ready gate** — the entry gate that mirrors the
+> Definition-of-Done exit gate. The problem is *ready* only with a **crisp outcome**,
+> **falsifiable AC**, **no unresolved one-way-door decision**, and **not fighting an
+> Accepted standard** (test the AC against the current `Accepted` ADRs in
+> `docs/standards/index.json`). Reach that floor by **interrogating, not generating**: put
+> the Socratic pressure-test (what is the real problem? who fails if it ships wrong? what
+> would make this fail?), the devil's-advocate pre-mortem ("assume this shipped and was
+> wrong — why?"), and the standards-conflict question to the PO and **record the PO's
+> answers** — do **not** answer them yourself, and do **not** generate ideas, prioritize,
+> or rank (that is the PO's call). Raise any unmet DoR rule as an ambiguity. The full rule
+> is `docs/scrum/definition-of-ready.md` (source of truth — do not restate it).
 >
 > Problem ({identifier}, issue id {id}): {title}
 >

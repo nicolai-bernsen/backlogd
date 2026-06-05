@@ -22,10 +22,13 @@ the *solutions*.
 - **Developer agents** — implement, test, and report; they own the technical calls.
 
 For the full Scrum Guide concept map — every accountability, event, and artifact mapped
-to a backlogd surface — see [`docs/scrum/mapping.md`](scrum/mapping.md). The Definition of
-Done that the independent verdict review enforces — auto-chained by `/backlogd:solve` on the
-happy path (ship-on-green), or run manually via `/backlogd:review` — lives at
-[`docs/scrum/definition-of-done.md`](scrum/definition-of-done.md).
+to a backlogd surface — see [`docs/scrum/mapping.md`](scrum/mapping.md). Two symmetric
+hard-rules gates bracket every problem: the **[Definition of Ready](scrum/definition-of-ready.md)**
+entry gate at the front of `/backlogd:scope` (a problem cannot start until it has a crisp
+outcome, falsifiable AC, no open one-way-door decision, and no standards conflict), and the
+**[Definition of Done](scrum/definition-of-done.md)** exit gate the independent verdict
+review enforces before merge — auto-chained by `/backlogd:solve` on the happy path
+(ship-on-green), or run manually via `/backlogd:review`.
 
 ## The two specifications
 
