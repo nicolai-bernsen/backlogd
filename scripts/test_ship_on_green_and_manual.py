@@ -227,9 +227,13 @@ class ShipOnGreenDocumentedTest(unittest.TestCase):
 
     def test_merge_condition_stated_exactly(self):
         """The happy-path merge condition string is canonical in review.md step 5 and
-        echoed in solve.md + ship.md. Pin the exact phrasing in all three."""
+        echoed in solve.md + ship.md. Pin the exact phrasing in all three.
+
+        NB-415 migrated the merge-condition vocabulary off the status glyphs (`✅`/`❔`)
+        onto the text labels `MET` / `NEEDS-PO` — the same logic in new words, so nothing
+        asserts a glyph. The canonical string is now stated label-form."""
         condition = (
-            "every AC `✅` AND every DoD line `✅` AND CI green AND zero `[manual]` AND zero `❔`"
+            "every AC line MET AND every DoD line MET AND CI green AND zero `[manual]` AND zero NEEDS-PO"
         )
         review = _norm(_read(REVIEW_CMD))
         self.assertIn(
@@ -237,7 +241,7 @@ class ShipOnGreenDocumentedTest(unittest.TestCase):
             "commands/review.md step 5 must state the exact merge condition",
         )
         # solve.md / ship.md echo it (line/DoD wording may wrap — accept the core
-        # 'zero [manual] AND zero ❔' clause as the anchor in those two).
+        # 'zero [manual] AND zero NEEDS-PO' clause as the anchor in those two).
         for path, name in ((SOLVE_CMD, "commands/solve.md"), (SHIP_SKILL, "skills/solve/ship.md")):
             self.assertIn(
                 "zero `[manual]`",
@@ -245,9 +249,9 @@ class ShipOnGreenDocumentedTest(unittest.TestCase):
                 f"{name} must echo the zero-[manual] clause of the merge condition",
             )
             self.assertIn(
-                "zero `❔`",
+                "zero NEEDS-PO",
                 _norm(_read(path)),
-                f"{name} must echo the zero-❔ clause of the merge condition",
+                f"{name} must echo the zero-NEEDS-PO clause of the merge condition",
             )
 
     def test_base_race_guard_present_in_review_step_5(self):

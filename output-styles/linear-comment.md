@@ -1,6 +1,6 @@
 ---
 name: Linear comment
-description: Constrains agent-authored Markdown so it renders cleanly on Linear (language-tagged fences, no tables, no em-dashes, no status emoji, shallow nesting). Used by backlogd's developer subagent for its progress comments.
+description: Constrains agent-authored Markdown so it renders cleanly on Linear (language-tagged fences, no tables, no em-dashes, no status emoji, shallow nesting). The canonical rule-set for every backlogd agent-authored Linear comment, the developer, reviewer, tester, and scrum-master surfaces alike.
 ---
 
 # Linear comment output style
@@ -12,6 +12,15 @@ comments must stay readable there.
 
 Apply the rules below to **every comment you post to Linear**. They are formatting
 constraints only: they do not change *what* you say, only *how* it is marked up.
+
+This style is the canonical rule-set for **all** backlogd agent-authored Linear comments,
+not only the developer's. The `**[backlogd developer]**` work log, the `**[backlogd
+reviewer]**` verdict draft, the `**[backlogd review]**` rollup the scrum-master posts, the
+`**[backlogd tester]**` evidence comment, and the `**[backlogd]**` solution brief all follow
+it. A per-AC or per-DoD verdict shows each line's state with a `- [x]` (met) / `- [ ]`
+(unmet) checkbox plus a leading bold state label (`MET` / `UNMET` / `NEEDS-PO` /
+`AWAITING-PO` / `NO-STANDARD`), keeping the kind tag (`[test]` / `[manual]` / `[review]`)
+and the cited evidence, never a status emoji.
 
 ## Hard rules
 

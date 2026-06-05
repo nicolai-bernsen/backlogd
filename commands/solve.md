@@ -16,8 +16,8 @@ and writes its own progress comment on its issue.
 
 The PO files a problem and walks away: backlogd shapes it, solves it, independently verifies
 it, and merges it. The PO is interrupted **only** when a real decision or blocker exists — a
-*sent back* verdict, a `❔`/`[manual]` *needs-you* judgement call, or a *blocker* (a dispatch
-block or a stale-base bail). On a clean green merge the PO runs nothing more.
+*sent back* verdict, a NEEDS-PO/`[manual]` *needs-you* judgement call, or a *blocker* (a
+dispatch block or a stale-base bail). On a clean green merge the PO runs nothing more.
 
 All Linear access goes through the **Linear MCP server** (configured in `.mcp.json`).
 **Load the `linear` skill (`skills/linear/`)** for the operating model and the exact
@@ -197,17 +197,18 @@ get to the step. Sub-skills carry the dry-run carve-outs.
    phase **auto-chains the same independent verdict review `/backlogd:review` owns** (the
    `backlogd:reviewer` dispatch in `commands/review.md` step 3 → the `**[backlogd review]**`
    rollup in step 4 → the merge decision in step 5 — *reused, not re-implemented*) and, on a
-   **fully-green verdict — every AC `✅` AND every DoD `✅` AND CI green AND zero `[manual]`
-   AND zero `❔`** — runs the **base-race guard** (`commands/review.md` step 5: re-confirm CI
-   green on the live PR head + PR mergeable into the integration branch; bail to a surfaced
-   blocker if stale/conflicted; never auto-rebase) and then **squash-merges the PR and moves
-   the problem to Done with no human gate**. The independent fresh-context verdict pass is
-   **preserved and gating** — the merge is decided by the independent reviewer's `accepted`
-   rollup, not the in-session pre-commit gate (`skills/solve/gate.md`), which is a distinct,
-   earlier pass. **Surface to the PO only on** *sent back* (→ In Progress with rework notes),
-   *needs you* (`❔` or unconfirmed `[manual]` → held In Review), a *block* (a `🚫` missing
-   load-bearing standard → held In Review, parked blocked-by a `Define standard for X`
-   sub-issue, PO asked for the standard — see `commands/review.md` step 5 / `skills/solve/ship.md`),
+   **fully-green verdict — every AC line MET AND every DoD line MET AND CI green AND zero
+   `[manual]` AND zero NEEDS-PO** — runs the **base-race guard** (`commands/review.md` step 5:
+   re-confirm CI green on the live PR head + PR mergeable into the integration branch; bail to
+   a surfaced blocker if stale/conflicted; never auto-rebase) and then **squash-merges the PR
+   and moves the problem to Done with no human gate**. The independent fresh-context verdict
+   pass is **preserved and gating** — the merge is decided by the independent reviewer's
+   `accepted` rollup, not the in-session pre-commit gate (`skills/solve/gate.md`), which is a
+   distinct, earlier pass. **Surface to the PO only on** *sent back* (→ In Progress with rework
+   notes), *needs you* (NEEDS-PO or unconfirmed `[manual]` → held In Review), a *block* (a
+   NO-STANDARD missing load-bearing standard → held In Review, parked blocked-by a `Define
+   standard for X` sub-issue, PO asked for the standard — see `commands/review.md` step 5 /
+   `skills/solve/ship.md`),
    or a *base-race blocker* (→
    held In Review). Under `--no-ship` the verdict still runs but the problem is **held at In
    Review with the PR open** and nothing is merged — `/backlogd:review` (or the PO) accepts
@@ -233,7 +234,7 @@ Tell the user what happened, end to end:
   problem  -> Done (merged → {integration})                    ← happy path: fully-green verdict, merged
                 In Review (solution brief posted, PR open)     ← --no-ship, or needs you
                 In Review (blocked-by {Define standard for X}) ← block: missing load-bearing standard, PO asked
-                In Progress (sent back: {rework reason})       ← any ❌ / red CI
+                In Progress (sent back: {rework reason})       ← any UNMET line / red CI
                 paused: {blocker}                              ← dispatch blocker or base-race bail
 ```
 

@@ -99,7 +99,7 @@ Patterns to look for, by reading the graph slice and the closed problems' commen
 *together*:
 
 - **A recurring missing standard** — ≥2 problems whose `**[backlogd reviewer]**` verdicts
-  flagged the same absent rule, or the same `❔`/`❌` theme. → a systemic gap → a
+  flagged the same absent rule, or the same NEEDS-PO/UNMET theme. → a systemic gap → a
   high-priority **ADR / standard** candidate (the batch signal NB-378's reviewer can't
   raise alone).
 - **A high-blocker or high-rework `area`** — `by_area` shows one `area:*` label with a

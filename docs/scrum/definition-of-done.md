@@ -67,5 +67,5 @@ These are **not** in the DoD — listed here so they are not added by accident:
   verdict reviewer** verifies the *increment* against this floor; on the happy path
   `/backlogd:solve` auto-chains that verdict and merges a fully-green increment to *Done*
   with **no human gate** (ship-on-green). The PO does not trigger the review or click merge
-  on green — they are interrupted only on a sent-back verdict, a `❔`/`[manual]` judgement
+  on green — they are interrupted only on a sent-back verdict, a NEEDS-PO/`[manual]` judgement
   call, or a blocker. `/backlogd:review` remains available as a manual re-entry point.

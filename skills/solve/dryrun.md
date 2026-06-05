@@ -97,7 +97,7 @@ way under dryrun.
 (f) Ship-on-green plan
   ship-on-green: on (default) | off (--no-ship | BACKLOGD_SHIP_ON_GREEN=0)
   on a real run the happy path would: auto-chain the verdict review → on fully-green
-       (every AC ✅ + every DoD ✅ + CI green + zero [manual]/❔) run the base-race guard
+       (every AC MET + every DoD MET + CI green + zero [manual]/needs-PO) run the base-race guard
        and squash-merge into origin/{integration} → Done; off → hold at In Review.
   (ops-only: no PR to merge — accept moves straight to Done.)
 ```

@@ -78,13 +78,13 @@ Use when the AC item names a check that can return **exit 0 / non-zero**:
 **Contract:** the AC item body **must contain** at least one backticked runnable thing —
 a command line in backticks (the reviewer will execute it with Bash from the worktree
 root). If the bullet says `[test]` but has no backticked command, the reviewer reports
-the item as `❔ needs PO judgement: no runnable check found` rather than guessing.
+the item as **NEEDS-PO** `no runnable check found` rather than guessing.
 
 The reviewer subagent extracts the **first** `` `…` `` span as the command, runs it
 from the worktree, and judges:
 
-- exit code `0` → `✅ met` (cite the command + the exit code or the last line).
-- non-zero → `❌ unmet` (cite the command + the last few lines of stderr).
+- exit code `0` → **MET** (cite the command + the exit code or the last line).
+- non-zero → **UNMET** (cite the command + the last few lines of stderr).
 
 Example:
 
@@ -168,8 +168,8 @@ The scrum-master (or the PO themselves) confirms each one before the verdict clo
   `**[backlogd review]**` comment and surfaces the batched question to the PO,
   waiting for the answer before closing the verdict.
 
-The reviewer's verdict glyph on a `[manual]` item is `📝 awaiting PO confirmation`
-until the batched check is acknowledged.
+The reviewer's verdict state on a `[manual]` item is **AWAITING-PO** until the batched
+check is acknowledged.
 
 In `pre-commit-gate` mode (the same reviewer subagent, dispatched inside
 `/backlogd:solve`), the gate is binary and cannot wait on the PO — `[manual]` items
@@ -190,8 +190,8 @@ no machine can prove:
 This is the **default** (untagged items become `[review]`). It's also the **current**
 behaviour of `/backlogd:review` for every AC item, so no existing problem regresses.
 
-The reviewer reads the artifacts and judges `✅ met` / `❌ unmet` / `❔ needs PO
-judgement` (the last is for items that turn out to need a real product decision the
+The reviewer reads the artifacts and judges **MET** / **UNMET** / **NEEDS-PO**
+(the last is for items that turn out to need a real product decision the
 reviewer can't make).
 
 ## Standards are persistent, cross-issue AC
@@ -238,7 +238,7 @@ to write AC bullets with **explicit kinds where possible**:
    consistency judgement is `[review]`, and every `[manual]` carries a one-line
    justification of why no fresh-context agent could observe it.
 4. **Encourage the PO**, in the scope report, to refine kinds the reviewer flagged
-   `❔ no runnable check found`.
+   **NEEDS-PO** `no runnable check found`.
 
 The PO can always edit the description to retype an AC bullet — the kind is just text.
 
@@ -253,23 +253,24 @@ Criteria`:
    (mirror `scripts/ac_parse.py`). Untagged / non-kind token → `[review]`.
 2. **Branch per-kind:**
    - **`[test]`** → extract the first backticked command from the body. If none, mark
-     `❔ needs PO judgement: no runnable check found`. Otherwise run the command from
-     the worktree root with Bash; exit `0` → `✅ met`, non-zero → `❌ unmet`. Cite the
+     **NEEDS-PO** `no runnable check found`. Otherwise run the command from
+     the worktree root with Bash; exit `0` → **MET**, non-zero → **UNMET**. Cite the
      command and the result.
    - **`[manual]`** → add the bullet to the "Manual checks for the PO" batch in the
-     drafted verdict body and mark it `📝 awaiting PO confirmation`. The reviewer
+     drafted verdict body and mark it **AWAITING-PO**. The reviewer
      does **not** silently pass it.
    - **`[review]`** → judge from the artifacts (the original `[review]` behaviour).
-     `✅` / `❌` / `❔`.
+     **MET** / **UNMET** / **NEEDS-PO**.
 3. **Verdict rollup** (verdict mode, returned to the scrum-master):
-   - **accepted** requires every item `✅ met` and any `[manual]` items confirmed by
-     the PO (no `📝` left dangling), and CI green.
-   - **sent back** if any item is `❌` (or CI red).
-   - **needs you** if any item is `❔` or there are unconfirmed `📝`s and no `❌`.
+   - **accepted** requires every item **MET** and any `[manual]` items confirmed by
+     the PO (no **AWAITING-PO** left dangling), and CI green.
+   - **sent back** if any item is **UNMET** (or CI red).
+   - **needs you** if any item is **NEEDS-PO** or there are unconfirmed **AWAITING-PO**
+     items and no **UNMET**.
 
 In `pre-commit-gate` mode (the same reviewer subagent, dispatched inside
-`/backlogd:solve` before commit), the rollup is binary — `📝 awaiting PO
-confirmation` for `[manual]` items counts as `needs-changes` because the gate
+`/backlogd:solve` before commit), the rollup is binary — an **AWAITING-PO**
+`[manual]` item counts as `needs-changes` because the gate
 cannot wait on the PO.
 
 ## Backwards compatibility — non-negotiable
@@ -319,12 +320,12 @@ escaping is normalized first):
 
 ```text
 Acceptance criteria
-  ✅ [test] `bash hooks/install-git-hooks.sh …` — ran, exit 0, output matched.
-  ❌ [test] `python -m pytest tests/scope/` — ran, exit 1 (3 failures).
-  📝 [manual] /backlogd:scope walk — awaiting PO confirmation (see batch below).
-  ✅ [review] New code path is small — diff is +120/-30 across 4 files; one sitting.
-  ✅ [review] Untagged AC defaults to `[review]` — verified parser test exists.
+- [x] **MET** [test] `bash hooks/install-git-hooks.sh …` — ran, exit 0, output matched.
+- [ ] **UNMET** [test] `python -m pytest tests/scope/` — ran, exit 1 (3 failures).
+- [ ] **AWAITING-PO** [manual] /backlogd:scope walk — awaiting PO confirmation (see batch below).
+- [x] **MET** [review] New code path is small — diff is +120/-30 across 4 files; one sitting.
+- [x] **MET** [review] Untagged AC defaults to `[review]` — verified parser test exists.
 
 Manual checks for the PO
-  - Run `/backlogd:scope NB-XXX` on a freshly-filed problem; does the decomposition look reasonable?
+- Run `/backlogd:scope NB-XXX` on a freshly-filed problem; does the decomposition look reasonable?
 ```

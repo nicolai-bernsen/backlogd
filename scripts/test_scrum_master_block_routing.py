@@ -344,9 +344,15 @@ class LinearNativeMissingStandardFlowTest(unittest.TestCase):
 
     def test_review_verdict_template_carries_block_classification_lines(self):
         # The drafted verdict body the scrum-master lifts carries the block-only standard:
-        # / fact: classification lines (glyph-tagged) so the route is written into the
-        # verdict. Mirrors the reviewer template guarded in test_reviewer_block_outcome.py,
-        # but here on the scrum-master's review.md copy that NB-385 added.
+        # / fact: classification lines so the route is written into the verdict. Mirrors the
+        # reviewer template guarded in test_reviewer_block_outcome.py, but here on the
+        # scrum-master's review.md copy that NB-385 added.
+        #
+        # NB-415 migrated the verdict-body display off the block glyph (🚫) onto the
+        # `- [ ] **NO-STANDARD**` checkbox + bold-label convention (the verdict rollup is a
+        # Linear comment and carries no status emoji). The lines now read `- [ ]
+        # **NO-STANDARD** standard:` / `... fact:`; the pin tracks that and asserts the block
+        # glyph is GONE.
         body = _norm(_read(REVIEW_CMD))
         self.assertIn(
             "Missing standard / fact",
@@ -355,14 +361,22 @@ class LinearNativeMissingStandardFlowTest(unittest.TestCase):
             "section (AC #6 classification written into the verdict).",
         )
         self.assertIn(
-            f"{BLOCK_GLYPH} standard:",
+            "**NO-STANDARD** standard:",
             body,
-            "commands/review.md verdict template must carry a `standard:` block line (AC #6).",
+            "commands/review.md verdict template must carry a NO-STANDARD `standard:` block "
+            "line (AC #6).",
         )
         self.assertIn(
-            f"{BLOCK_GLYPH} fact:",
+            "**NO-STANDARD** fact:",
             body,
-            "commands/review.md verdict template must carry a `fact:` block line (AC #6).",
+            "commands/review.md verdict template must carry a NO-STANDARD `fact:` block line "
+            "(AC #6).",
+        )
+        self.assertNotIn(
+            BLOCK_GLYPH,
+            body,
+            "commands/review.md verdict template must use no status/block emoji — NB-415 "
+            "migrated the block glyph to the NO-STANDARD bold label.",
         )
 
     def test_fact_block_is_answered_once_without_po_or_adr(self):
@@ -437,8 +451,8 @@ class LinearNativeMissingStandardFlowTest(unittest.TestCase):
         self.assertNotIn("blockedBy", pre_fix)
         self.assertNotIn("what standard would you like for", low)
         self.assertNotIn("parks blocked-by", low)
-        self.assertNotIn(f"{BLOCK_GLYPH} standard:", pre_fix)
-        self.assertNotIn(f"{BLOCK_GLYPH} fact:", pre_fix)
+        self.assertNotIn("**no-standard** standard:", low)
+        self.assertNotIn("**no-standard** fact:", low)
 
 
 if __name__ == "__main__":

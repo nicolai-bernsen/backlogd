@@ -124,8 +124,9 @@ Given a target unit (the issue / sub-issue you are already reading in the callin
   bullet's `[manual]` tag, so the desired state stays "has a `[manual]` AC" by this skill's
   parse alone. The **clear-on-accept** transition is owned by `/backlogd:review` (see below):
   it removes the label as part of the `accepted` close, when every `[manual]` is confirmed
-  `✅` and zero `📝` dangle. This skill's pure-AC parse keeps the label attached for the
-  whole life of the unit's `[manual]` AC; `review`'s accept is the one place it comes off.
+  **MET** and zero **AWAITING-PO** dangle. This skill's pure-AC parse keeps the label
+  attached for the whole life of the unit's `[manual]` AC; `review`'s accept is the one
+  place it comes off.
 
 ## Where to call this from
 
@@ -135,10 +136,10 @@ Given a target unit (the issue / sub-issue you are already reading in the callin
   unit's AC carries ≥1 `[manual]` bullet" by the `extract_kind` parse. **Apply** the label
   on units that do.
 - **`/backlogd:review`** — on the verdict close. **Clear** the label on the **`accepted`**
-  path — the verdict where every `[manual]` is confirmed `✅` and zero `📝 awaiting PO
-  confirmation` remain — by taking the remove path explicitly on the unit (drop
+  path — the verdict where every `[manual]` is confirmed **MET** and zero **AWAITING-PO**
+  remain — by taking the remove path explicitly on the unit (drop
   `manual-pending` from its `labels`). While any `[manual]` is still
-  `📝 awaiting PO confirmation` (the `needs you` verdict), **leave the label attached** —
+  **AWAITING-PO** (the `needs you` verdict), **leave the label attached** —
   that *is* the "waiting on me" state. (`sent back` / `block` leave the unit's AC unchanged,
   so the label state is unchanged too — no write.)
 - **`/backlogd:status`** — in the survey, on every `problem`-labelled unit in scope at the

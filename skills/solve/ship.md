@@ -1,6 +1,6 @@
 ---
 name: solve-ship
-description: Ship-on-green — solve's final phase. After the In Review handoff, auto-chain the SAME independent verdict review /backlogd:review owns and, on a fully-green verdict (every AC ✅ + every DoD ✅ + CI green + zero [manual] + zero ❔), merge the PR and close the problem to Done with no human gate. On by default; --no-ship (or BACKLOGD_SHIP_ON_GREEN=0) opts a single run out, holding it at In Review. Surfaces to the PO only on sent-back / needs-you / blocker.
+description: Ship-on-green — solve's final phase. After the In Review handoff, auto-chain the SAME independent verdict review /backlogd:review owns and, on a fully-green verdict (every AC MET + every DoD MET + CI green + zero [manual] + zero needs-PO), merge the PR and close the problem to Done with no human gate. On by default; --no-ship (or BACKLOGD_SHIP_ON_GREEN=0) opts a single run out, holding it at In Review. Surfaces to the PO only on sent-back / needs-you / blocker.
 ---
 
 # solve — ship-on-green (final phase)
@@ -70,20 +70,21 @@ did not have to run the command, and on green does not have to click merge.
 Branch on the reviewer's rollup (the `commands/review.md` step 5 branches), and report which
 one happened:
 
-- **`accepted` → fully green → merged + Done (the happy path).** Every AC `✅`, every DoD
-  `✅`, CI green, zero `[manual]`, zero `❔`, and the base-race guard passed → the PR is
+- **`accepted` → fully green → merged + Done (the happy path).** Every AC MET, every DoD
+  MET, CI green, zero `[manual]`, zero NEEDS-PO, and the base-race guard passed → the PR is
   squash-merged into the integration branch and the problem is moved to *Done*. **The PO is
   not interrupted** — no command to run, no merge to click. This is the outcome ship-on-green
   exists for.
-- **`sent back` (any AC `❌` OR any DoD `❌` OR CI red).** The problem moves back to *In
-  Progress* with the reviewer's `❌` notes as actionable rework (PR left open) — exactly the
-  `commands/review.md` step 5 *sent back* path, including the best-effort `graph.py rework`
-  record. **Surface to the PO** that the increment was sent back.
-- **`needs you` (any `❔` without `❌`, or unconfirmed `📝`/`[manual]`).** The problem stays
-  *In Review* (PR open) and the judgement call / the "Manual checks for the PO" batch is
-  surfaced to the PO — the `commands/review.md` step 5 *needs PO* path. **Interrupt the PO**
-  with the question; do not guess past it and do not merge.
-- **`block` (a `🚫` — a consequential decision with no governing Accepted standard).** The
+- **`sent back` (any AC line UNMET OR any DoD line UNMET OR CI red).** The problem moves back
+  to *In Progress* with the reviewer's UNMET notes as actionable rework (PR left open) —
+  exactly the `commands/review.md` step 5 *sent back* path, including the best-effort
+  `graph.py rework` record. **Surface to the PO** that the increment was sent back.
+- **`needs you` (any NEEDS-PO without an UNMET, or unconfirmed AWAITING-PO/`[manual]`).** The
+  problem stays *In Review* (PR open) and the judgement call / the "Manual checks for the
+  PO" batch is surfaced to the PO — the `commands/review.md` step 5 *needs PO* path.
+  **Interrupt the PO** with the question; do not guess past it and do not merge.
+- **`block` (a NO-STANDARD line — a consequential decision with no governing Accepted
+  standard).** The
   problem does **not** merge — it **parks blocked-by a new sub-issue** until the gap is
   governed (the `commands/review.md` step 5 *block* path). Route by the reviewer's
   classification, honouring the **non-delegable standards boundary** (`skills/scrum/references/accountabilities.md`):
