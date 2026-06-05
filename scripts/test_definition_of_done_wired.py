@@ -263,8 +263,13 @@ class ReviewerCitesBothTest(unittest.TestCase):
     def test_verdict_template_carries_a_definition_of_done_section(self):
         # AC2's "its verdict cites both" — the verdict template in BOTH surfaces has a
         # `Definition of Done` block beside the `Acceptance criteria` block, and the
-        # report glyph-counts carry a `DoD:` line. A reword that drops the DoD section
+        # report counts carry a `DoD:` line. A reword that drops the DoD section
         # would un-cite the DoD half of the verdict.
+        #
+        # NB-415 migrated the verdict-state vocabulary off status emoji (✅/❌/❔) onto a
+        # `- [x]` / `- [ ]` checkbox + bold MET/UNMET/NEEDS-PO label, and the report
+        # count line off `DoD: ✅{n}…` onto `DoD: met={n} unmet={n} needs-po={n}`. The
+        # pin tracks the new vocabulary.
         for path in self.REVIEWER_SURFACES:
             with self.subTest(surface=path.name):
                 body = _norm(_read(path))
@@ -272,21 +277,22 @@ class ReviewerCitesBothTest(unittest.TestCase):
                     "Acceptance criteria", body,
                     f"{path.relative_to(REPO_ROOT)} verdict must have an Acceptance "
                     f"criteria section (AC2 — cites both).")
-        # The agent surface owns the `DoD:` glyph-count summary line.
+        # The agent surface owns the `DoD:` count summary line (emoji-free post-NB-415).
         agent_body = _norm(_read(REVIEWER_AGENT))
         self.assertIn(
-            "DoD: ✅", agent_body,
-            "agents/reviewer.md report must carry a `DoD:` glyph-count line so the "
+            "DoD: met=", agent_body,
+            "agents/reviewer.md report must carry a `DoD:` count line so the "
             "verdict cites the DoD walk, not only the AC walk (AC2).")
 
     def test_merge_condition_requires_every_dod_line_green(self):
         # The enforcement teeth: the happy-path merge condition must require every DoD
-        # line ✅, weighing a red DoD line like a red AC line. This is *why* the verdict
-        # citing the DoD matters — it gates the merge.
+        # line MET, weighing a red DoD line like a red AC line. This is *why* the verdict
+        # citing the DoD matters — it gates the merge. NB-415 migrated the merge-condition
+        # vocabulary off the `✅` glyph onto the text label `MET` (same logic, new words).
         body = _norm(_read(REVIEW_CMD))
         self.assertIn(
-            "every DoD line `✅`", body,
-            "commands/review.md merge condition must require every DoD line green "
+            "every DoD line MET", body,
+            "commands/review.md merge condition must require every DoD line MET "
             "(AC2 — the DoD is enforced, not just cited).")
 
 

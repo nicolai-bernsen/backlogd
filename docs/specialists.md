@@ -157,6 +157,19 @@ formatting rule-set is a Claude Code Output Style file —
 developer's `<Output_Format>` points at it (the "Render it for Linear" bullet). The
 constraint set, in brief:
 
+> **The style governs every backlogd agent comment surface, not just the developer.** The
+> same rule-set is wired (at the prompt level, the same "Render it for Linear" way) into the
+> **reviewer** (`agents/reviewer.md` + `skills/reviewer/SKILL.md`: the `**[backlogd
+> reviewer]**` work log and the `drafted-verdict-body`), the **scrum-master** (the
+> `**[backlogd review]**` verdict rollup in `commands/review.md` §4 and the `**[backlogd]**`
+> solution brief in `skills/solve/handoff.md`), and the **tester** (`agents/tester.md`: the
+> `**[backlogd tester]**` evidence comment). In particular the per-AC and per-DoD verdict
+> shows each line's state with a `- [x]` (met) / `- [ ]` (unmet) checkbox plus a leading bold
+> state label (`MET` / `UNMET` / `NEEDS-PO` / `AWAITING-PO` / `NO-STANDARD`) — keeping the
+> `[test]` / `[manual]` / `[review]` kind tag and the cited evidence — instead of the
+> ✅/❌/❔/📝/🚫 status emoji it used before (NB-415). No agent comment surface uses a status
+> or checkmark emoji.
+
 | Constraint | Rule |
 | --- | --- |
 | Code fences | language-tag every fence (`bash`, `python`, `json`, `text`); never a bare fence |
@@ -266,7 +279,9 @@ enum** so the orchestrator reasons about both specialists in one vocabulary:
 | `needs you` | — | `NEEDS_CONTEXT` *(AC too vague to verify; the PO must clarify)* |
 
 This is a **documented mapping, not a code change to the reviewer** — the reviewer still
-emits its own verdict glyphs and the gate/`/backlogd:review` machinery is untouched. If a
+emits its own verdict vocabulary (`accepted` / `sent back` / `needs you` / `block`, with
+per-line MET / UNMET / NEEDS-PO / AWAITING-PO / NO-STANDARD labels since NB-415) and the
+gate/`/backlogd:review` machinery is untouched. If a
 future change wants the reviewer to *literally* emit a `STATUS:` line, that is a separate,
 cross-cutting unit (it touches `agents/reviewer.md`, `skills/solve/gate.md`, and
 `commands/review.md`) and should be scoped on its own.

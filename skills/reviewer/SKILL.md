@@ -86,13 +86,15 @@ by a command, the reviewer:
 - **cites the evidence** in the verdict: the command, the output it saw, what it
   proved.
 
-> Example verdict line:
+> Example verdict line (the verdict body is a Linear comment, so state is a `- [x]` /
+> `- [ ]` checkbox + bold state label, never a status emoji — see
+> `output-styles/linear-comment.md`):
 >
 > ```text
-> ✅ `agents/reviewer.md` exists with restricted tool grant — verified with
-> `Grep -n 'tools:' agents/reviewer.md` showing `Read, Grep, Glob, Bash,
-> mcp__linear__get_issue, mcp__linear__list_comments, mcp__linear__save_comment`
-> and no `Edit, Write`.
+> - [x] **MET** `agents/reviewer.md` exists with restricted tool grant — verified with
+>   `Grep -n 'tools:' agents/reviewer.md` showing `Read, Grep, Glob, Bash,
+>   mcp__linear__get_issue, mcp__linear__list_comments, mcp__linear__save_comment`
+>   and no `Edit, Write`.
 > ```
 
 This is the **regression guard**. A deliberately-incomplete solution the developer
@@ -105,15 +107,15 @@ will be explicit PO asks, `[review]` items will stay judgement calls. Until then
 reviewer heuristically classifies each `- [ ]` bullet and runs what it can.
 
 Pure-judgement AC ("is this prose clearer?", "is this *good enough*?") is **not**
-machine-verifiable — the reviewer marks it `❔ needs PO` rather than guess. The
-distinction matters: hiding a judgement call as a `✅` reintroduces the self-marking
+machine-verifiable — the reviewer marks it **NEEDS-PO** rather than guess. The
+distinction matters: hiding a judgement call as a **MET** reintroduces the self-marking
 failure the whole role exists to prevent.
 
 ## Standards corpus — index-first load order (NB-380)
 
 The reviewer judges every change not only against the AC and the DoD but against the
 **standards corpus** — the Accepted ADRs under `docs/standards/adrs/` (an Accepted ADR is
-a hard rule; violating one is `❌`, same weight as a failed DoD line). The risk this
+a hard rule; violating one is **UNMET**, same weight as a failed DoD line). The risk this
 introduces is the one NB-380 exists to defuse: if "consult the standards" meant *load all
 the prose ADRs into context every review*, the verification layer would get slow, burn the
 token/context budget (the NB-379 quota pressure), and — worst — a reviewer swimming in N
@@ -184,7 +186,8 @@ back / needs you (the gate's binary `ok` / `needs-changes` rolls a block up as
     ADR, no PO.
 
   The classification is written into the verdict body (a "Missing standard / fact" section,
-  one `🚫` line per gap) **so the scrum-master can route it** — see the boundaries below.
+  one **NO-STANDARD** line per gap) **so the scrum-master can route it** — see the
+  boundaries below.
 
 **Boundary — mechanism here, *threshold* and *routing* elsewhere.** This section (and the
 matching `agents/reviewer.md` outcome) introduces the *mechanism*: the `block` outcome plus
@@ -301,7 +304,7 @@ lineage it extends.
                                                            ↓   ↓
                               reviewer (fresh, restricted) → verdict draft
                                                           ↓
-              orchestrator acts (merge → Done on fully-green / send back / surface ❔ / route 🚫 block)
+              orchestrator acts (merge → Done on fully-green / send back / surface needs-PO / route no-standard block)
 ```
 
 The verdict pass has **two triggers, one engine**: `/backlogd:solve`'s ship-on-green final
@@ -359,28 +362,32 @@ rollup, not on the pre-commit gate alone — the two passes stay separate, and b
 
 ## Pitfalls checklist
 
-- ❌ Dispatching the reviewer with implicit "you know what we're working on" context
-  → it doesn't. ✅ Inline envelope with every artifact it needs.
-- ❌ Treating the developer's `solved` claim as evidence the AC is met → that's
-  exactly the self-marking failure mode. ✅ The reviewer runs the check; the
+Each pitfall pairs the **Wrong** move with the **Right** one (no status emoji — these are
+prose do/don't pairs, kept consistent with the no-emoji rule the verdict surfaces follow):
+
+- **Wrong:** dispatching the reviewer with implicit "you know what we're working on"
+  context (it doesn't). **Right:** inline envelope with every artifact it needs.
+- **Wrong:** treating the developer's `solved` claim as evidence the AC is met (that's
+  exactly the self-marking failure mode). **Right:** the reviewer runs the check; the
   developer's claim is a hypothesis, not a fact.
-- ❌ A `✅` AC line in the verdict with no cited command or file path → unverifiable
-  by the PO, indistinguishable from theatre. ✅ Every `✅` carries cited evidence
-  (`command → output`, `file:line`, etc.).
-- ❌ The reviewer editing a file "to make the AC pass" → blows the judge/act split.
-  Its tool grant excludes `Edit`/`Write` precisely so this is not possible. ✅ Send
-  it back via the orchestrator.
-- ❌ The orchestrator dispatching the reviewer before any `mcp__linear__*` call has
-  loaded the deferred tool → reviewer can't post its comment (NB-340). ✅
-  `commands/review.md` step 0: pre-load each deferred tool from the orchestrator
-  first.
-- ❌ Posting both `**[backlogd reviewer]**` and `**[backlogd review]**` from the
-  reviewer → double-posting, breaks the in-place edit contract, blurs authorship.
-  ✅ Reviewer posts only `**[backlogd reviewer]**`; orchestrator posts only
+- **Wrong:** a **MET** AC line in the verdict with no cited command or file path
+  (unverifiable by the PO, indistinguishable from theatre). **Right:** every **MET**
+  carries cited evidence (`command → output`, `file:line`, etc.).
+- **Wrong:** the reviewer editing a file "to make the AC pass" (blows the judge/act split;
+  its tool grant excludes `Edit`/`Write` precisely so this is not possible). **Right:**
+  send it back via the orchestrator.
+- **Wrong:** the orchestrator dispatching the reviewer before any `mcp__linear__*` call has
+  loaded the deferred tool (reviewer can't post its comment, NB-340). **Right:**
+  `commands/review.md` step 0 pre-loads each deferred tool from the orchestrator first.
+- **Wrong:** posting both `**[backlogd reviewer]**` and `**[backlogd review]**` from the
+  reviewer (double-posting, breaks the in-place edit contract, blurs authorship).
+  **Right:** reviewer posts only `**[backlogd reviewer]**`; orchestrator posts only
   `**[backlogd review]**`.
-- ❌ A consequential, ungoverned decision passed as "no applicable standard for this
-  diff" → an ungoverned one-way-door silently baked into the corpus. ✅ A consequential
-  decision with no governing Accepted standard is a `block` — name the missing standard.
-- ❌ The reviewer *inventing* the missing standard to clear its own block → self-marking;
-  it just authored the rule it then judged itself against. ✅ State the gap, classify it
-  (standard / fact), and hand it to the scrum-master to route (NB-385) — never fill it.
+- **Wrong:** a consequential, ungoverned decision passed as "no applicable standard for
+  this diff" (an ungoverned one-way-door silently baked into the corpus). **Right:** a
+  consequential decision with no governing Accepted standard is a `block` — name the
+  missing standard.
+- **Wrong:** the reviewer *inventing* the missing standard to clear its own block
+  (self-marking; it just authored the rule it then judged itself against). **Right:** state
+  the gap, classify it (standard / fact), and hand it to the scrum-master to route (NB-385),
+  never fill it.

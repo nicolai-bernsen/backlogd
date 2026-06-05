@@ -181,7 +181,13 @@ class StandardVsFactClassificationTest(unittest.TestCase):
         # AC #4 says the classification is *written into the verdict*. The agent file owns
         # the verdict-body template the scrum-master lifts verbatim; it must carry a
         # block-only "Missing standard / fact" section with a per-kind line for each of
-        # `standard:` and `fact:` (tagged with the block glyph).
+        # `standard:` and `fact:`.
+        #
+        # NB-415 migrated the verdict-body display off the block glyph (🚫) onto the
+        # `- [ ] **NO-STANDARD**` checkbox + bold-label convention (the verdict body is a
+        # Linear comment and must carry no status emoji). The classification lines now read
+        # `- [ ] **NO-STANDARD** standard:` / `- [ ] **NO-STANDARD** fact:`; the pin tracks
+        # that, asserting the block glyph is GONE from the template.
         body = _norm(_read(REVIEWER_AGENT))
         self.assertIn(
             "Missing standard / fact",
@@ -190,15 +196,22 @@ class StandardVsFactClassificationTest(unittest.TestCase):
             "section so the classification is written into the verdict (AC #4).",
         )
         self.assertIn(
-            f"{BLOCK_GLYPH} standard:",
+            "**NO-STANDARD** standard:",
             body,
-            "agents/reviewer.md verdict template must carry a `standard:` block line "
-            "(AC #4).",
+            "agents/reviewer.md verdict template must carry a NO-STANDARD `standard:` block "
+            "line (AC #4).",
         )
         self.assertIn(
-            f"{BLOCK_GLYPH} fact:",
+            "**NO-STANDARD** fact:",
             body,
-            "agents/reviewer.md verdict template must carry a `fact:` block line (AC #4).",
+            "agents/reviewer.md verdict template must carry a NO-STANDARD `fact:` block line "
+            "(AC #4).",
+        )
+        self.assertNotIn(
+            BLOCK_GLYPH,
+            body,
+            "agents/reviewer.md verdict template must use no status/block emoji — NB-415 "
+            "migrated the block glyph to the NO-STANDARD bold label.",
         )
 
     def test_classification_pins_would_bite_on_the_pre_fix_wording(self):
@@ -216,8 +229,8 @@ class StandardVsFactClassificationTest(unittest.TestCase):
         self.assertNotIn("missing fact", pre_fix)
         self.assertNotIn("answered once", pre_fix)
         self.assertNotIn("missing standard / fact", pre_fix)
-        self.assertNotIn(f"{BLOCK_GLYPH} standard:", pre_fix)
-        self.assertNotIn(f"{BLOCK_GLYPH} fact:", pre_fix)
+        self.assertNotIn("**no-standard** standard:", pre_fix)
+        self.assertNotIn("**no-standard** fact:", pre_fix)
 
 
 if __name__ == "__main__":

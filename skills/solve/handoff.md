@@ -99,15 +99,19 @@ Where the brief lives depends on the problem's **form** (set at `/backlogd:scope
 ### Single-Issue / sub-issue form — brief as a comment
 
 Post one comment on the problem issue, edited in place, with the `**[backlogd]**` badge.
-Write it for a product owner who owns the solution but is not reviewing code:
+Write it for a product owner who owns the solution but is not reviewing code. This is a
+Linear comment the PO reads, so render it per
+[`../../output-styles/linear-comment.md`](../../output-styles/linear-comment.md) (no
+markdown tables, no status or checkmark emoji, language-tagged fences, max two-level
+nesting; show any state with a `- [x]` / `- [ ]` checkbox or a bold label, never an emoji):
 
     **[backlogd]** Solution brief
 
-    Problem: {one line — what was asked}
+    Problem: {one line, what was asked}
     What was solved: {the outcome, in plain terms}
-    How (high level): {approach — 2–4 bullets, no code-level detail}
+    How (high level): {approach, 2-4 bullets, no code-level detail}
     Artifacts: {files/areas changed, links, or what the PO now has}
-    {Needs your eyes: {anything for the PO to decide} — omit if nothing}
+    {Needs your eyes: {anything for the PO to decide}, omit if nothing}
 
 **Surface `DONE_WITH_CONCERNS` concerns under *Needs your eyes*.** When any unit returned
 `STATUS: DONE_WITH_CONCERNS`, `skills/solve/dispatch.md` step 7 (via

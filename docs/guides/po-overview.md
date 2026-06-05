@@ -160,7 +160,7 @@ Four steps, ~60 seconds total.
 2. **Scan View 1's in-flight rows** — the rest of View 1. On the happy path *In Review* is
    transient — `/backlogd:solve` auto-chains the verdict review and merges a fully-green
    increment to Done (ship-on-green), so a problem sitting in *In Review* usually means it
-   needs you: a `❔`/`[manual]` judgement call, or it was run with `--no-ship`. Open it,
+   needs you: a NEEDS-PO/`[manual]` judgement call, or it was run with `--no-ship`. Open it,
    answer the question, or run `/backlogd:review` to re-verify and merge once it is clear.
 3. **Check View 3 — Waiting on me** — the `manual-pending` rows. Each one is gated on a
    human-only `[manual]` check you owe the team. Open it, confirm the check at
