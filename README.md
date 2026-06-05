@@ -166,8 +166,10 @@ bounce off an unbuilt feature. File a problem, or pick up an open one, on the pu
 - **The official Linear MCP server** — backlogd talks to Linear through it, and there are
   no API keys to paste. The server is pre-configured in [`.mcp.json`](.mcp.json), so Claude
   Code offers to enable it when you open the repo. (Equivalent manual command:
-  `claude mcp add --transport http linear https://mcp.linear.app/mcp`.) First use opens a
-  Linear OAuth login in your browser; auth is handled by Claude Code, nothing is committed.
+  `claude mcp add --transport http linear https://mcp.linear.app/mcp`. Use the `/mcp`
+  HTTP-stream endpoint — Linear removed the older `/sse` transport, so `/mcp` is now
+  required.) First use opens a Linear OAuth login in your browser; auth is handled by
+  Claude Code, nothing is committed.
 - **A `problem` label** in your Linear workspace. backlogd treats any issue carrying the
   `problem` label as product-owner-filed work — that is the whole data model: a problem is
   a labelled issue, picked up while it is still in an unstarted state.
