@@ -1,9 +1,9 @@
 # backlogd
 
-[![CI](https://github.com/nicolai-bernsen/backlogd/actions/workflows/ci.yml/badge.svg)](https://github.com/nicolai-bernsen/backlogd/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/nicolai-bernsen/backlogd)](https://github.com/nicolai-bernsen/backlogd/releases)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-d97757)](https://claude.com/claude-code)
+[![CI](https://img.shields.io/github/actions/workflow/status/nicolai-bernsen/backlogd/ci.yml?style=flat&logo=githubactions&logoColor=white&label=CI)](https://github.com/nicolai-bernsen/backlogd/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/nicolai-bernsen/backlogd?style=flat&logo=github&logoColor=white)](https://github.com/nicolai-bernsen/backlogd/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat&logo=opensourceinitiative&logoColor=white)](LICENSE)
+[![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-d97757?style=flat&logo=claude&logoColor=white)](https://claude.com/claude-code)
 
 **backlogd is an agent *team* that runs real Scrum — any problem type — on your Claude
 subscription, not API tokens.**
@@ -132,6 +132,27 @@ single source of truth.
 
 Blockers come back to you as questions, never silent guesses.
 
+### Argument tokens (scripts, `/loop`, cron)
+
+Every long-running verb accepts the same small set of `key:value` tokens, in any position,
+composably — so you can drive any `/backlogd:*` verb from a script or `/loop` without side
+effects or interactive hangs. A verb invoked with no tokens behaves exactly as today; an
+unrecognised token is ignored with a warning. The grammar is defined once in
+[`skills/common/argument-tokens.md`](skills/common/argument-tokens.md).
+
+- **`mode:report-only`** — print the planned actions and write nothing to Linear or git.
+  Honoured by **all five verbs** (`scope` prints the spec/AC/decomposition it would write;
+  `solve` is identical to `--dryrun`; `status` prints the forecast and skips the project
+  write; `review` prints the verdict and merge it would make; `release` prints the
+  promote/bump/tag/back-merge plan). On `solve`, `--dryrun` is the documented alias.
+- **`mode:headless`** — never raise an interactive prompt; where a verb would pause for a
+  decision, it fails fast with a one-line reason and stops (no silent default). Honoured by
+  the prompting verbs **`scope`**, **`solve`**, and **`review`**; a documented no-op on
+  **`status`** and **`release`** (neither prompts).
+- **`base:<sha>`** — scope the work against a specific git base instead of the
+  integration-branch HEAD. Honoured by **`solve`** (the only verb that opens a worktree);
+  accepted and warn-ignored by the other four.
+
 ## Status — honest, and on purpose
 
 **backlogd is released and self-hosting.** The core loop works end to end, and backlogd is
@@ -166,8 +187,10 @@ bounce off an unbuilt feature. File a problem, or pick up an open one, on the pu
 - **The official Linear MCP server** — backlogd talks to Linear through it, and there are
   no API keys to paste. The server is pre-configured in [`.mcp.json`](.mcp.json), so Claude
   Code offers to enable it when you open the repo. (Equivalent manual command:
-  `claude mcp add --transport http linear https://mcp.linear.app/mcp`.) First use opens a
-  Linear OAuth login in your browser; auth is handled by Claude Code, nothing is committed.
+  `claude mcp add --transport http linear https://mcp.linear.app/mcp`. Use the `/mcp`
+  HTTP-stream endpoint — Linear removed the older `/sse` transport, so `/mcp` is now
+  required.) First use opens a Linear OAuth login in your browser; auth is handled by
+  Claude Code, nothing is committed.
 - **A `problem` label** in your Linear workspace. backlogd treats any issue carrying the
   `problem` label as product-owner-filed work — that is the whole data model: a problem is
   a labelled issue, picked up while it is still in an unstarted state.

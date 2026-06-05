@@ -200,10 +200,12 @@ force via a scratch-comment nudge before its first developer dispatch.
   progress graph and health) — never a burndown.
 - **Engagement = Initiative.** A consulting engagement is a Linear **Initiative** that groups
   that engagement's problem-**Projects** (an Initiative is a hand-curated list of Projects).
-  Name it for the engagement. **Create/attach the Initiative manually** — the official MCP has
-  **no initiative-write tool** (Initiatives are only a *parent reference* on `save_comment` /
-  `save_document`), so auto-attaching isn't possible via backlogd's key-free MCP path. Refer to
-  it by name and don't fail if it's absent.
+  Name it for the engagement. The official MCP **does** expose an initiative-write tool —
+  `save_initiative` (create/update) — so the engagement Initiative is reachable on backlogd's
+  key-free MCP path; `save_status_update({ type: "initiative" })` posts initiative-level health.
+  See `references/linear-mcp.md` for both. Auto-creating/attaching the Initiative on pickup is a
+  *wiring* task tracked separately (init create + status-update roll-ups); until that lands,
+  refer to the Initiative by name and don't fail if it's absent.
 
 ## Mapping a problem onto Linear — default-Issue, promote-on-discovery
 

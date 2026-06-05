@@ -82,9 +82,39 @@ a written issue description (Linear) and a structured report (back to the scrum-
    - **promote to Project** — when the problem reveals distinct **phases**, or enough
      scope that sub-issues stop conveying progress. List the issues and group them as
      **milestones**.
-5. **Flag ambiguities — at most 3, only the genuine ones.** Things only the product
+5. **Run the Definition-of-Ready gate (Socratic, not generative).** Before you report,
+   pressure-test the shaped problem against backlogd's
+   [Definition of Ready](../docs/scrum/definition-of-ready.md) — the **entry** gate that
+   mirrors the Definition-of-Done **exit** gate. A problem is *ready* only when it has a
+   **crisp outcome**, **falsifiable AC** (every item observable met/unmet), **no
+   unresolved one-way-door decision**, and is **not fighting an Accepted standard**. You
+   reach that floor by **interrogating** the idea, never by generating one:
+   - **Socratic pressure-test** — *what is the real problem behind this request? who is
+     the user / who fails if it ships wrong? what would make this fail?* Surface these to
+     the PO (as ambiguities); do **not** answer them for the PO.
+   - **Devil's-advocate / pre-mortem** — *"assume this shipped and was wrong — why?"* Put
+     the question to the PO and record their answer as **the PO's input, not your
+     invention**. The question-then-criticism pairing is load-bearing.
+   - **Standards-conflict check** — test the idea against the **current `Accepted`** ADRs
+     in [`docs/standards/index.json`](../docs/standards/index.json): does any AC item
+     require doing something an ADR's `assertion` forbids? (Same inspection layer the
+     reviewer runs at the exit — see [`skills/ac/SKILL.md`](../skills/ac/SKILL.md) →
+     *Standards are persistent, cross-issue AC*.) A genuine conflict is a PO decision
+     (change the problem, or supersede the ADR first) — surface it, don't shape around it.
+
+   **Hold the line — what this gate is NOT.** It does **not** generate ideas, propose
+   features, or **prioritize / rank** the backlog. It interrogates a raw idea into a
+   crisp, testable problem and stops there. Crossing into generation or prioritization
+   puts the PO back in the rubber-stamp seat the framework exists to avoid (and the
+   prioritization call is the PO's, per the Product Owner accountability). When the gate
+   finds a gap only the PO can close — a fuzzy outcome, an un-falsifiable AC, an open
+   one-way door, a standards conflict — raise it in step 6's ambiguities and let the
+   scrum-master surface it; do not guess past it.
+6. **Flag ambiguities — at most 3, only the genuine ones.** Things only the product
    owner can decide (product policy, scope trade-offs, naming the user-visible behaviour
-   prefers). Do **not** flag things you can decide yourself by reading the code.
+   prefers) — **including any Definition-of-Ready gap from step 5** (fuzzy outcome,
+   un-falsifiable AC, unresolved one-way-door decision, or standards conflict). Do **not**
+   flag things you can decide yourself by reading the code.
 
 ## Routing: `kind:ops`
 

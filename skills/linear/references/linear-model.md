@@ -15,7 +15,7 @@ them, or *relates* them.
 | --- | --- | --- |
 | **Workspace** | container (top) | The whole org. Holds teams, initiatives, and all data. |
 | **Team** | container | A unit that owns its own workflow states, labels, cycles, and triage. **Every Issue belongs to exactly one team.** backlogd uses one team. |
-| **Initiative** | grouping (manual) | A hand-curated list of Projects representing a goal. In backlogd an **Initiative = a consulting engagement**, grouping that engagement's problem-Projects. |
+| **Initiative** | grouping (hand-curated) | A hand-curated list of Projects representing a goal — membership is curated by hand, not auto-populated (the Initiative *record* is MCP-writable via `save_initiative`; see [`linear-mcp.md`](linear-mcp.md)). In backlogd an **Initiative = a consulting engagement**, grouping that engagement's problem-Projects. |
 | **Project** | container + grouping | A unit of work with a **clear outcome and an end** — it is meant to *close*. Has a progress graph, health, updates, and milestones. **A Project is not an epic.** |
 | **Project Milestone** | grouping (inside a Project) | A meaningful **phase** of one Project (e.g. Alpha → Beta). Completion = % of its issues done. This is how backlogd represents phases. |
 | **Issue** | the atomic unit | A single task with a clear outcome. Needs only a title + state. Belongs to one team; optionally to one project, milestone, cycle. |
