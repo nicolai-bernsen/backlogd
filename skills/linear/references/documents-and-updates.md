@@ -71,13 +71,21 @@ the list call.
 
 ## 2. Project health updates — project-thread comments
 
-**There is no native Project-Update write** in the current MCP surface. `save_project`
-has no `health` field, and there is no `save_project_update` tool. The Project Updates
-panel in the Linear UI is fed by user-side updates that this MCP does not expose for
-writes (re-verify on the snapshot date in [`linear-mcp.md`](linear-mcp.md) before relying
-on this).
+> **Prefer the typed `save_status_update` for new health writes (re-verified 2026-06-05).**
+> The Linear MCP now exposes `save_status_update({ type: "project" | "initiative", health,
+> body })` — the typed write surface for the Project/Initiative Update panel, and the *only*
+> path for **initiative** health. See [`linear-mcp.md`](linear-mcp.md) → *Project Updates &
+> health*. The project-thread-comment shape below is the **legacy fallback**; write health
+> **one** way per transition — never the comment *and* `save_status_update` for the same
+> event, or the thread and the Update panel disagree.
 
-**The path that works** is a comment on the **project thread**:
+**There is no native Project-Update write on `save_project`** — it has no `health` field,
+and there is no `save_project_update` tool. The Project Updates panel in the Linear UI was
+not exposed for writes when this comment shape was built (2026-05-28); the typed
+`save_status_update` surface above superseded that gap (2026-02-05 Linear MCP release,
+re-verified 2026-06-05).
+
+**The comment path** is a comment on the **project thread**:
 
 ```text
 save_comment({ projectId: "<project id>", body: "<health update markdown>" })

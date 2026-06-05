@@ -11,6 +11,16 @@ writes correct. Read this **before every write**. For what the concepts mean, se
 > Linear's own MCP documentation at the server URL in `.mcp.json`. Treat this file as a
 > guide, not a contract.
 >
+> **Re-verified 2026-06-05 — initiative + status-update surface.** The `Initiatives` and
+> `Status updates` rows below (`save_initiative`, `list_initiatives`, `save_status_update`,
+> `get_status_updates`, `delete_status_update`) were re-verified live against the connected
+> Linear MCP (the tools surface as `mcp__linear__*` and their schemas are loaded and
+> callable) — per [ADR-008](../../../docs/standards/adrs/ADR-008-live-surface-verification.md),
+> external-surface claims need live evidence, not a bare assertion. This corrects the prior
+> snapshot's claim that the MCP had *no* initiative-write tool: Linear's 2026-02-05 "MCP for
+> product management" release added create/edit for initiatives, initiative updates, and
+> project updates, which post-dates the 2026-05-28 baseline above.
+>
 > For the write recipes covering Project Documents, project-thread health updates, and
 > release "Shipped" summaries, see
 > [`documents-and-updates.md`](documents-and-updates.md) — the orchestrator-owned helpers
@@ -23,6 +33,8 @@ writes correct. Read this **before every write**. For what the concepts mean, se
 | **Issues** | `list_issues`, `get_issue`, `save_issue`, `list_issue_statuses`, `get_issue_status` | `list_issues`: `label`, `state`, `team`, `project`, `parentId`, `priority`, `query`, `orderBy`, `limit`, `cursor`. `get_issue`: `id`, `includeRelations`. `save_issue`: see below. `list_issue_statuses`: `team` (required) → `[{id, type, name}]`. |
 | **Comments** | `list_comments`, `save_comment` | `list_comments`: exactly one of `issueId`/`projectId`/`initiativeId`/`milestoneId`/`documentId` (the `issueId` **and** `projectId` paths are **verified live 2026-06-03**, ADR-008 — project-thread marker-dedupe works; see `documents-and-updates.md`). `save_comment`: `body`, exactly one of `issueId`/`projectId`/`initiativeId`/`milestoneId`/`documentId`, `id` (to edit), `parentId` (to reply). |
 | **Projects** | `list_projects`, `get_project`, `save_project` | `list_projects`: `team`, `query`, `includeMilestones`. `save_project`: project fields incl. state/health (re-verify exact keys before writing — see "Project Updates & health"). |
+| **Initiatives** | `list_initiatives`, `save_initiative` | `list_initiatives`: `query`, `status`, `owner`, `includeProjects`, `includeSubInitiatives`, `parentInitiative`, paging. `save_initiative`: `name` (required on create), `id` (→ update), `description` (markdown), `summary` (≤255), `owner` (`"me"`/id/email, `null` to clear), `status` (`Planned`/`Active`/`Completed` — its **own** enum, *not* workflow-state categories), `targetDate` (ISO), `parentInitiatives[]`, `icon`, `color`. |
+| **Status updates** | `get_status_updates`, `save_status_update`, `delete_status_update` | `save_status_update`: `type` (**required**: `project`/`initiative`), `body` (markdown), `health` (`onTrack`/`atRisk`/`offTrack`), `id` (→ update), and `project` **or** `initiative`. No title field. `get_status_updates`: `type` (**required**), `project`/`initiative`, `id`, `user`, paging. `delete_status_update`: `id` + `type` (archives the update). |
 | **Milestones** | `list_milestones`, `get_milestone`, `save_milestone` | `list_milestones`: `project` (required). `save_milestone`: `name`, `project`, target date. |
 | **Documents** | `list_documents`, `get_document`, `save_document` | `list_documents`: `projectId`. `save_document` (create): `project`, `title`, `content`, `icon`. `save_document` (update): `id`, `content`. **Asymmetry: write parent is `project`, list filter is `projectId`** — same concept, two parameter names. See [`documents-and-updates.md`](documents-and-updates.md). |
 | **Labels** | `list_issue_labels`, `create_issue_label` | `list_issue_labels`: `team`, `name`. |
@@ -159,17 +171,37 @@ post once with `save_comment`, capture the returned comment `id`, and on later u
 `save_comment(id, body:…)` rather than posting new comments. Don't scan free-form comments
 to reconstruct state.
 
-### 4. Project Updates & health
+### 4. Project Updates & health — `save_status_update` is the typed write
 
-**Verified 2026-05-28: there is no native Project-Update write in the MCP.** `save_project`
-has no `health` field and there is no `save_project_update` tool — the Project Updates
-panel in the Linear UI is not currently exposed for writes. The path that works is a
-project-thread comment via `save_comment({ projectId, body })` using the
-`**[backlogd]** Health:` body shape (with a stable trailing transition marker for
-idempotent dedupe). See
-[`documents-and-updates.md`](documents-and-updates.md) for the exact body shape, health
-derivation rules, and the milestone-completion variant. Re-verify on the snapshot date
-before relying on this finding — if Linear ships a write surface, prefer it.
+**`save_project` is still not the way to set health — there is no native Project-Update write
+on `save_project`.** `save_project` has no `health` field and there is no
+`save_project_update` tool — the legacy project-thread-comment path
+(`save_comment({ projectId, body })` with the `**[backlogd]** Health:` body shape, verified
+2026-05-28) was built around that gap. See
+[`documents-and-updates.md`](documents-and-updates.md) for that body shape, the health
+derivation rules, and the milestone-completion variant.
+
+**Re-verified 2026-06-05: the *typed* surface now exists.** `save_status_update` writes a
+project **or** initiative health update directly — `save_status_update({ type:
+"project" | "initiative", health: "onTrack" | "atRisk" | "offTrack", body, project |
+initiative })`. This is the **typed sibling** of the older comment shape: prefer it for
+new health writes (it lands in Linear's own Project/Initiative Update panel and carries the
+structured `health` enum). It is also the only write path for **initiative** health, which
+the comment shape never had.
+
+> **Write health *one* way.** `save_status_update` and the `**[backlogd]** Health:`
+> project-thread comment both express the same fact — do not write both for the same
+> transition, or the project thread and the Update panel disagree. Pick the typed
+> `save_status_update` going forward; treat the comment shape as the legacy fallback
+> documented in [`documents-and-updates.md`](documents-and-updates.md), not a parallel
+> channel to run alongside it.
+
+**Status updates are upsert too — read → capture `id` → write (rule 2 applies).**
+`save_status_update` with no `id` *creates* a new update; a re-run that omits the `id`
+stacks duplicate updates on the same project/initiative. Before updating, call
+`get_status_updates({ type, project | initiative })`, capture the target update's `id`, and
+pass that `id` back into `save_status_update`. `delete_status_update({ id, type })` archives
+an update if one was posted in error.
 
 ### 5. Git sync — let git events move state
 
@@ -208,6 +240,12 @@ agent sessions or webhooks.
 ## Pitfalls checklist
 
 - ❌ `save_issue` with no `id` to "update" → **duplicate issue**. ✅ Read first, pass `id`.
+- ❌ `save_status_update` with no `id` to "update" → **stacked duplicate updates** on the
+  project/initiative. ✅ `get_status_updates({ type, project | initiative })` first, capture
+  the `id`, pass it back (rule 2 applies to status updates too).
+- ❌ Writing health **two ways** — both `save_status_update` *and* a `**[backlogd]** Health:`
+  project-thread comment for the same transition → the Update panel and the thread disagree.
+  ✅ Prefer the typed `save_status_update`; treat the comment shape as the legacy fallback.
 - ❌ Passing a **not-yet-existing** label name in `save_issue.labels` expecting it to be
   created → the name is **silently dropped** (call succeeds, returns only pre-existing
   labels — no error, no label). ✅ `create_issue_label` (ensure, idempotent) **first**, then
