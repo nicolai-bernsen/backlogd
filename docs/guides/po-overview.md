@@ -1,13 +1,13 @@
 # PO daily overview — saved views setup
 
-A 60-second daily check for the product owner. Two Linear saved views plus the forecast on
+A 60-second daily check for the product owner. A few Linear saved views plus the forecast on
 your engagement Project's description — at a glance, click-free.
 
 ## Why
 
 You file problems; agents solve them. Your daily job is to keep the queue moving: notice
 blockers, glance at what's in flight, and trust the forecast for the rest. This guide sets
-up the two saved views and points you at the forecast block so the whole check fits in a
+up the saved views and points you at the forecast block so the whole check fits in a
 minute, without clicking into any issue.
 
 ## View 1 — PO Daily: Active & Blocked
@@ -108,6 +108,58 @@ Open **Display options → Identifier** and toggle it **off** (same reasoning as
 titles lead the scan). Keep Priority, Assignee, and Labels visible so the `manual-pending`
 label is unmistakable. An empty list means nothing is waiting on you — the happy state.
 
+## View 4 — Delegated to agent
+
+The "what has the agent picked up" surface. When backlogd starts a problem via
+`/backlogd:solve`, it sets the issue's **Delegate** to `backlogd` (you stay the assignee —
+delegation is additive, it never displaces you). This view is the board-level signal for
+exactly those problems, so "an agent is on it" is visible at a glance without opening any
+issue.
+
+**Filter**
+
+```text
+Label is problem
+Delegate is backlogd
+```
+
+`Delegate` lives among Linear's assignee-family fields, so look for it alongside **Assignee**
+in the filter menu (the exact label and placement may differ by Linear plan/version — pick
+the field whose value is the `backlogd` agent). The value `backlogd` is what `/backlogd:solve`
+writes on every pickup; the same predicate drives the MCP-side query
+`list_issues(delegate:"backlogd")`.
+
+**Group by**
+
+```text
+Status
+```
+
+**Sort**
+
+```text
+Priority
+```
+
+**Display options**
+
+Open **Display options → Identifier** and toggle it **off** (same reasoning as View 1 —
+titles lead the scan). Keep Priority, Assignee, and Labels visible. An empty list means the
+agent currently has nothing in flight.
+
+The `delegate` write is set by the scrum-master through your normal user-OAuth MCP — there's
+no key in the loop and you never set it by hand. It only resolves once the `backlogd` agent
+exists in your workspace, so this view assumes the one-time install in
+[agent-identity-setup.md](agent-identity-setup.md) is done; without it, `Delegate` has no
+`backlogd` option and the view stays empty.
+
+> **Optional stretch — Insights by delegate (unverified).** If your Linear plan includes
+> **Insights**, a "Delegated to agent" *count over time* (group an Insights view by Delegate)
+> would turn this saved view into a trend — how much the agent is carrying week over week.
+> This is **not verified** here and is plausibly plan-gated: Insights and grouping by the
+> Delegate dimension may be unavailable on lower tiers. Treat it as a try-it-if-you-have-it
+> idea, not a documented step.
+
 ## Forecast
 
 backlogd writes a `## 📊 Forecast` block to your engagement Project's **description** every
@@ -152,7 +204,7 @@ re-run `/backlogd:status`, the number returns.
 
 ## What to do daily
 
-Four steps, ~60 seconds total.
+Five quick steps, ~60 seconds total.
 
 1. **Scan View 1's blockers section** — the `blocked` rows at the top. Each one is waiting
    on something. Resolve, re-prioritise, or comment "still blocked, here's why" so the
@@ -166,8 +218,11 @@ Four steps, ~60 seconds total.
    human-only `[manual]` check you owe the team. Open it, confirm the check at
    `/backlogd:review`, and the label clears itself on the accepted close. An empty View 3 is
    the happy state.
-4. **Glance at the Project's forecast block** — velocity, queue, ETA. If "insufficient
+4. **Glance at View 4 — Delegated to agent** — the `Delegate is backlogd` rows. A one-second
+   confirmation of what the agent has actively picked up; nothing here is an action item, it
+   just tells you the loop is running. (Skip this step if you haven't installed the agent.)
+5. **Glance at the Project's forecast block** — velocity, queue, ETA. If "insufficient
    data" persists past a couple of days, close or cancel something to break the silence.
 
-If all three are calm, you're done. File the next problem when it occurs to you and let the
-loop do the rest.
+If the blocker and waiting-on-me lists are calm, you're done. File the next problem when it
+occurs to you and let the loop do the rest.
