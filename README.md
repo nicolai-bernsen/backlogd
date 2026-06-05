@@ -1,9 +1,9 @@
 # backlogd
 
-[![CI](https://github.com/nicolai-bernsen/backlogd/actions/workflows/ci.yml/badge.svg)](https://github.com/nicolai-bernsen/backlogd/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/nicolai-bernsen/backlogd)](https://github.com/nicolai-bernsen/backlogd/releases)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-d97757)](https://claude.com/claude-code)
+[![CI](https://img.shields.io/github/actions/workflow/status/nicolai-bernsen/backlogd/ci.yml?style=flat&logo=githubactions&logoColor=white&label=CI)](https://github.com/nicolai-bernsen/backlogd/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/nicolai-bernsen/backlogd?style=flat&logo=github&logoColor=white)](https://github.com/nicolai-bernsen/backlogd/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat&logo=opensourceinitiative&logoColor=white)](LICENSE)
+[![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-d97757?style=flat&logo=claude&logoColor=white)](https://claude.com/claude-code)
 
 **backlogd is an agent *team* that runs real Scrum — any problem type — on your Claude
 subscription, not API tokens.**
