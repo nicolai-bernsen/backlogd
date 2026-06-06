@@ -101,9 +101,9 @@ For each ready ops unit, in `blocked-by` order:
    > Your Linear surface is unchanged: read your own issue, post **one** progress/result
    > comment on it (edited in place, `**[backlogd developer]**` badge), and report a
    > structured summary whose first line is `STATUS: <DONE|DONE_WITH_CONCERNS|BLOCKED|
-   > NEEDS_CONTEXT>`. Your comment must include an **action log** — the exact `gh` commands
-   > you ran and their effect — so the PO can audit what changed without inspecting the repo
-   > by hand.
+   > NEEDS_CONTEXT|DISPUTES_AC>`. Your comment must include an **action log** — the exact
+   > `gh` commands you ran and their effect — so the PO can audit what changed without
+   > inspecting the repo by hand.
    >
    > ## Issue context
    >
@@ -125,9 +125,9 @@ For each ready ops unit, in `blocked-by` order:
 
 6. **Record dispatch completion on the graph** — write the per-unit outcome with the
    latency the CLI derives automatically from the matching `dispatch_started` edge above
-   (best-effort — never block the loop). Fold the developer's four-value `STATUS` onto the
+   (best-effort — never block the loop). Fold the developer's five-value `STATUS` onto the
    graph's coarse vocabulary per `skills/solve/capture.md` (`DONE`/`DONE_WITH_CONCERNS` →
-   `solved`; `BLOCKED`/`NEEDS_CONTEXT` → `blocked`):
+   `solved`; `BLOCKED`/`NEEDS_CONTEXT`/`DISPUTES_AC` → `blocked`):
 
        python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" dispatch-end \
            --session "$SESSION" --problem {identifier} \
@@ -140,6 +140,9 @@ For each ready ops unit, in `blocked-by` order:
    - `BLOCKED` → leave it in progress, surface the blocker to the product owner, **stop**.
    - `NEEDS_CONTEXT` → leave it in progress, post the context gap as a Linear comment for
      the PO, **stop**, and do not re-dispatch.
+   - `DISPUTES_AC` → leave it in progress, log the developer's `Disputed-AC:` challenge as a
+     Linear comment for scope / the PO who own the AC, **stop**, and do not re-dispatch or
+     edit the AC (see `skills/solve/capture.md` → *`DISPUTES_AC`*).
 
 ## No commit, no push, no PR
 

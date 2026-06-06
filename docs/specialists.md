@@ -240,7 +240,7 @@ it deterministically to a Linear state transition and an orchestrator action, wi
 prose-heuristic parsing** of the free-text body. The STATUS line is the single source of
 truth for "what happens next"; the body below it is for humans.
 
-The enum has exactly **four** values:
+The enum has exactly **five** values:
 
 | `STATUS` | Meaning | Linear transition | Orchestrator action |
 | --- | --- | --- | --- |
@@ -248,15 +248,30 @@ The enum has exactly **four** values:
 | `DONE_WITH_CONCERNS` | Work landed but the specialist flags a risk or partial coverage | → **In Review** | Same as `DONE`, **and** surface the concerns inline in the PO solution brief (under *Needs your eyes*) |
 | `BLOCKED` | Cannot proceed without input outside the specialist's authority | **stay In Progress** | Surface the blocker to the PO as a question; stop the run (don't guess past it) |
 | `NEEDS_CONTEXT` | The spec is too thin / ambiguous to act on | **stay In Progress** | Post the context gap as a Linear comment for the PO to fill; stop the run (do **not** re-dispatch) |
+| `DISPUTES_AC` | The specialist *can* act but believes one AC is wrong and challenges it back to its owner (scope / the PO) | **stay In Progress** | Log the AC challenge as a Linear comment addressed to scope / the PO who own the AC; stop the run (do **not** re-dispatch, do **not** edit the AC). The AC owner keeps or sharpens the AC, then a later solve re-runs |
 
 `DONE` and `DONE_WITH_CONCERNS` both mean *the increment exists and is mergeable-pending-review* —
-the difference is whether the specialist attached a caveat the PO should see. `BLOCKED` and
-`NEEDS_CONTEXT` both leave the unit In Progress, but they are **distinct**: `BLOCKED` is "I
-know what to do but can't (missing access, a decision above my pay grade, a hard external
-dependency)", while `NEEDS_CONTEXT` is "I can't even start — the problem as written is too
-vague to turn into a concrete action." The orchestrator handles them differently
-(`BLOCKED` → blocker question; `NEEDS_CONTEXT` → context-gap comment), so picking the right
-one matters.
+the difference is whether the specialist attached a caveat the PO should see. `BLOCKED`,
+`NEEDS_CONTEXT`, and `DISPUTES_AC` all leave the unit In Progress and stop the run, but they
+are **distinct**: `BLOCKED` is "I know what to do but can't (missing access, a decision
+above my pay grade, a hard external dependency)"; `NEEDS_CONTEXT` is "I can't even start —
+the problem as written is too vague to turn into a concrete action"; `DISPUTES_AC` is "I
+*can* act, but I believe one AC is wrong and want scope (the AC owner) to reconsider it,
+instead of silently complying or drifting." The orchestrator handles them differently
+(`BLOCKED` → blocker question; `NEEDS_CONTEXT` → context-gap comment; `DISPUTES_AC` →
+AC-challenge comment to scope / the PO), so picking the right one matters.
+
+`DISPUTES_AC` is the bounded, logged **dev→scope handoff at the AC seam**: a developer
+formally challenges an AC back to its owner instead of either silently complying with a thin
+AC or silently drifting from it. It is **two-way without removing who-decides-what** — the
+developer only *emits* the challenge (one structured statement, never an unbounded
+back-and-forth) and never sets Linear state, overrules scope, or merges; the orchestrator
+*logs and routes* the challenge but never authors the AC's answer; scope / the PO keep sole
+authority to keep or change the AC. The deterministic routing and the boundary are in
+[`skills/solve/capture.md`](../skills/solve/capture.md) → *`DISPUTES_AC`*; the
+accountabilities it preserves are in
+[`skills/scrum/references/accountabilities.md`](../skills/scrum/references/accountabilities.md)
+(scope owns the AC, the PO owns priority/intent, the developer owns the *how*).
 
 The orchestrator's deterministic branch table — STATUS → transition → action, plus how
 each maps onto the coarse-grained graph outcome — lives in
@@ -285,6 +300,18 @@ gate/`/backlogd:review` machinery is untouched. If a
 future change wants the reviewer to *literally* emit a `STATUS:` line, that is a separate,
 cross-cutting unit (it touches `agents/reviewer.md`, `skills/solve/gate.md`, and
 `commands/review.md`) and should be scoped on its own.
+
+> **`DISPUTES_AC` is developer-emitted; the reviewer has its own pushback seam.** The fifth
+> value is a **developer→scope** channel — only a *solving* specialist (the developer or a
+> `developer-*`) emits `DISPUTES_AC`, to challenge an AC it believes is wrong back to the
+> AC's owner. The reviewer's verdict vocabulary deliberately has **no** row that maps to
+> `DISPUTES_AC`: when the reviewer disagrees about a *verdict*, its bounded pushback is the
+> **dev↔reviewer one-shot reconciliation** the gate runs before PO escalation
+> ([`skills/solve/gate.md`](../skills/solve/gate.md) → *Verdict reconciliation*), not an
+> AC challenge. The two seams are symmetric (each lane can talk back once, both logged) but
+> they sit at different boundaries — the developer challenges the *AC* (scope's), the
+> reviewer and developer reconcile a *verdict* (the reviewer's) — and neither dissolves who
+> decides what.
 
 ## Discovery — two sources
 
