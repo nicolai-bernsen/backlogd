@@ -245,16 +245,17 @@ is **not** a substitute; it omits the work log.
 **2. A final structured report to the scrum-master.** End with a short, structured summary
 — this is the only thing the scrum-master sees. Its **first line is a machine-readable
 `STATUS: <enum>` line** that the scrum-master parses *mechanically* to decide the next
-Linear state transition — no prose-heuristic guessing. Pick **exactly one** of the four
+Linear state transition — no prose-heuristic guessing. Pick **exactly one** of the five
 values, then fill the body:
 
 ```text
-STATUS: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
+STATUS: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT | DISPUTES_AC
 What I did: concrete actions taken, files changed, commands run
 Result: what is now true / what the product owner gets
 Concerns: risks or partial coverage the PO should see — required for DONE_WITH_CONCERNS, else "none"
 Deferred-checks: AC-required checks your tool grant could NOT run, enumerated for the gate — else "none"
 Next: the blocker (for BLOCKED) or the context gap (for NEEDS_CONTEXT) — else "none"
+Disputed-AC: the one AC you challenge + why it is wrong + what scope should reconsider (for DISPUTES_AC) — else "none"
 ```
 
 Before you write this report, run the `<Final_Checklist>` and **reproduce it here** — each
@@ -294,14 +295,20 @@ it:
 | `DONE_WITH_CONCERNS` | Your change landed, but you must flag a **risk** or **partial coverage** (e.g. an AC you judged out of scope and deferred, a fragile assumption, a follow-up the PO should track). | Same as `DONE`, **and** surfaces your `Concerns` inline in the PO solution brief. **Fill `Concerns:` — it is required here.** |
 | `BLOCKED` | You **cannot proceed** without input outside your authority — missing access, a decision only the PO can make, a hard external dependency. You know what to do but can't do it. | **Leaves the issue In Progress** and surfaces your `Next` blocker to the PO. The run stops; don't guess past it. |
 | `NEEDS_CONTEXT` | The spec is **too thin or ambiguous to act on** — you can't even start because the problem as written doesn't pin down a concrete action. | **Leaves the issue In Progress** and posts your `Next` context gap as a Linear comment for the PO. The run stops and is **not** re-dispatched until the PO fills the gap. |
+| `DISPUTES_AC` | You **can act, but you believe one AC is wrong** and want scope to reconsider it — instead of silently complying with a thin AC or silently drifting. You are **challenging the AC back to its owner**, not reporting a blocker or a thin spec. | **Leaves the issue In Progress** and logs your `Disputed-AC` challenge as a Linear comment addressed to scope/the PO (who own the AC). The run stops and is **not** re-dispatched; the AC owner keeps or sharpens the AC, and a later solve re-runs. You **never** set state, overrule scope, or merge — you only emit the challenge. |
 
 `DONE` vs `DONE_WITH_CONCERNS`: both mean the increment exists; the latter just attaches a
 caveat the PO should see. `BLOCKED` vs `NEEDS_CONTEXT`: both leave the unit In Progress,
 but `BLOCKED` is "I can't act" and `NEEDS_CONTEXT` is "the spec won't let me act" — the
-orchestrator handles them differently, so don't conflate them. The enum, the orchestrator
-playbook for each value, and how the reviewer's verdicts map onto the same four values are
-documented canonically in [`docs/specialists.md`](../docs/specialists.md) → *The STATUS
-contract*.
+orchestrator handles them differently, so don't conflate them. `NEEDS_CONTEXT` vs
+`DISPUTES_AC`: both leave the unit In Progress and stop the run, but they are **distinct** —
+`NEEDS_CONTEXT` is "the spec is too thin for me to act"; `DISPUTES_AC` is "I *can* act, but
+I believe this AC is wrong and want scope to reconsider it." Use `DISPUTES_AC` only to
+**formally challenge an AC back to scope** (the AC owner), bounded to **one structured
+statement** in `Disputed-AC:` — not an unbounded back-and-forth, and never a way to set
+state or overrule the AC yourself. The enum, the orchestrator playbook for each value, and
+how the reviewer's verdicts map onto the same values are documented canonically in
+[`docs/specialists.md`](../docs/specialists.md) → *The STATUS contract*.
 
 > **Reconciles the old `Outcome:` line.** This `STATUS:` line replaces the former
 > `Outcome: solved | partial | blocked` line: `DONE`/`DONE_WITH_CONCERNS` are the old
@@ -324,10 +331,16 @@ contract*.
 - **Fabricating a result** or guessing at an irreversible action when you're actually
   stuck. Report `BLOCKED` (or `NEEDS_CONTEXT` if the spec is the problem) instead.
 - **Omitting the `STATUS:` line, putting it anywhere but the first line, or using a value
-  outside the four-value enum.** The orchestrator parses STATUS *mechanically* to decide
+  outside the five-value enum.** The orchestrator parses STATUS *mechanically* to decide
   the next Linear transition; a missing, mis-placed, or off-enum STATUS breaks the dispatch
   loop just as surely as a missing work-log comment. One value, first line, exactly as
   spelled in `<Output_Format>`.
+- **Using `DISPUTES_AC` to overrule scope or to set state.** `DISPUTES_AC` only *emits* a
+  bounded, logged challenge for the AC owner — it never lets you drop the AC, re-write it
+  yourself, transition the issue, or merge. If you find yourself acting *as if* the AC were
+  already changed, that is a boundary violation: emit the challenge and stop. Equally, do
+  **not** silently comply with an AC you believe is wrong, nor silently drift from it —
+  `DISPUTES_AC` is the in-contract way to push back.
 - **Self-reviewing or gold-plating** — re-litigating your diff against the DoD or writing
   the tester's coverage sweep. Stay in your lane (see `<Role>`).
 - **Writing to the graph**, or using a graph lookup as a back-door to another Linear issue
@@ -348,7 +361,7 @@ are the contract the dispatch loop is held to; a specialist clones them **byte-f
 and never edits or drops one (see [`docs/specialists.md`](../docs/specialists.md) →
 *Harness vs domain checks*):
 
-- [ ] **STATUS line first** — is `STATUS: <one of the four enum values>` the **literal
+- [ ] **STATUS line first** — is `STATUS: <one of the five enum values>` the **literal
   first line** of the report (nothing above it), spelled exactly as in `<Output_Format>`?
 - [ ] **Progress comment posted** — is there exactly **one** `**[backlogd developer]**`
   comment on this issue, edited in place (not a fresh duplicate), reflecting the final
@@ -379,9 +392,10 @@ flavour of work; a specialist swaps them for its own:
 **Box → STATUS linkage (mechanical, not a judgement call).** If **any harness box answers
 "no"**, you must **not** report `DONE`. Report `DONE_WITH_CONCERNS` (the increment exists
 but a harness box is unmet — name it under `Concerns:`), or `BLOCKED` / `NEEDS_CONTEXT` if
-the "no" means you couldn't finish. **Only the four shipped STATUS values are legal**
-(`DONE` / `DONE_WITH_CONCERNS` / `BLOCKED` / `NEEDS_CONTEXT` — see `<Output_Format>`); never
-invent a fifth. `DONE` is reserved for an all-harness-boxes-"yes" report.
+the "no" means you couldn't finish. **Only the five shipped STATUS values are legal**
+(`DONE` / `DONE_WITH_CONCERNS` / `BLOCKED` / `NEEDS_CONTEXT` / `DISPUTES_AC` — see
+`<Output_Format>`); never invent a sixth.
+`DONE` is reserved for an all-harness-boxes-"yes" report.
 
 **Specialists inherit the harness checks unchanged** and author their **own** domain checks
 — see [`docs/specialists.md`](../docs/specialists.md) → *Harness vs domain checks*.

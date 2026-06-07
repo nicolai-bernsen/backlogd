@@ -154,8 +154,8 @@ Run at **every clean exit** so a normally-finishing run leaves **no lingering cl
 - solve handoff to *In Review* (`skills/solve/handoff.md` §4),
 - merge to *Done* (`commands/review.md` step 5 / `skills/solve/ship.md`, after the merge
   succeeds),
-- a surfaced blocker / *sent back* (`skills/solve/capture.md` BLOCKED / NEEDS_CONTEXT
-  branches; `commands/review.md` step 5 *sent back*).
+- a surfaced blocker / context gap / AC challenge / *sent back* (`skills/solve/capture.md`
+  BLOCKED / NEEDS_CONTEXT / DISPUTES_AC branches; `commands/review.md` step 5 *sent back*).
 
 Release is **release-if-mine**:
 
@@ -233,7 +233,7 @@ already parses `--dryrun` / `--no-ship` in step 1; review parses it alongside).
 | `/backlogd:solve` | resume reconcile (`skills/solve/resume.md`) | `check` folded in as a fifth source of truth: another live session's claim ⇒ `inconsistent` (surface + stand off); stale / own-session claim ⇒ reclaimable, `refresh` and continue |
 | `/backlogd:solve` | handoff to In Review (`skills/solve/handoff.md` §4) | `release` |
 | `/backlogd:solve` | ship-on-green merge (`skills/solve/ship.md` → `commands/review.md` step 5) | re-`check` in the base-race guard before merge; `release` after merge |
-| `/backlogd:solve` | BLOCKED / NEEDS_CONTEXT stop (`skills/solve/capture.md`) | `release` (the run ends cleanly with a surfaced blocker; the claim must not linger) |
+| `/backlogd:solve` | BLOCKED / NEEDS_CONTEXT / DISPUTES_AC stop (`skills/solve/capture.md`) | `release` (the run ends cleanly with a surfaced blocker, context gap, or AC challenge; the claim must not linger) |
 | `/backlogd:review` | pick (`commands/review.md` step 3), **before** the reviewer dispatch | `check` → stand off if held by another live session; else `acquire` under the reviewer session id |
 | `/backlogd:review` | merge / sent-back (`commands/review.md` step 5) | re-`check` in the base-race guard before merge; `release` after merge **or** on *sent back* |
 
