@@ -22,11 +22,13 @@ problems. This is a **category claim, not a feature claim** (see
 - **A team, not a task runner.** Most Claude Code plugins are a single agent doing a
   single task. backlogd is a *team* running the empirical Scrum loop — scope, solve,
   review, adapt — around your work.
-- **A standards-enforcing quality gate.** An *independent* reviewer verifies every
-  increment against its acceptance criteria, the [Definition of
+- **Two gates, not zero.** backlogd brackets every problem with symmetric hard-rules
+  gates. At the *entry*, a [Definition of Ready](docs/scrum/definition-of-ready.md)
+  **interrogates** a raw idea into a crisp, falsifiable problem — Socratic, never
+  generative — and refuses to *start* an unready one. At the *exit*, an *independent*
+  reviewer verifies every increment against its acceptance criteria, the [Definition of
   Done](docs/scrum/definition-of-done.md), and the standards corpus — and **blocks on a
-  missing load-bearing standard instead of guessing.** Most plugins have no quality gate
-  at all.
+  missing load-bearing standard instead of guessing.** Most plugins have no gate at all.
 - **Runs on your subscription, not API tokens** — see [below](#runs-on-your-subscription-not-api-tokens).
 
 **vs Cyrus specifically:** Cyrus is *an agent that does your coding task* — a capable
@@ -118,8 +120,10 @@ Linear issue (the `problem` label) and describe what "better" looks like; the ag
 the *solution*, and everything — status, decisions, results — is recorded in Linear, the
 single source of truth.
 
-- **`/backlogd:scope`** — shapes a problem: writes the `## Acceptance Criteria`,
-  decomposes on discovery, picks the specialist.
+- **`/backlogd:scope`** — shapes a problem through the [Definition of
+  Ready](docs/scrum/definition-of-ready.md): a Socratic pressure-test that writes the
+  `## Acceptance Criteria`, surfaces any one-way-door decision to you, decomposes on
+  discovery, and picks the specialist.
 - **`/backlogd:solve`** — executes it: a developer per unit (parallel when independent),
   one PR, then the **auto-chained independent verdict review — ship-on-green merges a
   fully-green result to Done with no human gate** (`--no-ship` holds at In Review;
@@ -159,23 +163,24 @@ unrecognised token is ignored with a warning. The grammar is defined once in
 built by running it on itself (dogfooded) — that is the strongest proof it works. (For the
 exact current version, see the [releases](https://github.com/nicolai-bernsen/backlogd/releases).)
 
-**Both 1.0 gates have shipped**: the independent reviewer **enforces the standards corpus
-and blocks on a missing load-bearing standard** (the moment that distinguishes a *team*
-from a single-agent runner), and **`/backlogd:retro`** closes the adaptation loop —
-shipped *and dogfooded*. All three of Scrum's empirical pillars are real:
+**Both team-defining gates shipped before 1.0 — and have anchored every release since.**
+The independent reviewer **enforces the standards corpus and blocks on a missing
+load-bearing standard** (the moment that distinguishes a *team* from a single-agent
+runner), and **`/backlogd:retro`** closes the adaptation loop — both shipped *and
+dogfooded*. All three of Scrum's empirical pillars are real:
 **transparency** (Linear as the system of record, visible per-agent identity),
 **inspection** (the execution graph + the independent verdict review), and **adaptation**
 (standards growth + the retro).
 
-**What works today:** the commands above plus `/backlogd:init`, specialist dispatch
-([docs/specialists.md](docs/specialists.md)), a parallel walk for independent units,
-ship-on-green, the execution graph ([`scripts/graph.py`](scripts/graph.py)), key-free
-Linear via the official MCP, and per-session worktree isolation. **Explicitly *not* in
-1.0** (roadmap): the always-on tokenless runtime, the standards ↔ graph join, the full
-Agent-Interaction-Protocol identity.
+**What works today:** the commands above plus `/backlogd:init`, the entry/exit gates
+(Definition of Ready and Done), specialist dispatch ([docs/specialists.md](docs/specialists.md)),
+a parallel walk for independent units, ship-on-green, the execution graph
+([`scripts/graph.py`](scripts/graph.py)), key-free Linear via the official MCP, and
+per-session worktree isolation. **Deliberately not built yet** (roadmap): the always-on
+tokenless runtime, the standards ↔ graph join, the full Agent-Interaction-Protocol identity.
 
-The full **Definition of 1.0** and what's explicitly out live in
-[docs/ROADMAP.md](docs/ROADMAP.md) — see what's built before you install, and never
+What's built and what's **deliberately out of scope** live in
+[docs/ROADMAP.md](docs/ROADMAP.md) — see what's real before you install, and never
 bounce off an unbuilt feature. File a problem, or pick up an open one, on the public
 [issue tracker](https://github.com/nicolai-bernsen/backlogd/issues).
 
