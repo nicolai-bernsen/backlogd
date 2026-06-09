@@ -174,6 +174,37 @@ micro-issue per observation. If you cannot tie a proposed improvement to repeate
 (graph or cross-issue), it is a one-off — note it, do not file it. Over-filing is the
 failure mode here, exactly as over-extending the reviewer turns the verdict into noise.
 
+## 4b. Synthesize what the team did well (positive synthesis)
+
+The retro narrates not only gaps but **what the team did well and how it is improving over
+the scope** — cohesion is also positive valence, and a retrospective that reports only
+failure is half a retrospective. **Load `skills/retro/SKILL.md` → property 5** for the full
+discipline; in brief:
+
+- **Read the positive signals off the *same* `report --json` you already read in step 3**
+  — do not re-derive them. The positive keys are already there: a low/zero `rework.rate`
+  (a clean-gate streak — work that did not bounce from review), a high `dispatches.solved`
+  share (low `partial_rate`/`blocked_rate`), a faster `dispatch_to_pr_ms.p50`,
+  `fanout.parallel_runs`/`parallel_rate` (the team literally working in parallel), and a
+  clean `by_area` row (high `dispatches`, zero/low `blocked`+`rework`).
+- **Every positive claim cites its evidence** — name the metric (or the Linear evidence on
+  a sparse store) behind each "did well" line. No ungrounded praise; an uncited positive
+  line is flattery and must not be written.
+- **Claim an *improvement* (a trend) only when you have a comparable prior figure**;
+  otherwise state the level as a level, never invent a baseline.
+- **Sparse graph → lean on Linear and say so** ("sparse graph — positives from Linear
+  evidence: <what>"): problems that closed without returning from *In Review*, units solved
+  on first dispatch. A `None` metric is "—", never fabricated. When there is no real
+  positive signal, the block is a single "—".
+
+This synthesis **loosens no boundary** (cross-cutting invariant, verified against
+`skills/scrum/references/accountabilities.md`): it is the scrum-master *narrating observed
+graph data*, its standup/inspection role. It does not let the reviewer self-mark (the
+reviewer never appears here), does not convert the gate into self-congratulation (the retro
+is a batch *reader*, not a gate — it files no pass/fail), and never claims credit for a
+product call (it narrates *execution* metrics — rework, latency, parallelism — never "we
+built the right thing", which is the PO's to judge).
+
 ## 5. Post the retro summary and report
 
 Post **one** retro summary comment so the inspection→adaptation step is visible and
@@ -187,13 +218,16 @@ idempotent marker dedupe):
   (`save_comment({ projectId, body })`), since a cycle/date window has no milestone thread.
 
 The summary body carries the visible `**[backlogd retro]**` badge, the scope, the headline
-graph metrics it read, the patterns it detected with their classification, and a link to
-each filed candidate. Then print the same to the product owner in the transcript:
+graph metrics it read, a **What went well** block (the positive synthesis from step 4b,
+each line citing its evidence), the patterns it detected with their classification, and a
+link to each filed candidate — see `skills/retro/SKILL.md` → *The retro summary* for the
+exact body shape. Then print the same to the product owner in the transcript:
 
 ```text
 Retrospective over {scope: milestone "X" | cycle N | since <date> | last N problems}
   problems in scope -> {n} closed
   graph signal      -> rework {r}% ({rw}/{p}), partial {pa}%, blocked {bl}%, dispatch→PR p50 {ms}  (or "sparse graph — leaned on Linear evidence")
+  what went well    -> {positive synthesis line, each citing its evidence — e.g. "clean gate: rework 0% (0/6)"; "{k}/{n} units ran in parallel"}  (or "sparse graph — positives from Linear evidence"; "—" when no real signal)
   patterns          -> {k} cross-issue patterns detected
   filed (candidates for you to prioritize):
     {NB-N} — {title}  [{recurring failure → ADR | process problem → bug}]   (cites: {evidence})

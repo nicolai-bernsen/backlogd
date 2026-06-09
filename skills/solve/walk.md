@@ -130,13 +130,14 @@ each unit in the group:
    of `dispatch.md` (the commit) runs against `$WT_unit` and lands on `$BRANCH_unit`.
 
 3. **Do not abort siblings on failure.** If any parallel dispatch returns a non-terminal
-   `STATUS` (`BLOCKED` or `NEEDS_CONTEXT`), the orchestrator captures that result but
-   **lets the other dispatches in the group finish**. After all of them return, process
-   each per its `STATUS` (step 7 of `dispatch.md`, which loads `skills/solve/capture.md`).
-   If any unit returned `BLOCKED` / `NEEDS_CONTEXT`, **stop the run after the collect step
-   below** and surface every non-terminal outcome to the product owner (a `BLOCKED`
-   blocker as a question; a `NEEDS_CONTEXT` gap as the context-gap comment) — do not start
-   the next parallel group.
+   `STATUS` (`BLOCKED`, `NEEDS_CONTEXT`, or `DISPUTES_AC`), the orchestrator captures that
+   result but **lets the other dispatches in the group finish**. After all of them return,
+   process each per its `STATUS` (step 7 of `dispatch.md`, which loads
+   `skills/solve/capture.md`). If any unit returned `BLOCKED` / `NEEDS_CONTEXT` /
+   `DISPUTES_AC`, **stop the run after the collect step below** and surface every
+   non-terminal outcome to the product owner (a `BLOCKED` blocker as a question; a
+   `NEEDS_CONTEXT` gap as the context-gap comment; a `DISPUTES_AC` challenge as the
+   AC-challenge comment to scope / the PO) — do not start the next parallel group.
 
 4. **Collect the parallel commits serially.** Once every dispatch in the group has
    returned and committed on its sub-branch, fast-forward-merge each sub-branch into the
@@ -165,9 +166,9 @@ each unit in the group:
        git worktree remove <path>/backlogd-wt-{identifier}-unit-{unit-identifier}
        git -C "$WT" branch -D {gitBranchName}--unit-{unit-identifier}
 
-   On a `BLOCKED` / `NEEDS_CONTEXT` outcome, **leave the unit's worktree + sub-branch in
-   place** so resume reconcile (`skills/solve/resume.md`) can recover it on the next
-   run.
+   On a `BLOCKED` / `NEEDS_CONTEXT` / `DISPUTES_AC` outcome, **leave the unit's worktree +
+   sub-branch in place** so resume reconcile (`skills/solve/resume.md`) can recover it on
+   the next run.
 
 ### Record fanout on the graph (best-effort)
 
@@ -197,6 +198,7 @@ post this update** — Project-form only.
 After a group has been dispatched and (cleanly) collected, advance the walk: re-evaluate
 which units are ready (the just-completed group may have unblocked others), build the
 next parallel group, and continue until every unit is `completed` or the run has paused
-on a non-terminal `STATUS` (`BLOCKED` / `NEEDS_CONTEXT`) / collect conflict. Single-unit
-groups remain the default shape for linear DAGs — the parallel path activates only when
+on a non-terminal `STATUS` (`BLOCKED` / `NEEDS_CONTEXT` / `DISPUTES_AC`) / collect
+conflict. Single-unit groups remain the default shape for linear DAGs — the parallel path
+activates only when
 the DAG genuinely earns it.

@@ -118,11 +118,12 @@ generic developer's** ([`agents/developer.md`](../../agents/developer.md) `<Outp
 one value:
 
 ```text
-STATUS: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
+STATUS: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT | DISPUTES_AC
 What I did: concrete actions taken, files changed
 Result: what is now true / what the product owner gets
 Concerns: risks or partial coverage the PO should see — required for DONE_WITH_CONCERNS, else "none"
 Next: the blocker (for BLOCKED) or the context gap (for NEEDS_CONTEXT) — else "none"
+Disputed-AC: the one AC you challenge + why it is wrong + what scope should reconsider (for DISPUTES_AC) — else "none"
 ```
 
 - `DONE` — the AC are met and your prose change is in the worktree.
@@ -133,3 +134,8 @@ Next: the blocker (for BLOCKED) or the context gap (for NEEDS_CONTEXT) — else 
   problem that's really a code change — see *What you own*).
 - `NEEDS_CONTEXT` — the spec is too thin or ambiguous to act on (e.g. "is this feature
   renamed or removed?" with no way to tell). Put the gap in `Next:`.
+- `DISPUTES_AC` — you *can* act, but you believe one AC is wrong and want scope (the AC
+  owner) to reconsider it, rather than silently complying or drifting. Put the one
+  challenged AC, why it is wrong, and what scope should reconsider in `Disputed-AC:`. You
+  only emit the challenge; you never set state, overrule scope, or merge — the orchestrator
+  logs it for the AC owner and stops the run.

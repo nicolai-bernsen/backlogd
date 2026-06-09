@@ -1,6 +1,6 @@
 ---
 name: solve-gate
-description: Per-unit quality gate — dispatch the tester after the developer, then the reviewer in pre-commit-gate mode (both skipped on kind:ops runs), with a formal 2-round hard cap on combined re-dispatches. The reviewer runs markdownlint-cli2 on changed .md the way CI does and runs the developer's enumerated deferred-checks. Surface failing tests + needs-changes verdicts as rework notes back through dispatch.md.
+description: Per-unit quality gate — dispatch the tester after the developer, then the reviewer in pre-commit-gate mode (both skipped on kind:ops runs), with a formal 2-round hard cap on combined re-dispatches. The reviewer runs markdownlint-cli2 on changed .md the way CI does and runs the developer's enumerated deferred-checks. A contested needs-changes verdict gets exactly one logged dev<->reviewer reconciliation before it spends a rework round or escalates. Surface failing tests + needs-changes verdicts as rework notes back through dispatch.md.
 ---
 
 # solve — per-unit quality gate
@@ -10,7 +10,8 @@ and step 6 ("Record dispatch completion on the graph")** on the
 standard path. It owns the developer↔tester↔reviewer loop: dispatch the tester against
 the unit, then the reviewer to gate the diff before commit, and either return `ok`
 (continue) or `needs-changes` with rework notes so dispatch.md can re-dispatch the
-developer — subject to a 2-round hard cap.
+developer — subject to **one** logged dev↔reviewer reconciliation on a contested verdict
+(§3.5) and a 2-round hard cap (§4).
 
 It is **skipped on `kind:ops` runs** — `skills/solve/walk.md` routes those through
 `skills/solve/ops.md`, which never loads this skill. Both the tester and the reviewer's
@@ -21,8 +22,8 @@ It is **skipped on `kind:ops` runs** — `skills/solve/walk.md` routes those thr
 > `skills/solve/dryrun.md`. No `Agent` call, no comment.
 >
 > **Resume:** the gate is **idempotent** — on resume, re-dispatch the tester and
-> reviewer from scratch against the unit's latest state. `gate_round` resets to 0 per
-> unit on resume.
+> reviewer from scratch against the unit's latest state. `gate_round` resets to 0 and the
+> `reconciled` flag (§3.5) resets to `false` per unit on resume.
 
 ## 1. Dispatch the tester
 
@@ -141,7 +142,63 @@ deferred-checks) — a red from either of those is part of the reviewer's
 - **Either is red** (tester `failing:` non-empty **or** reviewer `verdict:
   needs-changes` — including a markdownlint red or a failed deferred-check) — gate returns
   **`needs-changes`** with combined rework notes: failing-test names (and the AC each one
-  proves) plus the reviewer's notes — **subject to the cap below**.
+  proves) plus the reviewer's notes — **subject to the one-shot reconciliation in §3.5 and
+  the cap in §4 below**.
+
+## 3.5 Verdict reconciliation — one structured dev↔reviewer exchange
+
+A reviewer `needs-changes` is not always a settled fact: the developer may have evidence the
+reviewer missed, or read an AC differently. Today that disagreement has nowhere to go inside
+the gate — the developer either silently complies with the rework note or the verdict goes
+straight up. This step adds **exactly one** bounded, logged dev↔reviewer exchange at the
+verdict seam **before** a contested `needs-changes` spends a rework round or escalates — it
+**extends** the existing 2-round channel, it does **not** open a new unbounded loop.
+
+It runs **only when the reviewer's verdict is `needs-changes`** (a unit the developer
+believes passes). A purely test-driven red (tester `failing:` non-empty) is objective — a
+failing test is reconciled by fixing the code, not by debating the reviewer — so reconciliation
+applies to the **reviewer's verdict**, not to failing tests. Run it like this:
+
+1. **Offer the developer one rebuttal.** Re-dispatch the **same developer** specialist in a
+   lightweight **`reconcile`** turn (Agent tool, inline envelope) carrying the reviewer's
+   `needs-changes` notes and a pointer to the `**[backlogd reviewer]**` comment. Ask it to
+   either **concede** (accept the notes — it will fix them on the next rework round) or file
+   **one structured rebuttal**: which note it contests, the evidence (a cite to the diff, a
+   test, or the AC text), and what it believes the correct verdict is. The developer appends
+   this to its own `**[backlogd developer]**` work-log comment (it owns no other surface) —
+   so the exchange is **logged and inspectable**. The developer does **not** set state, does
+   **not** mark the unit resolved, and does **not** merge — it only states its case.
+2. **The reviewer reconsiders once.** If the developer conceded (or filed no rebuttal),
+   skip straight to §4 with the original `needs-changes`. If it filed a rebuttal,
+   re-dispatch the **same reviewer** in `pre-commit-gate` mode with the rebuttal appended to
+   the envelope, asking it to **reconsider that one verdict** in light of the developer's
+   evidence and return a fresh `verdict:` (+ `notes:`). The reviewer records its
+   reconsidered verdict in its `**[backlogd reviewer]**` comment. **The reviewer keeps sole
+   authority over the verdict** — it may hold `needs-changes` or flip to `ok`; the developer
+   cannot overrule it, and the orchestrator does not flip it for either party.
+3. **Act on the reconciled verdict.** If the reviewer flipped to `ok`, the gate proceeds as
+   *both `ok`* in §3 (the dispute is resolved in the developer's favour, on the reviewer's
+   own authority). If the reviewer held `needs-changes`, fall through to §4 with the
+   (possibly narrowed) notes — the dispute is resolved in the reviewer's favour, and the
+   normal rework/cap path takes over.
+
+**Bounded to one exchange per unit.** Reconciliation runs **at most once per unit**, on the
+**first** `needs-changes` the reviewer returns. Track it with a per-unit
+`reconciled` flag (starts `false`, set `true` after the exchange). A second or later
+`needs-changes` skips §3.5 entirely and goes straight to §4 — there is no second debate, no
+unbounded loop. The reconcile turn and the reviewer's reconsideration are **not** rework
+rounds: they do **not** increment `gate_round` (§4). Only an actual developer re-dispatch to
+*change the diff* spends a round.
+
+> **Why this preserves who-decides-what.** The seam is **two-way** — the developer can talk
+> back to a verdict it believes is wrong, once — but it **removes no boundary**: the
+> reviewer still owns the verdict (it is never forced to flip), the developer still owns
+> only the *how* (it states its case but never self-marks or merges), and the PO still owns
+> the escalation that follows an unresolved `needs-changes` (via the §4 cap → `blocked`).
+> The whole exchange is logged on the two specialists' own work-log comments, so it is
+> inspectable. (Cross-checked against `skills/scrum/references/accountabilities.md`: the
+> reviewer judges, the developer owns the *how*, the scrum-master acts on the verdict, the
+> PO resolves true escalations — none of those move here.)
 
 ## 4. Enforce the 2-round hard cap
 
@@ -168,7 +225,8 @@ Return one of:
 
 - **`ok`** — continue to dispatch.md step 6. Carry any `untestable:` items forward for
   the handoff brief.
-- **`needs-changes`** — return combined rework notes; dispatch.md re-enters its step 3
+- **`needs-changes`** — return combined rework notes (after the §3.5 reconciliation has
+  run, if this was the first contested verdict); dispatch.md re-enters its step 3
   (resolved-specialist dispatch) with those notes prepended, then re-enters this skill.
   `gate_round` has been incremented.
 - **`blocked`** — the 2-round cap is exhausted; return accumulated notes. dispatch.md

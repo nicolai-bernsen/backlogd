@@ -93,7 +93,8 @@ and **stop**.
 
 ## 3. Make it executable
 
-A problem is *execution-ready* when its **description** carries a clear spec and a
+A problem is *execution-ready* when its **description** carries a clear spec, a
+single-sentence `## Goal` (the coherent objective every role reads), and a
 `## Acceptance Criteria` section — the canonical signal `/backlogd:solve` looks for to know a
 problem is already shaped — **and** it clears the
 [**Definition of Ready**](../docs/scrum/definition-of-ready.md): the front-of-scope entry
@@ -109,8 +110,14 @@ handing it the problem as an **inline** context envelope. The refiner owns the *
 (writing the spec + AC into the description, proposing a decomposition); you own all
 structure and state writes that follow.
 
-> Shape this problem. Draft a spec + `## Acceptance Criteria` into its description,
-> propose a decomposition, and report your proposal and any genuine ambiguities. AC
+> Shape this problem. Draft a spec, a single-sentence `## Goal`, and
+> `## Acceptance Criteria` into its description, propose a decomposition, and report your
+> proposal and any genuine ambiguities. Write the `## Goal` as **one sentence** stating the
+> coherent objective the work serves (the *why* the developer, tester, and reviewer all
+> reason against), positioned **immediately above `## Acceptance Criteria`**. **You author
+> the Goal's wording from the problem you were handed; the scrum-master never substitutes
+> its own product intent.** If the problem's "why" is genuinely unclear, surface it as an
+> ambiguity rather than inventing an objective. AC
 > items may carry an optional kind prefix — `[test]` / `[manual]` / `[review]` —
 > immediately after the checkbox; untagged defaults to `[review]` (backwards
 > compatible). Load `skills/ac/SKILL.md` for the grammar and per-kind rules. Prefer the
@@ -349,6 +356,7 @@ Show what you shaped so it is visible in the transcript:
 
 ```text
 Shaped: {identifier} — {title}
+  goal                 -> "{the single-sentence ## Goal the refiner wrote}"
   acceptance criteria  -> {n} written
   decomposition        -> single issue | {n} sub-issues (blocked-by wired) | promoted to Project "{name}" ({n} issues, {m} milestones)
   route                -> standard (code → worktree + PR) | ops-only (kind:ops, no PR)

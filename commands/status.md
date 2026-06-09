@@ -21,8 +21,10 @@ connected, stop and ask the user to enable it (see the README "Setup" section).
 > `blocked` label (via `skills/linear/blocked-label.md`) and the `manual-pending` label (via
 > `skills/linear/manual-pending-label.md`), both in step 3 below; and (b)
 > `save_project(description: …)` in step 4 that refreshes the `## 📊 Forecast` block in place
-> on the engagement Project. All are idempotent; the console standup output stays exactly as
-> it is today. Resolve workflow
+> on the engagement Project. All are idempotent. The lighter positive signal in step 4f is a
+> pure **read** of the local execution graph (`scripts/graph.py report --json`, no network,
+> no write — it never writes the graph) that prints at most one extra console line; it adds
+> no `save_*` write. Resolve workflow
 > states by `type`, never by display name (see `skills/linear/references/linear-mcp.md`). Page
 > narrowly (filter by `label` / `state` / `parentId`, keep `limit` modest).
 >
@@ -225,6 +227,48 @@ Forecast: velocity 0.0/day, queue 7 (2 in-flight + 5 backlog), 0 stalled — ins
 The console row and the Linear block must **always carry the same numbers** — render them
 from the same computed values, never re-derive them.
 
+### 4f. Print a lighter data-derived positive signal (gated)
+
+The standup carries a **light, data-derived positive signal** — *what the team did well*,
+the standup-scale echo of the retro's positive synthesis. The **retro is the primary home**
+for "what went well"; status is the **lighter touch** by design, so this is **gated**, not
+emitted on every standup:
+
+- **Default — emit only on real signal.** Print the positive line **when there is genuine
+  signal** — a milestone just closed in scope, or the graph shows a standout positive (a
+  clean-gate streak, a notable parallel run). On a routine standup with nothing notable,
+  **print nothing** — silence is correct, so the signal is not noise. *(The PO may widen
+  this — e.g. "show it every standup" — but the shipped default is signal-gated; retro
+  stays the primary home.)*
+- **Read it off the execution graph — a pure local read.** Run
+  `python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" report --json` (the **same** reducer
+  surface `/backlogd:retro` reads — never re-derive the math; this is a read, no write).
+  Pick **one** standout positive from its keys: a low/zero `rework.rate` (a clean gate —
+  work not bouncing from review), a high `dispatches.solved` share (low
+  `partial_rate`/`blocked_rate`), `fanout.parallel_runs`/`parallel_rate` (units run in
+  parallel), or a fast `dispatch_to_pr_ms.p50`.
+- **Cite the metric — no ungrounded praise.** The line **names the metric behind it**, the
+  same data-grounded discipline the retro holds. "Bright spot: rework 0% (0/6 problems) this
+  week" is a claim; "team's doing great" is not and must not be printed.
+- **Sparse graph → lean on Linear or stay silent; never fabricate.** When `report --json`
+  is sparse (`None` percentiles, zero counts), either lean on the Linear evidence already
+  gathered (e.g. "N problems closed this week with no send-backs") and say it leans on
+  Linear, or — if there is no real signal — **print nothing**. A `None` metric is never
+  rendered as an invented win.
+
+The line, when printed, sits with the standup output:
+
+```text
+Bright spot: rework 0% (0/6 problems) this week — clean gate.   (or "3 of 5 units ran in parallel"; omitted entirely when there is no real signal)
+```
+
+> **Loosens no boundary** (cross-cutting invariant — `skills/scrum/references/accountabilities.md`):
+> this is the scrum-master *narrating observed execution data* in its standup role. It does
+> not let the reviewer self-mark (the reviewer is not consulted; the graph is read), does
+> not convert any gate into self-congratulation (`status` runs no gate), and never claims
+> credit for a product call (it narrates execution metrics — rework, parallelism, latency —
+> not "we built the right thing", the PO's to judge).
+
 ### Block-replacement rules
 
 The orchestrator's runtime must follow this exact algorithm so re-runs are idempotent:
@@ -269,6 +313,7 @@ Needs your attention ({n})
   …                                  (or "Nothing blocked — all moving." if none)
 
 Forecast: velocity {v}/day, queue {q} ({if} in-flight + {bl} backlog), ETA {eta}, {st} stalled
+Bright spot: {one cited positive signal from §4f}   (line omitted entirely when there is no real signal)
 
 Standup ({n} active problems)
   {identifier} — {title}   [{state}]   {x/y units done | milestone %}
@@ -278,7 +323,9 @@ Standup ({n} active problems)
 ```
 
 Group problems under their engagement (Initiative) or Project where promoted. Keep it
-scannable — this is a glance, not a dump.
+scannable — this is a glance, not a dump. The `Bright spot:` line (§4f) is **gated** — it
+prints only on real signal (a milestone just closed, or a standout graph positive) and is
+omitted entirely on a routine standup, so the glance stays a glance.
 
 ## 6. Stop
 

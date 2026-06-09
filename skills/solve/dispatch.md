@@ -140,12 +140,16 @@ each unit in `blocked-by` order):
    Then call the **resolved subagent** (`$AGENT` from step 2 — `developer` or
    `developer-<suffix>`) with the Agent tool, handing it the unit as a **curated-context
    inline** envelope. **Inline this unit's own issue context verbatim** — its title, its
-   **full** description, and its `## Acceptance Criteria` exactly as they read in Linear —
-   under a clearly-labeled `## Issue context` block, and include the unit's **issue id** so
-   the developer can post its own progress there. Reuse the `get_issue` result you already
-   have from pickup/identity (the NB-318 identity cache) rather than re-fetching. The
-   developer reads its spec from this envelope; it owns the *how*, you own all structure and
-   state:
+   **full** description (which carries the single-sentence `## Goal` and the
+   `## Acceptance Criteria`), exactly as they read in Linear — under a clearly-labeled
+   `## Issue context` block, and include the unit's **issue id** so the developer can post
+   its own progress there. Because the description is inlined verbatim, the unit's `## Goal`
+   (the coherent objective the work serves) travels with the AC — so the developer, the
+   tester, and the reviewer all read the **same "why"**, not just the AC. Do not trim or
+   summarise the `## Goal` out; it is part of the verbatim description. Reuse the `get_issue`
+   result you already have from pickup/identity (the NB-318 identity cache) rather than
+   re-fetching. The developer reads its spec from this envelope; it owns the *how*, you own
+   all structure and state:
 
    > Solve this problem. Take a concrete action toward resolving it, post your progress to
    > your issue (the `**[backlogd developer]**` comment, edited in place), then report what
@@ -192,6 +196,10 @@ each unit in `blocked-by` order):
        Today /backlogd:status appends a fresh 7-day forecast to the Project description on
        every run, so the description grows without bound.
 
+       ## Goal
+
+       The status forecast stays a single, current block the PO can trust at a glance.
+
        ## Acceptance Criteria
 
        - [ ] The forecast block is replaced in place (matched by a stable marker), not appended.
@@ -212,9 +220,9 @@ each unit in `blocked-by` order):
    could not run, enumerated for the gate; `none` if it ran everything — see
    `agents/developer.md` → *The `Deferred-checks:` line*). **In a parallel group, do not
    abort sibling dispatches when one returns a non-terminal `STATUS`
-   (`BLOCKED`/`NEEDS_CONTEXT`) — let every dispatch in the group finish, then process each
-   per step 7 below.** (See `skills/solve/walk.md` § "Dispatch a parallel group" for the
-   wait-and-collect contract.)
+   (`BLOCKED`/`NEEDS_CONTEXT`/`DISPUTES_AC`) — let every dispatch in the group finish, then
+   process each per step 7 below.** (See `skills/solve/walk.md` § "Dispatch a parallel
+   group" for the wait-and-collect contract.)
 
 5. **Confirm its record** — the developer posts its own progress/result comment on the
    unit issue (the `**[backlogd developer]**` comment). Verify it landed; do **not**
@@ -237,9 +245,9 @@ each unit in `blocked-by` order):
 6. **Record dispatch completion on the graph** — write the per-unit outcome with the
    latency the CLI derives automatically from the `dispatch_started` edge above
    (best-effort — never block the loop). The graph keeps a coarse `{solved|partial|blocked}`
-   vocabulary, so **fold the developer's four-value `STATUS` onto it** per
+   vocabulary, so **fold the developer's five-value `STATUS` onto it** per
    `skills/solve/capture.md` (`DONE`/`DONE_WITH_CONCERNS` → `solved`; `BLOCKED`/
-   `NEEDS_CONTEXT` → `blocked`):
+   `NEEDS_CONTEXT`/`DISPUTES_AC` → `blocked`):
 
        python "${CLAUDE_PLUGIN_ROOT:-.}/scripts/graph.py" dispatch-end \
            --session "$SESSION" --problem {identifier} \
@@ -247,7 +255,7 @@ each unit in `blocked-by` order):
 
 7. **Transition the unit by its `STATUS`** → **`skills/solve/capture.md`**. Load it; it
    owns the deterministic branch. Read the **first line** of the developer's captured
-   report (the `STATUS:` line), match it against the four-value enum **mechanically** (no
+   report (the `STATUS:` line), match it against the five-value enum **mechanically** (no
    prose-heuristic parsing of the body), and follow `capture.md`'s branch table:
    - `DONE` / `DONE_WITH_CONCERNS` → move the unit to a `completed` state (the increment is
      mergeable-pending-review). For `DONE_WITH_CONCERNS`, **carry the developer's
@@ -259,20 +267,27 @@ each unit in `blocked-by` order):
      as a **Linear comment** on the unit for the PO to fill (the orchestrator's
      `**[backlogd]**` comment, distinct from the developer's work-log comment); **do not
      re-dispatch** the specialist — the spec must change first.
+   - `DISPUTES_AC` → **leave it in progress** and log the developer's `Disputed-AC:`
+     challenge as a **Linear comment** on the unit, addressed to scope / the PO who own the
+     AC (the orchestrator's `**[backlogd]**` comment, distinct from the developer's work-log
+     comment); **do not re-dispatch** the specialist and **do not edit the AC yourself** —
+     the AC owner keeps or sharpens the AC first. See `capture.md` → *`DISPUTES_AC`* for the
+     boundary (the developer only emits the challenge; it never sets state, overrules scope,
+     or merges).
    - A malformed/missing STATUS first line → treat as `BLOCKED` for safety and surface the
      malformed contract to the PO (see `capture.md` → *Malformed STATUS*).
 
    **Stop conditions are unchanged in shape, only keyed off STATUS now.** On `DONE` /
-   `DONE_WITH_CONCERNS` continue the loop. On `BLOCKED` / `NEEDS_CONTEXT`: **in a
-   sequential single-unit group** stop the run immediately; **in a parallel group** still
-   capture/transition this unit, but let the sibling dispatches in the group finish first —
-   once every dispatch in the group has returned and been transitioned (and after the
-   walk's collect step in `skills/solve/walk.md`), stop the run if any unit in the group
-   returned `BLOCKED` / `NEEDS_CONTEXT`. Never start the next parallel group on a
-   non-terminal STATUS (`BLOCKED` / `NEEDS_CONTEXT`).
+   `DONE_WITH_CONCERNS` continue the loop. On `BLOCKED` / `NEEDS_CONTEXT` / `DISPUTES_AC`:
+   **in a sequential single-unit group** stop the run immediately; **in a parallel group**
+   still capture/transition this unit, but let the sibling dispatches in the group finish
+   first — once every dispatch in the group has returned and been transitioned (and after
+   the walk's collect step in `skills/solve/walk.md`), stop the run if any unit in the group
+   returned `BLOCKED` / `NEEDS_CONTEXT` / `DISPUTES_AC`. Never start the next parallel group
+   on a non-terminal STATUS (`BLOCKED` / `NEEDS_CONTEXT` / `DISPUTES_AC`).
 
-   On a **Project-form** run, when a unit returns `BLOCKED` or `NEEDS_CONTEXT`, post a
-   project-thread health update with marker `blocked` per
+   On a **Project-form** run, when a unit returns `BLOCKED` or `NEEDS_CONTEXT` or
+   `DISPUTES_AC`, post a project-thread health update with marker `blocked` per
    **`skills/linear/references/documents-and-updates.md` § "Project health updates"** —
    health is `at risk` for a single blocker / first stall, `off track` when multiple
    blockers are open or rework is repeating (the derivation rules in that reference are

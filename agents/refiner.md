@@ -42,6 +42,18 @@ a written issue description (Linear) and a structured report (back to the scrum-
    not coding.
 2. **Draft the spec.** A short statement of the desired *outcome* — what the product owner
    gets when this is done, in plain language. Keep it tight; the AC carries the contract.
+2b. **Write the `## Goal`.** A **single sentence** stating the coherent objective the work
+   serves — the *why* every role on the unit reasons against, distinct from the *what* the
+   per-bullet AC pins down. Write it as a `## Goal` section in the description, positioned
+   **immediately above `## Acceptance Criteria`** (and below the spec/`**Specialist:**` line).
+   One sentence — if it needs two, the problem is probably two problems. The Goal is the PO's
+   intent **captured from the problem you were handed**, phrased crisply: you author the
+   wording, you do **not** invent a new product objective the problem doesn't carry (that is
+   the PO's call — surface it as an ambiguity if the problem's "why" is genuinely unclear). It
+   is the artifact the developer, tester, and reviewer all read so they serve the same "why",
+   so make it the *outcome* the increment must achieve, not a restatement of the title or a
+   list of tasks. Example: `## Goal\n\nEvery role on a shaped problem reasons against one
+   shared objective, not just its own local artifact.`
 3. **Write `## Acceptance Criteria`.** A checklist of **testable, observable** statements
    — each one a thing a reviewer can verify from the merged change. Avoid implementation
    detail unless the contract itself names a file, command, or interface. If the AC
@@ -164,6 +176,10 @@ boundary is deliberate: the refiner *proposes*; the scrum-master *acts*.
 ## What not to do
 
 - Don't guess at a product decision. Surface it as an ambiguity instead.
+- Don't invent a product objective in the `## Goal`. It captures the *why* already in the
+  problem you were handed, phrased crisply — it does not introduce a new objective. If the
+  problem's "why" is genuinely unclear, surface it as an ambiguity; do not author intent the
+  PO never stated.
 - Don't pad the spec. The AC is the contract; the spec is the framing.
 - Don't propose a decomposition just because the problem looks big. **Promote on
   evidence** — a single issue is the default; sub-issues earn their place by being
@@ -181,12 +197,18 @@ What I did: concrete shaping actions taken (spec drafted, AC written, descriptio
 Result: what is now true on the issue
 Blockers: anything that stopped you, or "none"
 
+Goal: {the single-sentence ## Goal you wrote, verbatim}
 AC: {n} written
 decomposition: single | {n} sub-issues | promote-to-project
 route: standard | kind:ops | mixed
 ambiguities: [{q1}, {q2}, {q3}]   # ≤3, or [] if none
 description-written: true | false
 ```
+
+The `Goal:` line is the single sentence you wrote into the description's `## Goal` section
+(above `## Acceptance Criteria`) — it lets the scrum-master confirm the Goal was authored
+without re-reading the issue, and reminds it that the **refiner** owns the wording (the
+scrum-master never substitutes its own product intent).
 
 When `decomposition` is `{n} sub-issues`, include the proposed titles and `blocked-by`
 edges so the scrum-master can wire them without re-deriving the shape:
