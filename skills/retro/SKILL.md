@@ -139,6 +139,58 @@ Two discipline rules hold the output honest:
   split: the reviewer judges and the scrum-master acts; the retro proposes and the PO
   prioritizes.
 
+### 5. Positive synthesis — what the team did well, data-derived and cited
+
+Properties 1–4 are pure *gating*: patterns, gaps, rework, blockers — all negative
+valence. But cohesion is also **what the team did well and how it is improving over the
+scope**, and a retrospective that narrates only failure is half a retrospective. This is
+where the *team that plays together* feeling lives for the watching PO. So the retro also
+narrates a **positive synthesis** — and it is held to the **same data-grounded discipline
+as everything else here**: it is the scrum-master narrating *observed graph data*, not
+invented praise.
+
+**Derive it from the same `report --json` you already read (property 2) — do not invent a
+metric, and never re-derive the math.** The positive signals are already top-level keys of
+that JSON; read them, do not recompute them:
+
+| Positive signal | Read it from | What it shows the PO |
+| --- | --- | --- |
+| **Clean-gate streak** | `rework.rate` low/zero (`problems_with_rework`/`problems`) | work landing right the first time, not bouncing from review |
+| **High solved share** | `dispatches.solved` vs `total` (low `partial_rate`/`blocked_rate`) | units finishing cleanly, few partials/blocks |
+| **Faster dispatch→PR** | `dispatch_to_pr_ms.p50` (lower than a prior scope, when comparable) | the loop getting quicker to a PR |
+| **The team working in parallel** | `fanout.parallel_runs` / `parallel_rate` | literally the team *playing together* — independent units run concurrently |
+| **A clean area** | `by_area` row with high `dispatches`, zero/low `blocked`+`rework` | an area of work that ran smoothly this scope |
+
+Three discipline rules hold the synthesis honest — they are the positive-valence twin of
+the no-flood and no-self-marking rules above:
+
+- **Every positive claim cites its evidence — no ungrounded praise.** Each "did well" line
+  names the graph metric (or the specific Linear evidence) behind it, exactly as a filed
+  candidate must cite its evidence. "Rework fell to 0% (0/6 problems)" is a claim; "the
+  team did great" is not. An uncited positive line is indistinguishable from flattery and
+  must not be written.
+- **Improvement is a *delta*, claimed only when comparable.** "How it is improving" needs
+  two points — this scope vs a prior one. Only claim a trend (falling rework, faster
+  dispatch→PR) when you actually have the prior figure to compare against; otherwise state
+  the level as a level ("rework was 0% this scope"), not a trend. Never invent a baseline.
+- **Sparse graph → lean on Linear and say so; never fabricate.** On a sparse/empty store
+  (`None` percentiles, zero counts) the positive synthesis leans on the Linear evidence it
+  can read directly — problems that closed without returning from *In Review* (a clean
+  gate), units solved on the first dispatch — and **says** "sparse graph — positives from
+  Linear evidence", exactly as the negative side does. A `None` metric is "—", never a
+  fabricated win.
+
+**This synthesis loosens no boundary.** It is the scrum-master *narrating observed data*,
+which is squarely the scrum-master's standup/inspection role (`skills/scrum/references/accountabilities.md`).
+It does **not** let the reviewer self-mark (the reviewer never appears here; the retro
+reads the graph the loop recorded), it does **not** convert the gate into
+self-congratulation (the gate is `/backlogd:review` per problem; the retro is a batch
+*reader*, not a gate, and files no pass/fail), and it does **not** let the scrum-master
+claim credit for a product call (it narrates *execution* metrics — rework, latency,
+parallelism — never "we built the right thing", which is the PO's to judge). Positive and
+negative synthesis are the same act under the same discipline: observe the data, cite it,
+do not invent.
+
 ## The candidate improvement issue — exact shape
 
 Each filed candidate is a normal Linear issue, created via the `linear` skill's key-free
@@ -196,6 +248,10 @@ Problems in scope: <n> closed.
 Graph signal: rework <r>% (<rw>/<p>), partial <pa>%, blocked <bl>%, dispatch→PR p50 <ms>.
   (or: "Sparse graph — leaned on Linear evidence: <what>.")
 
+What went well
+- <positive synthesis line, each citing its graph/Linear evidence — e.g. "Clean gate: rework 0% (0/6) this scope" / "<k> of <n> units ran in parallel (fanout p50 <f>)" / "dispatch→PR p50 fell to <ms> from <prior>">
+- …   (or "Sparse graph — positives from Linear evidence: <what>." / "—" when there is no real signal)
+
 Patterns detected
 - <pattern> → <recurring failure → ADR | process problem → bug> → filed <NB-N>
 - …
@@ -207,6 +263,11 @@ Filed for prioritization: <NB-N>, <NB-M>, …   (or "none — nothing load-beari
 
 <!-- marker: retro:<milestone-name | cycle-N | since-<date> | last-N> -->
 ```
+
+The **What went well** block is the positive synthesis (property 5): each line cites the
+graph metric (or the Linear evidence on a sparse store) behind it — no ungrounded praise.
+It sits **above** the patterns/gaps so the PO reads what the team did well before what it
+must fix; on a scope with no real positive signal it renders a single "—", never invented.
 
 The trailing `<!-- marker: retro:<scope> -->` is the dedupe key on **both** paths: on a
 re-run over the same scope, `list_comments({ milestoneId })` (milestone scope) or
